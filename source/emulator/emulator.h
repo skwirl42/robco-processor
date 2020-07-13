@@ -1,6 +1,10 @@
 #ifndef __EMULATOR_H__
 #define __EMULATOR_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #include "memory.h"
@@ -49,6 +53,15 @@ typedef struct _emulator
 
 error_t init_emulator(emulator *emulator, arch_t architecture);
 inst_result_t execute_instruction(emulator *emulator);
+uint16_t pull_word(emulator *emulator);
+uint8_t pull_byte(emulator *emulator);
+void push_word(emulator *emulator, uint16_t word);
+void push_byte(emulator *emulator, uint8_t byte);
+void pop_bytes(emulator *emulator, uint16_t byte_count);
 error_t dispose_emulator(emulator *emulator);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __EMULATOR_H__

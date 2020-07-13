@@ -1,11 +1,7 @@
 #include "ConsoleSDLRenderer.h"
 #include "Console.h"
-
-extern "C"
-{
-    #include "emulator.h"
-    #include "syscall.h"
-}
+#include "emulator.h"
+#include "syscall.h"
 
 #include <SDL2/SDL.h>
 #include <stdio.h>
@@ -117,28 +113,6 @@ int main (int argc, char **argv)
     if (renderer != nullptr)
     {
 		Console console(60, 24);
-		console.SetCursor(0, 0);
-		console.SetCurrentAttribute(CharacterAttribute::Inverted);
-		console.PrintLine("Testing the console functionality");
-		console.SetCurrentAttribute(CharacterAttribute::None);
-		console.PrintLine("THE QUICK BROWN FOX JUMPED OVER THE LAZY DOG");
-		console.PrintLine("the quick brown fox jumped over the lazy dog");
-		console.PrintLine("01234567890123456789");
-		console.PrintLine("!@#$%^&*()_+-=[]{}\\/|,.<>?;:\"'");
-		console.PrintLine("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed");
-		console.PrintLine("do eiusmod tempor incididunt ut labore et dolore magna");
-		console.PrintLine("aliqua. Ut enim ad minim veniam, quis nostrud exercitation");
-		console.PrintLine("ullamco laboris nisi ut aliquip ex ea commodo consequat.");
-		console.PrintLine("Duis aute irure dolor in reprehenderit in voluptate velit");
-		console.PrintLine("esse cillum dolore eu fugiat nulla pariatur. Excepteur sint");
-		console.PrintLine("occaecat cupidatat non proident, sunt in culpa qui officia");
-		console.PrintLine("deserunt mollit anim id est laborum.");
-
-		int cursorX;
-		int cursorY;
-		console.GetCursor(cursorX, cursorY);
-		console.SetChar(cursorX, cursorY, '*');
-
         bool done = false;
         bool emulate = true;
         SDL_Event event;

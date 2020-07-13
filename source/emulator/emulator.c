@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+typedef union
+{
+    uint16_t word;
+    uint8_t bytes[2];
+} emulator_word_t;
+
 error_t init_emulator(emulator *emulator, arch_t architecture)
 {
     if (emulator == USER_ADDR_NULL)
@@ -78,7 +84,7 @@ inst_result_t execute_instruction(emulator *emulator)
     uint8_t acc8_valid = 0;
     int16_t acc16;
     uint8_t acc16_valid = 0;
-    printf("Executing opcode 0x%02x at address 0x%04x\n", opcode, emulator->PC);
+    // printf("Executing opcode 0x%02x at address 0x%04x\n", opcode, emulator->PC);
     switch (opcode)
     {
         case INST_ADD:
@@ -324,6 +330,42 @@ inst_result_t execute_instruction(emulator *emulator)
     }
 
     return result;
+}
+
+uint16_t pull_word(emulator *emulator)
+{
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.data[emulator->SP];
+    value.bytes[0] = emulator->memories.data[emulator->SP+1];
+    emulator->SP += 2;
+    return value.word;
+}
+
+uint8_t pull_byte(emulator *emulator)
+{
+    uint8_t value = emulator->memories.data[emulator->SP];
+    emulator->SP++;
+    return value;
+}
+
+void push_word(emulator *emulator, uint16_t word)
+{
+    emulator->SP -= 2;
+    emulator_word_t emWord;
+    emWord.word = word;
+    emulator->memories.data[emulator->SP] = emWord.bytes[1];
+    emulator->memories.data[emulator->SP + 1] = emWord.bytes[0];
+}
+
+void push_byte(emulator *emulator, uint8_t byte)
+{
+    emulator->SP--;
+    emulator->memories.data[emulator->SP] = byte;
+}
+
+void pop_bytes(emulator *emulator, uint16_t byte_count)
+{
+    emulator->SP += byte_count;
 }
 
 error_t dispose_emulator(emulator *emulator)

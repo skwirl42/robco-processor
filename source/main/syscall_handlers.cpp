@@ -1,79 +1,36 @@
 #include "syscall_handlers.h"
 #include "syscall.h"
 
-typedef union
-{
-    uint16_t word;
-    uint8_t bytes[2];
-} emulator_word;
-
-emulator_word get_top_word(emulator &emulator)
-{
-    emulator_word value;
-    value.bytes[1] = emulator.memories.data[emulator.SP];
-    value.bytes[0] = emulator.memories.data[emulator.SP+1];
-    return value;
-}
-
-emulator_word pull_word(emulator &emulator)
-{
-    emulator_word value;
-    value.bytes[1] = emulator.memories.data[emulator.SP];
-    value.bytes[0] = emulator.memories.data[emulator.SP+1];
-    emulator.SP += 2;
-    return value;
-}
-
-char pull_char(emulator &emulator)
-{
-    char value = emulator.memories.data[emulator.SP];
-    emulator.SP++;
-    return value;
-}
-
-void push_word(emulator &emulator, emulator_word word)
-{
-    emulator.SP -= 2;
-    emulator.memories.data[emulator.SP] = word.bytes[1];
-    emulator.memories.data[emulator.SP + 1] = word.bytes[0];
-}
-
-void push_char(emulator &emulator, char character)
-{
-    emulator.SP--;
-    emulator.memories.data[emulator.SP] = (uint8_t)character;
-}
-
 void handle_syscall_setcursor(emulator &emulator, Console &console)
 {
-    auto cursorY = pull_word(emulator);
-    auto cursorX = pull_word(emulator);
-    if (console.SetCursor(cursorX.word, cursorY.word))
+    auto cursorY = pull_word(&emulator);
+    auto cursorX = pull_word(&emulator);
+    if (console.SetCursor(cursorX, cursorY))
     {
-        push_char(emulator, 0);
+        push_byte(&emulator, 0);
     }
     else
     {
-        push_char(emulator, -1);
+        push_byte(&emulator, 255);
     }
 }
 
 void handle_syscall_setch(emulator &emulator, Console &console)
 {
-    char character = pull_char(emulator);
+    char character = pull_byte(&emulator);
     console.PrintChar(character);
 }
 
 void handle_syscall_print(emulator &emulator, Console &console)
 {
-    emulator_word stringSize = pull_word(emulator);
+    uint16_t stringSize = pull_word(&emulator);
     bool newline = false;
-    char *string = new char[stringSize.word + 1];
-    uint16_t stringEnd = emulator.SP + 1;
-    uint16_t stringPos = emulator.SP + 1 + stringSize.word;
+    char *string = new char[stringSize + 1];
+    uint16_t stringEnd = emulator.SP;
+    int stringPos = (int)emulator.SP + (int)stringSize - 1;
     char currentChar;
     int x;
-    for (x = 0; stringPos > stringEnd; stringPos--)
+    for (x = 0; stringPos >= stringEnd; stringPos--)
     {
         // Discard non-printables
         currentChar = emulator.memories.data[stringPos];
@@ -100,28 +57,26 @@ void handle_syscall_print(emulator &emulator, Console &console)
     }
 
     // Drop the string off the stack
-    emulator.SP += stringSize.word;
+    pop_bytes(&emulator, stringSize);
 
     delete [] string;
 }
 
 void handle_syscall_setattrc(emulator &emulator, Console &console)
 {
-    emulator_word attribute = get_top_word(emulator);
-    console.SetAttributeAtCursor((CharacterAttribute)attribute.word);
-    emulator.SP += 2;
+    auto attribute = pull_word(&emulator);
+    console.SetAttributeAtCursor((CharacterAttribute)attribute);
 }
 
 void handle_syscall_setattr(emulator &emulator, Console &console)
 {
-    emulator_word attribute = get_top_word(emulator);
-    console.SetCurrentAttribute((CharacterAttribute)attribute.word);
-    emulator.SP += 2;
+    auto attribute = pull_word(&emulator);
+    console.SetCurrentAttribute((CharacterAttribute)attribute);
 }
 
 void handle_syscall_getch(emulator &emulator, Console &console)
 {
-    auto isBlocking = pull_char(emulator);
+    auto isBlocking = pull_byte(&emulator);
 }
 
 void handle_current_syscall(emulator &emulator, Console &console)
