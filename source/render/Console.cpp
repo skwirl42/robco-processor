@@ -1,6 +1,7 @@
 #include "Console.h"
 
 #include <cstring>
+#include <functional>
 #include <stdio.h>
 
 Console::Console(int width, int height) : buffer(nullptr), attributeBuffer(nullptr)
@@ -132,7 +133,7 @@ CharacterAttribute Console::GetAttribute(int x, int y)
 	return attributeBuffer[y * width + x];
 }
 
-void Console::Visit(std::function<void(int x, int y, char character, CharacterAttribute attribute)> visitor)
+void Console::Visit(std::function<void(int, int, char, CharacterAttribute)> visitor)
 {
 	for (int y = 0; y < height; y++)
 	{

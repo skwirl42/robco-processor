@@ -36,7 +36,7 @@ public:
 
 	void Clear();
 
-	void Visit(std::function<void(int x, int y, char character, CharacterAttribute attribute)> visitor);
+	void Visit(std::function<void(int, int, char, CharacterAttribute)> visitor);
 
 private:
 	void Reset();

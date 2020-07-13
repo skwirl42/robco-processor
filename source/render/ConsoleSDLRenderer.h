@@ -11,7 +11,8 @@ struct SDL_Texture;
 class ConsoleSDLRenderer
 {
 public:
-    ConsoleSDLRenderer(const char *fontFilename, int width, int height, uint32_t foregroundColour, uint32_t backgroundColour, int cursorBlinkFrames);
+    ConsoleSDLRenderer(const char *fontFilename, int width, int height, uint32_t foregroundColour, uint32_t backgroundColour, uint16_t fontCharsWide, uint16_t fontCharsHigh, int cursorBlinkFrames);
+    ~ConsoleSDLRenderer();
 
 	void Clear();
 	void SetColours(uint32_t foregroundColour, uint32_t backgroundColour);
@@ -32,6 +33,12 @@ private:
     int height;
     uint32_t foregroundColour;
     uint32_t backgroundColour;
+	uint16_t fontBufferWidth;
+	uint16_t fontBufferHeight;
+	uint16_t fontCharsWide;
+	uint16_t fontCharsHigh;
+	uint16_t charPixelsWide;
+	uint16_t charPixelsHigh;
 	int cursorBlinkFrames;
     bool isValid;
 };
