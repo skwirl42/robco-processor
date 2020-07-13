@@ -11,26 +11,30 @@ extern "C"
 #include <stdio.h>
 #include <string.h>
 
+#include "syscall_handlers.h"
+
 uint8_t testCode[] =
 {
-    0x7f, 0x01, 0x06,
-    0x00, 0x48,
-    0x00, 0x65,
-    0x00, 0x6C,
-    0x00, 0x6C,
-    0x00, 0x6F,
-    0x00, 0x20,
-    0x00, 0x77,
-    0x00, 0x6F,
-    0x00, 0x72,
-    0x00, 0x6C,
-    0x00, 0x64,
-    0x00, 0x21,
-    0x00, 0x0D,
-    0x00, 0x0A,
-    0x20, 0x00, 0x0E,
-    0x7f, 0x01, 0x02,
-    0x60, 0xFF, 0xDE
+    // start:
+    0x7f, 0x01, 0x06, // syscall clear
+    // loop:
+    0x00, 0x48, // push H
+    0x00, 0x65, // push e
+    0x00, 0x6C, // push l
+    0x00, 0x6C, // push l
+    0x00, 0x6F, // push o
+    0x00, 0x20, // push ' '
+    0x00, 0x77, // push w
+    0x00, 0x6F, // push o
+    0x00, 0x72, // push r
+    0x00, 0x6C, // push l
+    0x00, 0x64, // push d
+    0x00, 0x21, // push !
+    0x00, 0x0D, // push \r
+    0x00, 0x0A, // push \n
+    0x20, 0x00, 0x0E, // push 14
+    0x7f, 0x01, 0x02, // syscall print
+    0x60, 0xFF, 0xDE  // b loop
 };
 
 int mod(int a, int b)
@@ -78,49 +82,6 @@ bool handle_key(SDL_Keycode keycode, Console &console)
     }
 
     return done;
-}
-
-typedef union
-{
-    uint16_t word;
-    uint8_t bytes[2];
-} emulator_word;
-
-void handle_syscall_print(emulator &emulator, Console &console)
-{
-    emulator_word stringSize;
-    stringSize.bytes[1] = emulator.memories.data[emulator.SP];
-    stringSize.bytes[0] = emulator.memories.data[emulator.SP+1];
-    char *string = new char[stringSize.word + 1];
-    uint16_t stringEnd = emulator.SP + 1;
-    uint16_t stringPos = emulator.SP + 1 + stringSize.word;
-    for (int x = 0; stringPos > stringEnd; stringPos--, x++)
-    {
-        string[x] = emulator.memories.data[stringPos];
-    }
-
-    string[stringSize.word] = 0;
-    console.Print(string);
-
-    delete [] string;
-}
-
-void handle_syscall(emulator &emulator, Console &console)
-{
-    printf("Handling syscall 0x%04x\n", emulator.current_syscall);
-    switch (emulator.current_syscall)
-    {
-    case SYSCALL_CLEAR:
-        console.Clear();
-        break;
-
-    case SYSCALL_PRINT:
-        handle_syscall_print(emulator, console);
-        break;
-
-    default:
-        break;
-    }
 }
 
 int main (int argc, char **argv)
@@ -189,7 +150,7 @@ int main (int argc, char **argv)
                 auto result = execute_instruction(&rcEmulator);
                 if (result == EXECUTE_SYSCALL)
                 {
-                    handle_syscall(rcEmulator, console);
+                    handle_current_syscall(rcEmulator, console);
                 }
                 else if (result == ILLEGAL_INSTRUCTION)
                 {
@@ -213,6 +174,8 @@ int main (int argc, char **argv)
             renderer->Render(&console, frame++);
         }
     }
+
+    dispose_emulator(&rcEmulator);
 
     if (renderer != nullptr)
     {

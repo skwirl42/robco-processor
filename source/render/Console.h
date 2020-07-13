@@ -20,9 +20,10 @@ public:
 	void SetChar(int x, int y, char character);
 	char GetChar(int x, int y);
 
-	void SetCursor(int x, int y);
+	bool SetCursor(int x, int y);
 	void GetCursor(int &x, int &y);
 
+	void PrintChar(const char character);
 	void PrintLine(const char *text);
 	void Print(const char *text);
 	void PrintLineAt(const char *text, int x, int y);
@@ -31,6 +32,7 @@ public:
 	void NewLine(int afterLine);
 
 	void SetAttribute(CharacterAttribute attribute, int x, int y);
+	void SetAttributeAtCursor(CharacterAttribute attribute);
 	void SetCurrentAttribute(CharacterAttribute attribute);
 	CharacterAttribute GetAttribute(int x, int y);
 

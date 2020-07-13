@@ -24,7 +24,9 @@ void Console::SetChar(int x, int y, char character)
 		return;
 	}
 
-	buffer[y * width + x] = character;
+	int position = y * width + x;
+	buffer[position] = character;
+	attributeBuffer[position] = currentAttribute;
 }
 
 char Console::GetChar(int x, int y)
@@ -37,21 +39,48 @@ char Console::GetChar(int x, int y)
 	return buffer[y * width + x];
 }
 
-void Console::SetCursor(int x, int y)
+bool Console::SetCursor(int x, int y)
 {
 	if (x >= width || y >= height)
 	{
-		return;
+		return false;
 	}
 
 	cursorX = x;
 	cursorY = y;
+
+	return true;
 }
 
 void Console::GetCursor(int &x, int &y)
 {
 	x = cursorX;
 	y = cursorY;
+}
+
+void Console::PrintChar(const char character)
+{
+	if (character == '\n' || character == '\r')
+	{
+		NewLine(cursorY);
+		return;
+	}
+
+	int position = cursorY * width + cursorX;
+	buffer[position] = character;
+	attributeBuffer[position] = currentAttribute;
+	cursorX++;
+
+	if (cursorX >= width)
+	{
+		cursorX = 0;
+		cursorY++;
+	}
+
+	if (cursorY >= height)
+	{
+		cursorY = 0;
+	}
 }
 
 void Console::PrintLine(const char *text)
@@ -122,6 +151,11 @@ void Console::SetAttribute(CharacterAttribute attribute, int x, int y)
 	}
 
 	attributeBuffer[y * width + x] = attribute;
+}
+
+void Console::SetAttributeAtCursor(CharacterAttribute attribute)
+{
+	SetAttribute(attribute, cursorX, cursorY);
 }
 
 void Console::SetCurrentAttribute(CharacterAttribute attribute)
