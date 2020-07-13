@@ -100,6 +100,12 @@ void Console::PrintAt(const char *text, int x, int y)
 
 	cursorY = (finalPosition / width) % height;
 	cursorX = finalPosition % width;
+
+	auto lastChar = text[stringLength-1];
+	if (lastChar == '\n' || lastChar == '\r')
+	{
+		NewLine(cursorY);
+	}
 }
 
 void Console::NewLine(int afterLine)

@@ -1,8 +1,37 @@
 #include "ConsoleSDLRenderer.h"
 #include "Console.h"
 
+extern "C"
+{
+    #include "emulator.h"
+    #include "syscall.h"
+}
+
 #include <SDL2/SDL.h>
 #include <stdio.h>
+#include <string.h>
+
+uint8_t testCode[] =
+{
+    0x7f, 0x01, 0x06,
+    0x00, 0x48,
+    0x00, 0x65,
+    0x00, 0x6C,
+    0x00, 0x6C,
+    0x00, 0x6F,
+    0x00, 0x20,
+    0x00, 0x77,
+    0x00, 0x6F,
+    0x00, 0x72,
+    0x00, 0x6C,
+    0x00, 0x64,
+    0x00, 0x21,
+    0x00, 0x0D,
+    0x00, 0x0A,
+    0x20, 0x00, 0x0E,
+    0x7f, 0x01, 0x02,
+    0x60, 0xFF, 0xDE
+};
 
 int mod(int a, int b)
 {
@@ -51,8 +80,60 @@ bool handle_key(SDL_Keycode keycode, Console &console)
     return done;
 }
 
+typedef union
+{
+    uint16_t word;
+    uint8_t bytes[2];
+} emulator_word;
+
+void handle_syscall_print(emulator &emulator, Console &console)
+{
+    emulator_word stringSize;
+    stringSize.bytes[1] = emulator.memories.data[emulator.SP];
+    stringSize.bytes[0] = emulator.memories.data[emulator.SP+1];
+    char *string = new char[stringSize.word + 1];
+    uint16_t stringEnd = emulator.SP + 1;
+    uint16_t stringPos = emulator.SP + 1 + stringSize.word;
+    for (int x = 0; stringPos > stringEnd; stringPos--, x++)
+    {
+        string[x] = emulator.memories.data[stringPos];
+    }
+
+    string[stringSize.word] = 0;
+    console.Print(string);
+
+    delete [] string;
+}
+
+void handle_syscall(emulator &emulator, Console &console)
+{
+    printf("Handling syscall 0x%04x\n", emulator.current_syscall);
+    switch (emulator.current_syscall)
+    {
+    case SYSCALL_CLEAR:
+        console.Clear();
+        break;
+
+    case SYSCALL_PRINT:
+        handle_syscall_print(emulator, console);
+        break;
+
+    default:
+        break;
+    }
+}
+
 int main (int argc, char **argv)
 {
+    emulator rcEmulator;
+    if (init_emulator(&rcEmulator, ARCH_ORIGINAL) != NO_ERROR)
+    {
+        fprintf(stderr, "Emulator error\n");
+        return -1;
+    }
+
+    memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
+    
     auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     if (result != 0)
     {
@@ -96,12 +177,27 @@ int main (int argc, char **argv)
 		int cursorY;
 		console.GetCursor(cursorX, cursorY);
 		console.SetChar(cursorX, cursorY, '*');
-        
+
         bool done = false;
+        bool emulate = true;
         SDL_Event event;
         int frame = 0;
         while (!done)
         {
+            if (emulate)
+            {
+                auto result = execute_instruction(&rcEmulator);
+                if (result == EXECUTE_SYSCALL)
+                {
+                    handle_syscall(rcEmulator, console);
+                }
+                else if (result == ILLEGAL_INSTRUCTION)
+                {
+                    fprintf(stderr, "Emulation failed with an illegal instruction\n");
+                    emulate = false;
+                }
+            }
+
             if (SDL_WaitEventTimeout(&event, 30) != 0)
             {
                 if (event.type == SDL_QUIT)

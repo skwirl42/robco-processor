@@ -2,6 +2,8 @@
 #include "opcodes.h"
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 error_t init_emulator(emulator *emulator, arch_t architecture)
 {
@@ -76,16 +78,17 @@ inst_result_t execute_instruction(emulator *emulator)
     uint8_t acc8_valid = 0;
     int16_t acc16;
     uint8_t acc16_valid = 0;
+    printf("Executing opcode 0x%02x at address 0x%04x\n", opcode, emulator->PC);
     switch (opcode)
     {
-        case ADD:
+        case INST_ADD:
             stack_change = 1;
             acc8 = twos_8_stack[0] + twos_8_stack[1];
             acc8_valid = 1;
             // TODO: CC calculations
             break;
 
-        case ADD + SIZE_BIT:
+        case INST_ADD + SIZE_BIT:
             stack_change = 2;
             acc16 = twos_16_stack[0] + twos_16_stack[1];
             acc16_valid = 1;
@@ -228,8 +231,9 @@ inst_result_t execute_instruction(emulator *emulator)
             stack_value_msb_valid = 1;
             break;
 
-        case PUSHI + SIZE_BIT:
+        case PUSHI | SIZE_BIT:
             stack_change = -2;
+            new_pc++;
             stack_value_msb = imm_msb;
             stack_value_msb_valid = 1;
             stack_value_lsb = imm_lsb;
@@ -295,10 +299,10 @@ inst_result_t execute_instruction(emulator *emulator)
             new_pc = imm_16;
             break;
         
-        case SYSCALL:
+        case INST_SYSCALL:
             emulator->SR = ++new_pc;
             emulator->current_syscall = imm_16;
-            result = SYSCALL;
+            result = EXECUTE_SYSCALL;
             break;
         
         default:

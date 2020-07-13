@@ -26,7 +26,7 @@ typedef enum _error
 typedef enum _inst_result
 {
     SUCCESS,
-    SYSCALL,
+    EXECUTE_SYSCALL,
     ILLEGAL_INSTRUCTION,
 } inst_result_t;
 

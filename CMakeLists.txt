@@ -4,8 +4,8 @@ project(robcoterm VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-add_executable(robcoterm source/main/main.cpp source/render/Console.cpp source/render/ConsoleSDLRenderer.cpp)
-target_include_directories(robcoterm PRIVATE source/main source/render)
+add_executable(robcoterm source/main/main.cpp source/render/Console.cpp source/render/ConsoleSDLRenderer.cpp source/emulator/emulator.c)
+target_include_directories(robcoterm PRIVATE source/main source/render source/emulator)
 
 if (APPLE)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")

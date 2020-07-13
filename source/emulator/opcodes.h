@@ -16,7 +16,7 @@
 #define CC_O                    (1 << 0)
 
 // ALU instructions
-#define ADD                     (ALU_INST_BASE + 0b10000)
+#define INST_ADD                (ALU_INST_BASE + 0b10000)
 #define SUB                     (ALU_INST_BASE + 0b10001)
 #define MUL                     (ALU_INST_BASE + 0b00000)
 #define DIV                     (ALU_INST_BASE + 0b00001)
@@ -48,7 +48,7 @@
 #define BN                      (FLOW_INST_BASE + 0b00010)
 #define BO                      (FLOW_INST_BASE + 0b00001)
 #define JMP                     (FLOW_INST_BASE + 0b10000)
-#define SYSCALL                 (FLOW_INST_BASE + 0b11111)
+#define INST_SYSCALL            (FLOW_INST_BASE + 0b11111)
 
 // Flow control instructions - New architecture, X register based
 #define JMPX                    (FLOW_INST_BASE + 0b10001)
