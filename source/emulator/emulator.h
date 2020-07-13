@@ -42,8 +42,8 @@ typedef struct _emulator
     address_t SP; // Original architecture
     address_t SR; // Original architecture
     address_t X; // New architecture
-    uint8_t SI; // New architecture
     uint8_t CC; // Original architecture
+    uint8_t SI; // New architecture
     uint8_t DP; // New architecture
 } emulator;
 

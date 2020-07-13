@@ -61,9 +61,9 @@ inst_result_t execute_instruction(emulator *emulator)
     address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
     address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
     uint8_t *stack_8 = &emulator->memories.data[emulator->SP];
-    uint16_t *stack_16 = ((uint16_t)&emulator->memories.data[emulator->SP]);
-    int8_t *twos_8_stack = ((int8_t)&emulator->memories.data[emulator->SP]);
-    int16_t *twos_16_stack = ((int8_t)&emulator->memories.data[emulator->SP]);
+    uint16_t *stack_16 = ((uint16_t*)stack_8);
+    int8_t *twos_8_stack = ((int8_t*)stack_8);
+    int16_t *twos_16_stack = ((int16_t*)stack_8);
     int stack_change = 0;
     uint8_t stack_value_msb_valid = 0;
     uint8_t stack_value_lsb_valid = 0;
