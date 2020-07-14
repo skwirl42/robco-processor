@@ -133,7 +133,8 @@ void ConsoleSDLRenderer::Clear()
 
 void ConsoleSDLRenderer::SetColours(uint32_t foregroundColour, uint32_t backgroundColour)
 {
-
+    this->foregroundColour = foregroundColour;
+    this->backgroundColour = backgroundColour;
 }
 
 void ConsoleSDLRenderer::Render(Console *console, int frame)
@@ -152,12 +153,13 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
 
     uint32_t *pixels;
     int pitch;
+    // TODO: Figure out a way to use the dirty character attribute to cut down on character drawing
+    // Maybe use a host-side buffer to write to, then copy it to the texture pixels?
     if (SDL_LockTexture(texture, nullptr, (void**)&pixels, &pitch) == 0)
     {
         auto pixelPitch = pitch / 4;
         console->Visit([&](int x, int y, char character, CharacterAttribute attribute)
         {
-            // TODO: Figure out a way to use the dirty character attribute to cut down on 
             auto xFBStart = x * charPixelsWide;
             auto yFBStart = y * charPixelsHigh * pixelPitch;
             auto charXStart = (character % fontCharsWide) * charPixelsWide;
