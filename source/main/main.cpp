@@ -104,6 +104,7 @@ int main (int argc, char **argv)
         auto fontfilename = argv[1];
         // Format of the font file is 16 chars wide, 8 chars tall
         renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 8, 10);
+        renderer->Clear();
     }
     else
     {

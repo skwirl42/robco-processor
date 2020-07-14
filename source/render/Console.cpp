@@ -26,7 +26,7 @@ void Console::SetChar(int x, int y, char character)
 
 	int position = y * width + x;
 	buffer[position] = character;
-	attributeBuffer[position] = currentAttribute;
+	attributeBuffer[position] = currentAttribute | CharacterAttribute::Dirty;
 }
 
 char Console::GetChar(int x, int y)
@@ -68,7 +68,7 @@ void Console::PrintChar(const char character)
 
 	int position = cursorY * width + cursorX;
 	buffer[position] = character;
-	attributeBuffer[position] = currentAttribute;
+	attributeBuffer[position] = currentAttribute | CharacterAttribute::Dirty;
 	cursorX++;
 
 	if (cursorX >= width)
@@ -124,7 +124,7 @@ void Console::PrintAt(const char *text, int x, int y)
 
 	for (int i = position; i < finalPosition; i++)
 	{
-		attributeBuffer[i] = currentAttribute;
+		attributeBuffer[i] = currentAttribute | CharacterAttribute::Dirty;
 	}
 
 	cursorY = (finalPosition / width) % height;
@@ -150,7 +150,7 @@ void Console::SetAttribute(CharacterAttribute attribute, int x, int y)
 		return;
 	}
 
-	attributeBuffer[y * width + x] = attribute;
+	attributeBuffer[y * width + x] = attribute | CharacterAttribute::Dirty;
 }
 
 void Console::SetAttributeAtCursor(CharacterAttribute attribute)
@@ -181,6 +181,10 @@ void Console::Visit(std::function<void(int, int, char, CharacterAttribute)> visi
 		{
 			int position = y * width + x;
 			visitor(x, y, buffer[position], attributeBuffer[position]);
+			if ((attributeBuffer[position] & CharacterAttribute::Dirty) != CharacterAttribute::None)
+			{
+				attributeBuffer[position] = attributeBuffer[position] & ~CharacterAttribute::Dirty;
+			}
 		}
 	}
 }
@@ -188,7 +192,7 @@ void Console::Visit(std::function<void(int, int, char, CharacterAttribute)> visi
 void Console::Clear()
 {
 	std::memset(buffer, 0, bufferSize);
-	std::memset(attributeBuffer, 0, bufferSize * sizeof(CharacterAttribute));
+	std::memset(attributeBuffer, (int)CharacterAttribute::Dirty, bufferSize * sizeof(CharacterAttribute));
 	currentAttribute = CharacterAttribute::None;
 	cursorX = 0;
 	cursorY = 0;

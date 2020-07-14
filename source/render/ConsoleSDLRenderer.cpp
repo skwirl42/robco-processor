@@ -127,6 +127,7 @@ void ConsoleSDLRenderer::Cleanup()
 
 void ConsoleSDLRenderer::Clear()
 {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 }
 
@@ -156,6 +157,7 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
         auto pixelPitch = pitch / 4;
         console->Visit([&](int x, int y, char character, CharacterAttribute attribute)
         {
+            // TODO: Figure out a way to use the dirty character attribute to cut down on 
             auto xFBStart = x * charPixelsWide;
             auto yFBStart = y * charPixelsHigh * pixelPitch;
             auto charXStart = (character % fontCharsWide) * charPixelsWide;
@@ -167,7 +169,7 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
                 for (uint16_t charColumn = 0; charColumn < charPixelsWide; charColumn++)
                 {
                     auto charValue = fontBuffer[(charYStart + charLine) * fontBufferWidth + (charXStart + charColumn)];
-                    if (((int)attribute & (int)CharacterAttribute::Inverted) ^ (cursorOn && isCursor))
+                    if (((attribute & CharacterAttribute::Inverted) == CharacterAttribute::Inverted) ^ (cursorOn && isCursor))
                     {
                         charValue = !charValue;
                     }
@@ -177,8 +179,6 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
             }
         });
         SDL_UnlockTexture(texture);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, nullptr, nullptr);
         SDL_RenderPresent(renderer);
     }

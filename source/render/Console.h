@@ -2,11 +2,28 @@
 
 #include <functional>
 
-enum class CharacterAttribute : int
+enum class CharacterAttribute : unsigned int
 {
 	None		= 0,
 	Inverted	= 1 << 0,
+
+	Dirty		= 1 << 16,
 };
+
+inline CharacterAttribute operator | (CharacterAttribute lhs, CharacterAttribute rhs)
+{
+	return (CharacterAttribute)((unsigned int)lhs | (unsigned int)rhs);
+}
+
+inline CharacterAttribute operator & (CharacterAttribute lhs, CharacterAttribute rhs)
+{
+	return (CharacterAttribute)((unsigned int)lhs & (unsigned int)rhs);
+}
+
+inline CharacterAttribute operator ~ (CharacterAttribute rhs)
+{
+	return (CharacterAttribute)~((unsigned int)rhs);
+}
 
 class Console
 {
