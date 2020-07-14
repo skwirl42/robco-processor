@@ -77,11 +77,13 @@ void handle_syscall_setattr(emulator &emulator, Console &console)
 void handle_syscall_getch(emulator &emulator, Console &console)
 {
     auto isBlocking = pull_byte(&emulator);
+
+    // TODO: implement
 }
 
 void handle_current_syscall(emulator &emulator, Console &console)
 {
-    printf("Handling syscall 0x%04x\n", emulator.current_syscall);
+    // printf("Handling syscall 0x%04x\n", emulator.current_syscall);
     switch (emulator.current_syscall)
     {
     case SYSCALL_CLEAR:

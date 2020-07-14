@@ -45,7 +45,6 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->PC = EXECUTEBEGIN;
     emulator->SP = STACKBEGIN;
-    emulator->SR = 0;
     emulator->CC = 0;
 
     if (emulator->architecture == ARCH_NEW)
@@ -58,278 +57,36 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
     return NO_ERROR;
 }
 
-inst_result_t execute_instruction(emulator *emulator)
+uint16_t fetch_instruction_word(emulator *emulator)
 {
-    uint8_t opcode = emulator->memories.instruction[emulator->PC];
-    inst_result_t result = SUCCESS;
-    address_t original_pc = emulator->PC;
-    address_t new_pc = original_pc + 2;
-    uint8_t imm_msb = emulator->memories.instruction[original_pc + 1];
-    uint8_t imm_lsb = emulator->memories.instruction[original_pc + 2];
-    address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
-    address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
-    uint8_t *stack_8 = &emulator->memories.data[emulator->SP];
-    uint16_t *stack_16 = ((uint16_t*)stack_8);
-    int8_t *twos_8_stack = ((int8_t*)stack_8);
-    int16_t *twos_16_stack = ((int16_t*)stack_8);
-    int stack_change = 0;
-    uint8_t stack_value_msb_valid = 0;
-    uint8_t stack_value_lsb_valid = 0;
-    uint8_t stack_value_msb = 0;
-    uint8_t stack_value_lsb = 0;
-    uint8_t wide = opcode & SIZE_BIT;
-    uint8_t temp8;
-    uint16_t temp16;
-    int8_t acc8;
-    uint8_t acc8_valid = 0;
-    int16_t acc16;
-    uint8_t acc16_valid = 0;
-    // printf("Executing opcode 0x%02x at address 0x%04x\n", opcode, emulator->PC);
-    switch (opcode)
-    {
-        case INST_ADD:
-            stack_change = 1;
-            acc8 = twos_8_stack[0] + twos_8_stack[1];
-            acc8_valid = 1;
-            // TODO: CC calculations
-            break;
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.instruction[emulator->PC];
+    value.bytes[0] = emulator->memories.instruction[emulator->PC+1];
+    emulator->PC += 2;
+    return value.word;
+}
 
-        case INST_ADD + SIZE_BIT:
-            stack_change = 2;
-            acc16 = twos_16_stack[0] + twos_16_stack[1];
-            acc16_valid = 1;
-            // TODO: CC calculations
-            break;
+int16_t fetch_instruction_word_signed(emulator *emulator)
+{
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.instruction[emulator->PC];
+    value.bytes[0] = emulator->memories.instruction[emulator->PC+1];
+    emulator->PC += 2;
+    return *((int16_t*)&value);
+}
 
-        case SUB:
-            stack_change = 1;
-            acc8 = twos_8_stack[1] - twos_8_stack[0];
-            acc8_valid = 1;
-            // TODO: CC calculations
-            break;
+uint8_t fetch_instruction_byte(emulator *emulator)
+{
+    uint8_t byte = emulator->memories.instruction[emulator->PC];
+    emulator->PC++;
+    return byte;
+}
 
-        case SUB + SIZE_BIT:
-            stack_change = 2;
-            acc16 = twos_16_stack[1] - twos_16_stack[0];
-            acc16_valid = 1;
-            // TODO: CC calculations
-            break;
-            
-        case MUL:
-            stack_change = 1;
-            acc8 = twos_8_stack[1] * twos_8_stack[0];
-            acc8_valid = 1;
-            // TODO: CC
-            break;
-
-        case MUL + SIZE_BIT:
-            stack_change = 2;
-            acc16 = twos_16_stack[1] * twos_16_stack[0];
-            acc16_valid = 1;
-            // TODO: CC
-            break;
-            
-        case INC:
-            acc8 = twos_8_stack[0] + 1;
-            acc8_valid = 1;
-            // TODO: CC
-            break;
-
-        case INC + SIZE_BIT:
-            acc16 = twos_16_stack[0] + 1;
-            acc16_valid = 1;
-            // TODO: CC
-            break;
-            
-        case DEC:
-            acc8 = twos_8_stack[0] - 1;
-            acc8_valid = 1;
-            // TODO: CC
-            break;
-
-        case DEC + SIZE_BIT:
-            acc16 = twos_16_stack[0] - 1;
-            acc16_valid = 1;
-            // TODO: CC
-            break;
-            
-        case OR:
-            stack_change = 1;
-            acc8 = twos_8_stack[1] | twos_8_stack[0];
-            acc8_valid = 1;
-            // TODO: CC
-            break;
-
-        case OR + SIZE_BIT:
-            stack_change = 2;
-            acc16 = twos_16_stack[1] | twos_16_stack[0];
-            acc16_valid = 1;
-            // TODO: CC
-            break;
-            
-        case AND:
-            stack_change = 1;
-            acc8 = twos_8_stack[1] & twos_8_stack[0];
-            acc8_valid = 1;
-            // TODO: CC
-            break;
-
-        case AND + SIZE_BIT:
-            stack_change = 2;
-            acc16 = twos_16_stack[1] & twos_16_stack[0];
-            acc16_valid = 1;
-            // TODO: CC
-            break;
-            
-        case CMP:
-            stack_change = 2;
-            emulator->CC |= (twos_8_stack[1] == twos_8_stack[0]) ? CC_Z : 0;
-            break;
-
-        case CMP + SIZE_BIT:
-            stack_change = 4;
-            emulator->CC |= (twos_16_stack[1] == twos_16_stack[0]) ? CC_Z : 0;
-            break;
-            
-        case ROL:
-            stack_change = 1;
-            // TODO
-            break;
-
-        case ROL + SIZE_BIT:
-            stack_change = 2;
-            // TODO
-            break;
-            
-        case ROR:
-            stack_change = 1;
-            // TODO
-            break;
-
-        case ROR + SIZE_BIT:
-            stack_change = 2;
-            // TODO
-            break;
-            
-        case SHL:
-            stack_change = 1;
-            // TODO
-            break;
-
-        case SHL + SIZE_BIT:
-            stack_change = 2;
-            // TODO
-            break;
-            
-        case SHR:
-            stack_change = 1;
-            // TODO
-            break;
-
-        case SHR + SIZE_BIT:
-            stack_change = 2;
-            // TODO
-            break;
-        
-        case PUSHI:
-            stack_change = -1;
-            stack_value_msb = imm_msb;
-            stack_value_msb_valid = 1;
-            break;
-
-        case PUSHI | SIZE_BIT:
-            stack_change = -2;
-            new_pc++;
-            stack_value_msb = imm_msb;
-            stack_value_msb_valid = 1;
-            stack_value_lsb = imm_lsb;
-            stack_value_lsb_valid = 1;
-            break;
-        
-        case POP:
-            stack_change = 1;
-            break;
-
-        case POP + SIZE_BIT:
-            stack_change = 2;
-            break;
-        
-        case ROLL:
-            stack_change = 1;
-            // TODO
-            break;
-
-        case ROLL + SIZE_BIT:
-            stack_change = 2;
-            // TODO
-            break;
-        
-        case SWAP:
-            temp8 = stack_8[0];
-            stack_8[0] = stack_8[1];
-            stack_8[1] = temp8;
-            break;
-
-        case SWAP + SIZE_BIT:
-            temp16 = stack_16[0];
-            stack_16[0] = stack_16[1];
-            stack_16[1] = temp16;
-            break;
-        
-        case DUP:
-            stack_change = -1;
-            stack_value_msb = emulator->memories.data[emulator->SP];
-            stack_value_msb_valid = 1;
-        case DUP + SIZE_BIT:
-            stack_change--;
-            stack_value_lsb = emulator->memories.data[emulator->SP + 1];
-            stack_value_lsb_valid = 1;
-            break;
-        
-        case B:
-            new_pc = twos_new_pc;
-            break;
-        
-        case BE:
-        case BC:
-        case BN:
-        case BO:
-            new_pc++;
-            if (emulator->CC & opcode)
-            {
-                new_pc = twos_new_pc;
-            }
-            break;
-        
-        case JMP:
-            new_pc = imm_16;
-            break;
-        
-        case INST_SYSCALL:
-            emulator->SR = ++new_pc;
-            emulator->current_syscall = imm_16;
-            result = EXECUTE_SYSCALL;
-            break;
-        
-        default:
-            result = ILLEGAL_INSTRUCTION; 
-            break;
-    }
-
-    emulator->PC = new_pc;
-    emulator->SP += stack_change;
-
-    if (stack_value_msb_valid)
-    {
-        emulator->memories.data[emulator->SP] = stack_value_msb;
-    }
-
-    if (stack_value_lsb_valid)
-    {
-        emulator->memories.data[emulator->SP + 1] = stack_value_lsb;
-    }
-
-    return result;
+int8_t fetch_instruction_byte_signed(emulator *emulator)
+{
+    int8_t byte = ((int8_t*)emulator->memories.instruction)[emulator->PC];
+    emulator->PC++;
+    return byte;
 }
 
 uint16_t pull_word(emulator *emulator)
@@ -341,10 +98,40 @@ uint16_t pull_word(emulator *emulator)
     return value.word;
 }
 
+int16_t pull_word_signed(emulator *emulator)
+{
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.data[emulator->SP];
+    value.bytes[0] = emulator->memories.data[emulator->SP+1];
+    emulator->SP += 2;
+    return *((int16_t*)&value);
+}
+
 uint8_t pull_byte(emulator *emulator)
 {
     uint8_t value = emulator->memories.data[emulator->SP];
     emulator->SP++;
+    return value;
+}
+
+int8_t pull_byte_signed(emulator *emulator)
+{
+    int8_t value = ((int8_t*)emulator->memories.data)[emulator->SP];
+    emulator->SP++;
+    return value;
+}
+
+uint16_t peek_word(emulator *emulator)
+{
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.data[emulator->SP];
+    value.bytes[0] = emulator->memories.data[emulator->SP+1];
+    return value.word;
+}
+
+uint8_t peek_byte(emulator *emulator)
+{
+    uint8_t value = emulator->memories.data[emulator->SP];
     return value;
 }
 
@@ -366,6 +153,383 @@ void push_byte(emulator *emulator, uint8_t byte)
 void pop_bytes(emulator *emulator, uint16_t byte_count)
 {
     emulator->SP += byte_count;
+}
+
+typedef enum
+{
+    EXEC_NORMAL,
+    EXEC_BRANCH,
+    EXEC_JUMP,
+    EXEC_ILLEGAL_INSTRUCTION,
+} execute_status_t;
+
+typedef struct _execute_result_t
+{
+    execute_status_t status;
+    uint16_t absolute;
+    int16_t relative;
+} execute_result_t;
+
+execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
+{
+    execute_result_t result;
+    result.status = EXEC_NORMAL;
+
+    uint8_t wide = opcode & OPCODE_SIZE_BIT;
+    uint8_t baseopcode = opcode & ~OPCODE_SIZE_BIT;
+
+    // TODO:
+    // - Implement bitwise rotates - for now will generate illegal instruction
+    // - Find compiler-independent carry/overflow check methods
+    if (baseopcode == OPCODE_INC || baseopcode == OPCODE_DEC)
+    {
+        if (wide)
+        {
+            int16_t operand = pull_word_signed(emulator);
+            int16_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
+            push_word(emulator, *((uint16_t*)&op_result));
+        }
+        else
+        {
+            int8_t operand = pull_byte_signed(emulator);
+            int8_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
+            push_byte(emulator, *((uint8_t*)&op_result));
+        }
+    }
+    else if (wide)
+    {
+        int16_t operandB = pull_word_signed(emulator);
+        int16_t operandA = pull_word_signed(emulator);
+        int16_t op_result;
+
+        switch (baseopcode)
+        {
+        case OPCODE_ADD:
+            op_result = operandA + operandB;
+            // if (__builtin_add_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_C;
+            // }
+            break;
+
+        case OPCODE_SUB:
+            op_result = operandA - operandB;
+            // if (__builtin_sub_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_C;
+            // }
+            break;
+            
+        case OPCODE_MUL:
+            op_result = operandA * operandB;
+            // if (__builtin_mul_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_C;
+            // }
+            break;
+            
+        case OPCODE_CMP:
+            if (operandA == operandB)
+            {
+                emulator->CC |= CC_Z;
+            }
+            break;
+            
+        case OPCODE_OR:
+            op_result = operandA | operandB;
+            break;
+            
+        case OPCODE_AND:
+            op_result = operandA & operandB;
+            break;
+            
+        case OPCODE_SHL:
+            op_result = operandA << operandB;
+            if (operandA & 0x8000)
+            {
+                emulator->CC |= CC_C;
+            }
+            break;
+            
+        case OPCODE_SHR:
+            op_result = operandA >> operandB;
+            break;
+            
+        default:
+            result.status = EXEC_ILLEGAL_INSTRUCTION;
+            break;            
+        }
+
+        if (result.status != EXEC_ILLEGAL_INSTRUCTION && baseopcode != OPCODE_CMP)
+        {
+            uint16_t uword = *((uint16_t*)&op_result);
+            push_word(emulator, uword);
+            if (uword == 0)
+            {
+                emulator->CC |= CC_Z;
+            }
+            else if (uword & 0x8000)
+            {
+                emulator->CC |= CC_N;
+            }
+        }
+    }
+    else
+    {
+        int8_t operandB = pull_byte_signed(emulator);
+        int8_t operandA = pull_byte_signed(emulator);
+        int8_t op_result;
+
+        switch (baseopcode)
+        {
+        case OPCODE_ADD:
+            op_result = operandA + operandB;
+            // if (__builtin_add_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_C;
+            // }
+            break;
+
+        case OPCODE_SUB:
+            op_result = operandA - operandB;
+            // if (__builtin_sub_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_C;
+            // }
+            break;
+            
+        case OPCODE_MUL:
+            op_result = operandA * operandB;
+            // if (__builtin_mul_overflow_p(operandA, operandB, op_result))
+            // {
+            //     emulator->CC |= CC_O;
+            // }
+            break;
+            
+        case OPCODE_CMP:
+            if (operandA == operandB)
+            {
+                emulator->CC |= CC_Z;
+            }
+            break;
+            
+        case OPCODE_OR:
+            op_result = operandA | operandB;
+            break;
+            
+        case OPCODE_AND:
+            op_result = operandA & operandB;
+            break;
+            
+        case OPCODE_SHL:
+            op_result = operandA << operandB;
+            if (operandA & 0x8000)
+            {
+                emulator->CC |= CC_C;
+            }
+            break;
+            
+        case OPCODE_SHR:
+            op_result = operandA >> operandB;
+            break;
+            
+        default:
+            result.status = EXEC_ILLEGAL_INSTRUCTION;
+            break;            
+        }
+
+        if (result.status != EXEC_ILLEGAL_INSTRUCTION && baseopcode != OPCODE_CMP)
+        {
+            uint8_t ubyte = *((uint8_t*)&op_result);
+            push_byte(emulator, ubyte);
+            if (ubyte == 0)
+            {
+                emulator->CC |= CC_Z;
+            }
+            else if (ubyte & 0x80)
+            {
+                emulator->CC |= CC_N;
+            }
+        }
+    }
+
+    return result;
+}
+
+execute_result_t execute_stack_instruction(emulator *emulator, uint8_t opcode)
+{
+    execute_result_t result;
+    result.status = EXEC_NORMAL;
+
+    uint8_t wide = opcode & OPCODE_SIZE_BIT;
+    uint8_t baseopcode = opcode & ~OPCODE_SIZE_BIT;
+
+    if (wide)
+    {
+        uint16_t word0;
+        uint16_t word1;
+        uint8_t byte;
+        uint16_t roll_byte_depth;
+        emulator_word_t roll_word;
+        switch (baseopcode)
+        {
+        case OPCODE_PUSHI:
+            word0 = fetch_instruction_word(emulator);
+            push_word(emulator, word0);
+            break;
+
+        case OPCODE_POP:
+            pop_bytes(emulator, 2);
+            break;
+            
+        case OPCODE_DUP:
+            word0 = peek_word(emulator);
+            push_word(emulator, word0);
+            break;
+            
+        case OPCODE_SWAP:
+            word1 = pull_word(emulator);
+            word0 = pull_word(emulator);
+            push_word(emulator, word1);
+            push_word(emulator, word0);
+            break;
+            
+        case OPCODE_ROLL:
+            byte = pull_byte(emulator);
+            roll_byte_depth = byte * 2;
+            roll_word.bytes[1] = emulator->memories.data[emulator->SP + roll_byte_depth];
+            roll_word.bytes[0] = emulator->memories.data[emulator->SP + roll_byte_depth + 1];
+            for (int currentByte = roll_byte_depth + 1; currentByte > 1; currentByte--)
+            {
+                emulator->memories.data[emulator->SP + currentByte] = emulator->memories.data[emulator->SP + currentByte - 2];
+            }
+            emulator->memories.data[emulator->SP] = roll_word.bytes[1];
+            emulator->memories.data[emulator->SP + 1] = roll_word.bytes[0];
+            break;
+            
+        default:
+            result.status = EXEC_ILLEGAL_INSTRUCTION;
+            break;
+        }
+    }
+    else
+    {
+        uint8_t byte0;
+        uint8_t byte1;
+        uint8_t roll_depth;
+        switch (baseopcode)
+        {
+        case OPCODE_PUSHI:
+            byte0 = fetch_instruction_byte(emulator);
+            push_byte(emulator, byte0);
+            break;
+
+        case OPCODE_POP:
+            pop_bytes(emulator, 1);
+            break;
+            
+        case OPCODE_DUP:
+            byte0 = peek_byte(emulator);
+            push_byte(emulator, byte0);
+            break;
+            
+        case OPCODE_SWAP:
+            byte1 = pull_byte(emulator);
+            byte0 = pull_byte(emulator);
+            push_byte(emulator, byte1);
+            push_byte(emulator, byte0);
+            break;
+            
+        case OPCODE_ROLL:
+            roll_depth = pull_byte(emulator);
+            byte0 = emulator->memories.data[emulator->SP + roll_depth];
+            for (int currentByte = roll_depth; currentByte > 0; currentByte--)
+            {
+                emulator->memories.data[emulator->SP + currentByte] = emulator->memories.data[emulator->SP + currentByte - 1];
+            }
+            emulator->memories.data[emulator->SP] = byte0;
+            break;
+            
+        default:
+            result.status = EXEC_ILLEGAL_INSTRUCTION;
+            break;
+        }
+    }
+
+    return result;
+}
+
+inst_result_t execute_instruction(emulator *emulator)
+{
+    address_t original_pc = emulator->PC;
+    uint8_t opcode = fetch_instruction_byte(emulator);
+    inst_result_t result = SUCCESS;
+    address_t new_pc = original_pc + 2;
+    uint8_t imm_msb = emulator->memories.instruction[original_pc + 1];
+    uint8_t imm_lsb = emulator->memories.instruction[original_pc + 2];
+    address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
+    address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
+    uint8_t *stack_8 = &emulator->memories.data[emulator->SP];
+    uint16_t *stack_16 = ((uint16_t*)stack_8);
+    int8_t *twos_8_stack = ((int8_t*)stack_8);
+    int16_t *twos_16_stack = ((int16_t*)stack_8);
+    int stack_change = 0;
+    
+    if (opcode & ALU_INST_BASE)
+    {
+        execute_result_t execresult = execute_alu_instruction(emulator, opcode);
+        if (execresult.status == EXEC_ILLEGAL_INSTRUCTION)
+        {
+            result = ILLEGAL_INSTRUCTION;
+        }
+    }
+    else if (IS_STACK_INST(opcode))
+    {
+        execute_result_t execresult = execute_stack_instruction(emulator, opcode);
+        if (execresult.status == EXEC_ILLEGAL_INSTRUCTION)
+        {
+            result = ILLEGAL_INSTRUCTION;
+        }
+    }
+    else
+    {
+        switch (opcode)
+        {        
+        case OPCODE_B:
+            new_pc = twos_new_pc;
+            break;
+        
+        case OPCODE_BE:
+        case OPCODE_BC:
+        case OPCODE_BN:
+        case OPCODE_BO:
+            new_pc++;
+            if (emulator->CC & opcode)
+            {
+                new_pc = twos_new_pc;
+            }
+            break;
+        
+        case OPCODE_JMP:
+            new_pc = imm_16;
+            break;
+        
+        case OPCODE_SYSCALL:
+            new_pc++;
+            emulator->current_syscall = imm_16;
+            result = EXECUTE_SYSCALL;
+            break;
+        
+        default:
+            result = ILLEGAL_INSTRUCTION; 
+            break;
+        }
+    
+        emulator->PC = new_pc;
+        emulator->SP += stack_change;
+    }
+
+    return result;
 }
 
 error_t dispose_emulator(emulator *emulator)
