@@ -2,7 +2,8 @@
 #define __SYSCALL_H__
 
 // System
-#define			SYSCALL_EXIT			0x0000
+#define         SYSCALL_NONE            0x0000
+#define			SYSCALL_EXIT			0x0001
 #define			SYSCALL_GETERROR		0x0011
 
 // Text display

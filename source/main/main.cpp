@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "syscall_handlers.h"
+#include "key_conversion.h"
 
 uint8_t testCode[] =
 {
@@ -39,45 +40,14 @@ int mod(int a, int b)
     return r < 0 ? r + b : r;
 }
 
-bool handle_key(SDL_Keycode keycode, Console &console)
+void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
 {
-    bool done = false;
-    int consoleWidth = console.GetWidth();
-    int consoleHeight = console.GetHeight();
-    int cursorX;
-    int cursorY;
-    console.GetCursor(cursorX, cursorY);
-    switch (keycode)
+    auto keycode = sdl_keycode_to_console_key(keysym);
+
+    if (keycode != 0)
     {
-    case SDLK_LEFT:
-        cursorX = mod(cursorX - 1, consoleWidth);
-        console.SetCursor(cursorX, cursorY);
-        break;
-
-    case SDLK_RIGHT:
-        cursorX = mod(cursorX + 1, consoleWidth);
-        console.SetCursor(cursorX, cursorY);
-        break;
-
-    case SDLK_UP:
-        cursorY = mod(cursorY - 1, consoleHeight);
-        console.SetCursor(cursorX, cursorY);
-        break;
-
-    case SDLK_DOWN:
-        cursorY = mod(cursorY + 1, consoleHeight);
-        console.SetCursor(cursorX, cursorY);
-        break;
-
-    case SDLK_ESCAPE:
-        done = true;
-        break;
-
-    default:
-        break;
+        handle_keypress_for_syscall(emulator, keycode);
     }
-
-    return done;
 }
 
 int main (int argc, char **argv)
@@ -120,7 +90,7 @@ int main (int argc, char **argv)
         int frame = 0;
         while (!done)
         {
-            if (emulate)
+            if (emulate && emulator_can_execute(&rcEmulator))
             {
                 auto result = execute_instruction(&rcEmulator);
                 if (result == EXECUTE_SYSCALL)
@@ -142,7 +112,7 @@ int main (int argc, char **argv)
                 }
                 else if (event.type == SDL_KEYDOWN)
                 {
-                    done = handle_key(event.key.keysym.sym, console);
+                    handle_key(event.key.keysym, rcEmulator, console);
                 }
             }
 

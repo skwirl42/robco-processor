@@ -43,6 +43,7 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
     memset(emulator->memories.instruction, 0, MEMSIZE);
     memset(emulator->memories.data, 0, MEMSIZE);
 
+    emulator->current_state = RUNNING;
     emulator->PC = EXECUTEBEGIN;
     emulator->SP = STACKBEGIN;
     emulator->CC = 0;
@@ -529,7 +530,17 @@ inst_result_t execute_instruction(emulator *emulator)
         emulator->SP += stack_change;
     }
 
+    if (result == ILLEGAL_INSTRUCTION)
+    {
+        emulator->current_state = ERROR;
+    }
+
     return result;
+}
+
+uint8_t emulator_can_execute(emulator *emulator)
+{
+    return emulator->current_state == RUNNING;
 }
 
 error_t dispose_emulator(emulator *emulator)
