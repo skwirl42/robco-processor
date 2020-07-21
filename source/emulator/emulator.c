@@ -11,6 +11,8 @@ typedef union
     uint8_t bytes[2];
 } emulator_word_t;
 
+error_t dispose_emulator(emulator *emulator);
+
 error_t init_emulator(emulator *emulator, arch_t architecture)
 {
     if (emulator == USER_ADDR_NULL)
@@ -25,27 +27,38 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->architecture = architecture;
 
-    emulator->memories.instruction = malloc(MEMSIZE);
+    emulator->memories.instruction = malloc(INST_SIZE);
 
     if (emulator->memories.instruction == USER_ADDR_NULL)
     {
+        dispose_emulator(emulator);
         return ALLOC_FAILED;
     }
 
-    emulator->memories.data = malloc(MEMSIZE);
+    emulator->memories.data = malloc(MEM_SIZE);
 
     if (emulator->memories.data == USER_ADDR_NULL)
     {
-        free(emulator->memories.instruction);
+        dispose_emulator(emulator);
         return ALLOC_FAILED;
     }
 
-    memset(emulator->memories.instruction, 0, MEMSIZE);
-    memset(emulator->memories.data, 0, MEMSIZE);
+    emulator->memories.instruction_stack = malloc(INST_STACK_SIZE);
+
+    if (emulator->memories.instruction_stack == USER_ADDR_NULL)
+    {
+        dispose_emulator(emulator);
+        return ALLOC_FAILED;        
+    }
+
+    memset(emulator->memories.instruction, 0, INST_SIZE);
+    memset(emulator->memories.data, 0, MEM_SIZE);
+    memset(emulator->memories.instruction_stack, 0, INST_STACK_SIZE);
 
     emulator->current_state = RUNNING;
-    emulator->PC = EXECUTEBEGIN;
-    emulator->SP = STACKBEGIN;
+    emulator->PC = EXECUTE_BEGIN;
+    emulator->SP = STACK_BEGIN;
+    emulator->ISP = INST_STACK_BEGIN;
     emulator->CC = 0;
 
     if (emulator->architecture == ARCH_NEW)
@@ -154,6 +167,24 @@ void push_byte(emulator *emulator, uint8_t byte)
 void pop_bytes(emulator *emulator, uint16_t byte_count)
 {
     emulator->SP += byte_count;
+}
+
+uint16_t pull_return_address(emulator *emulator)
+{
+    emulator_word_t value;
+    value.bytes[1] = emulator->memories.instruction_stack[emulator->ISP];
+    value.bytes[0] = emulator->memories.instruction_stack[emulator->ISP+1];
+    emulator->ISP += 2;
+    return value.word;
+}
+
+void push_return_address(emulator *emulator, uint16_t address)
+{
+    emulator->ISP -= 2;
+    emulator_word_t emWord;
+    emWord.word = address;
+    emulator->memories.instruction_stack[emulator->ISP] = emWord.bytes[1];
+    emulator->memories.instruction_stack[emulator->ISP + 1] = emWord.bytes[0];
 }
 
 typedef enum
@@ -514,6 +545,15 @@ inst_result_t execute_instruction(emulator *emulator)
         case OPCODE_JMP:
             new_pc = imm_16;
             break;
+
+        case OPCODE_JSR:
+            new_pc = imm_16;
+            push_return_address(emulator, original_pc + 3);
+            break;
+
+        case OPCODE_RTS:
+            new_pc = pull_return_address(emulator);
+            break;
         
         case OPCODE_SYSCALL:
             new_pc++;
@@ -548,6 +588,11 @@ error_t dispose_emulator(emulator *emulator)
     if (emulator->memories.instruction != USER_ADDR_NULL)
     {
         free(emulator->memories.instruction);
+    }
+
+    if (emulator->memories.instruction_stack != USER_ADDR_NULL)
+    {
+        free(emulator->memories.instruction_stack);
     }
 
     if (emulator->memories.data != USER_ADDR_NULL)

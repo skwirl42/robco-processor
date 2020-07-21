@@ -53,6 +53,7 @@ typedef struct _emulator
     // Registers
     address_t PC; // Original architecture
     address_t SP; // Original architecture
+    address_t ISP; // Original architecture
     address_t X; // New architecture
     uint8_t CC; // Original architecture
     uint8_t SI; // New architecture

@@ -28,8 +28,6 @@
 #define OPCODE_CMP                     (ALU_INST_BASE + 0b11010)
 #define OPCODE_OR                      (ALU_INST_BASE + 0b00010)
 #define OPCODE_AND                     (ALU_INST_BASE + 0b00011)
-#define OPCODE_ROL                     (ALU_INST_BASE + 0b00100)
-#define OPCODE_ROR                     (ALU_INST_BASE + 0b00101)
 #define OPCODE_SHL                     (ALU_INST_BASE + 0b00110)
 #define OPCODE_SHR                     (ALU_INST_BASE + 0b00111)
 
@@ -50,11 +48,9 @@
 #define OPCODE_BN                      (FLOW_INST_BASE + CC_N)
 #define OPCODE_BO                      (FLOW_INST_BASE + CC_O)
 #define OPCODE_JMP                     (FLOW_INST_BASE + 0b10000)
-#define OPCODE_SYSCALL                 (FLOW_INST_BASE + 0b11111)
-
-// Flow control instructions - New architecture, X register based
-#define OPCODE_JMPX                    (FLOW_INST_BASE + 0b10001)
+#define OPCODE_RTS                     (FLOW_INST_BASE + 0b10001)
 #define OPCODE_JSR                     (FLOW_INST_BASE + 0b10010)
+#define OPCODE_SYSCALL                 (FLOW_INST_BASE + 0b11111)
 
 // Other instructions - New arch
 #define OPCODE_SYNC                    (OTHER_INST_BASE + 0b11111)

@@ -11,14 +11,22 @@ add_executable(robcoterm
     source/emulator/emulator.c
     source/main/syscall_handlers.cpp
     source/main/key_conversion.cpp
+    source/assembler/assembler.c
+    source/assembler/symbols.c
     )
-target_include_directories(robcoterm PRIVATE source/main source/render source/emulator source/include)
+target_include_directories(robcoterm PRIVATE 
+    source/main
+    source/render
+    source/emulator
+    source/assembler
+    source/include)
 
 if (APPLE)
-    target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
+    target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
+    target_link_libraries(robcoterm stdc++ pcre "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
     find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
     find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
-    target_include_directories(robcoterm PUBLIC ${SDL2_IMAGE_INCLUDE_DIR} ${SDL2_INCLUDE_DIR})
+    target_include_directories(robcoterm PUBLIC ${SDL2_IMAGE_INCLUDE_DIR} ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
 endif (APPLE)
 
 set (CMAKE_CXX_FLAGS "-std=c++17")

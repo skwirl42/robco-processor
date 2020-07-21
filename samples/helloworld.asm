@@ -1,16 +1,16 @@
 .include "syscall.asm"
 
-.byte			H				0x48					; 'H'
-.byte			d				0x64					; 'd'
-.byte			e				0x65					; 'e'
-.byte			l				0x6C					; 'l'
-.byte			o				0x6F					; 'o'
-.byte			r				0x72					; 'r'
-.byte			w				0x77					; 'w'
-.byte			space			0x20					; ' '
-.byte			exclamation		0x21					; '!'
-.byte			cr				0x0D
-.byte			lf				0x0A
+.defbyte			H				0x48					; 'H'
+.defbyte			d				0x64					; 'd'
+.defbyte			e				0x65					; 'e'
+.defbyte			l				0x6C					; 'l'
+.defbyte			o				0x6F					; 'o'
+.defbyte			r				0x72					; 'r'
+.defbyte			w				0x77					; 'w'
+.defbyte			space			0x20					; ' '
+.defbyte			exclamation		0x21					; '!'
+.defbyte			cr				0x0D
+.defbyte			lf				0x0A
 
 start:
 	syscall		CLEAR			; 0x7f 0x01 0x06
@@ -28,8 +28,8 @@ loop:
 	pushi		d				; 0x00 0x64
 	pushi		exclamation		; 0x00 0x21
 	pushi		cr				; 0x00 0x0D
-	pushi		lf				; 0x00 0x0A		 - 28 bytes into loop
+	pushi		lf				; 0x00 0x0A		 - 28.defbytes into loop
 	pushiw		14				; 0x20 0x00 0x0E - 14 characters in the string
 	syscall		PRINT			; 0x7f 0x01 0x02
 
-	b			loop			; 0x60 0xFF	0xDE - 40 bytes backwards
+	b			loop			; 0x60 0xFF	0xDE - 40.defbytes backwards
