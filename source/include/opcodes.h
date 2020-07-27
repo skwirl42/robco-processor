@@ -37,7 +37,6 @@
 #define OPCODE_DUP                     (STACK_INST_BASE + 0b00100)
 #define OPCODE_SWAP                    (STACK_INST_BASE + 0b00010)
 #define OPCODE_ROLL                    (STACK_INST_BASE + 0b11111)
-// New architecture - size determined by register targeted
 #define OPCODE_PUSH                    (STACK_INST_BASE + 0b10000) // Source 0 indicates register to push
 #define OPCODE_PULL                    (STACK_INST_BASE + 0b01000) // Destination indicates register to pull the value into
 
@@ -56,8 +55,17 @@
 #define OPCODE_SYNC                    (OTHER_INST_BASE + 0b11111)
 
 #define SOURCE_0_MASK           0b11000000
+#define SOURCE_0(BYTE)			((BYTE & SOURCE_0_MASK) >> 6)
 #define SOURCE_1_MASK           0b00110000
+#define SOURCE_1(BYTE)			((BYTE & SOURCE_1_MASK) >> 4)
 #define SOURCE_2_MASK           0b00001100
+#define SOURCE_2(BYTE)			((BYTE & SOURCE_2_MASK) >> 2)
 #define DESTINATION_MASK        0b00000011
+#define DESTINATION(BYTE)		(BYTE & DESTINATION_MASK)
+
+#define STACK_OPERAND			0b00
+#define STACK_INDEX				0b01
+#define DIRECT_PAGE				0b10
+#define X_REGISTER				0b11
 
 #endif // __OPCODES_H__

@@ -51,13 +51,13 @@ typedef struct _emulator
     execution_state_t current_state;
 
     // Registers
-    address_t PC; // Original architecture
-    address_t SP; // Original architecture
-    address_t ISP; // Original architecture
-    address_t X; // New architecture
-    uint8_t CC; // Original architecture
-    uint8_t SI; // New architecture
-    uint8_t DP; // New architecture
+    address_t PC;
+    address_t SP;
+    address_t ISP;
+    address_t X;
+    uint8_t CC;
+    uint8_t SI;
+    uint8_t DP;
 } emulator;
 
 error_t init_emulator(emulator *emulator, arch_t architecture);

@@ -70,6 +70,7 @@ const char *defword_pattern = "^\\.defword\\s+(\\S+)\\s+(\\S+)";
 const char *defbyte_pattern = "^\\.defbyte\\s+(\\S+)\\s+(\\S+)";
 const char *label_pattern = "^(\\w+):";
 const char *instruction_pattern = "^\\s+(\\w+)\\s+(\\w+)";
+const char *data_statement_pattern = "^\\.data\\s+((\\w+)\\s+)+";
 
 #define ERROR_BUFFER_SIZE   1024
 #define LINE_BUFFER_SIZE    1024
@@ -99,7 +100,12 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
     const char *error;
     int error_offset;
     
-    std::regex include_regex(include_pattern);
+    std::regex include_regex(include_pattern, std::regex_constants::icase);
+    std::regex defword_regex(defword_pattern, std::regex_constants::icase);
+    std::regex defbyte_regex(defbyte_pattern, std::regex_constants::icase);
+    std::regex label_regex(label_pattern, std::regex_constants::icase);
+    std::regex instruction_regex(instruction_pattern, std::regex_constants::icase);
+    std::regex data_regex(data_statement_pattern, std::regex_constants::icase);
 
     if (result.status != ASSEMBLER_INTERNAL_ERROR)
     {
@@ -126,7 +132,7 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
                         // Process the line
                         if (charIndex > 0)
                         {
-                            // TODO: Execute regex on line
+                            // TODO: Execute regexes on line
                         }
 
                         charIndex = 0;

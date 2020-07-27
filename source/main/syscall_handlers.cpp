@@ -35,17 +35,16 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
     uint16_t stringSize = pull_word(&emulator);
     bool newline = false;
     char *string = new char[stringSize + 1];
-    uint16_t stringEnd = emulator.SP;
-    int stringPos = (int)emulator.SP + (int)stringSize - 1;
     char currentChar;
     int x;
-    for (x = 0; stringPos >= stringEnd; stringPos--)
+    int bytesLeft = stringSize;
+    for (x = stringSize - 1; x >= 0 && bytesLeft > 0; bytesLeft--)
     {
         // Discard non-printables
-        currentChar = emulator.memories.data[stringPos];
+        currentChar = pull_byte(&emulator);
         if (currentChar >= ' ')
         {
-            string[x++] = currentChar;
+            string[x--] = currentChar;
         }
         else if (currentChar == '\n' || currentChar == '\r')
         {
@@ -54,7 +53,15 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
         }
     }
 
-    string[x] = 0;
+    string[stringSize] = 0;
+
+    if (x >= 0)
+    {
+        for (int i = 0; i < stringSize; i++)
+        {
+            string[i] = string[i + x + 1];
+        }
+    }
 
     if (newline)
     {
@@ -64,9 +71,6 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
     {
         console.Print(string);
     }
-
-    // Drop the string off the stack
-    pop_bytes(&emulator, stringSize);
 
     delete [] string;
     return RUNNING;
