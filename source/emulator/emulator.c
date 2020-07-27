@@ -15,7 +15,7 @@ error_t dispose_emulator(emulator *emulator);
 
 error_t init_emulator(emulator *emulator, arch_t architecture)
 {
-    if (emulator == USER_ADDR_NULL)
+    if (emulator == 0)
     {
         return ARG_NULL;
     }
@@ -29,7 +29,7 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->memories.instruction = malloc(INST_SIZE);
 
-    if (emulator->memories.instruction == USER_ADDR_NULL)
+    if (emulator->memories.instruction == 0)
     {
         dispose_emulator(emulator);
         return ALLOC_FAILED;
@@ -37,7 +37,7 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->memories.data = malloc(MEM_SIZE);
 
-    if (emulator->memories.data == USER_ADDR_NULL)
+    if (emulator->memories.data == 0)
     {
         dispose_emulator(emulator);
         return ALLOC_FAILED;
@@ -45,7 +45,7 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->memories.instruction_stack = malloc(INST_STACK_SIZE);
 
-    if (emulator->memories.instruction_stack == USER_ADDR_NULL)
+    if (emulator->memories.instruction_stack == 0)
     {
         dispose_emulator(emulator);
         return ALLOC_FAILED;        
@@ -585,17 +585,17 @@ uint8_t emulator_can_execute(emulator *emulator)
 
 error_t dispose_emulator(emulator *emulator)
 {
-    if (emulator->memories.instruction != USER_ADDR_NULL)
+    if (emulator->memories.instruction != 0)
     {
         free(emulator->memories.instruction);
     }
 
-    if (emulator->memories.instruction_stack != USER_ADDR_NULL)
+    if (emulator->memories.instruction_stack != 0)
     {
         free(emulator->memories.instruction_stack);
     }
 
-    if (emulator->memories.data != USER_ADDR_NULL)
+    if (emulator->memories.data != 0)
     {
         free(emulator->memories.data);
     }

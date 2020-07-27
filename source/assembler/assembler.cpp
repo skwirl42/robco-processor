@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
-#include <pcre.h>
+#include <regex>
 
 #include "opcodes.h"
 #include "symbols.h"
@@ -79,11 +79,6 @@ static char error_buffer[ERROR_BUFFER_SIZE + 1];
 
 typedef struct _assembler_data
 {
-    pcre *include_expression;
-    pcre *defword_expression;
-    pcre *defbyte_expression;
-    pcre *label_expression;
-    pcre *instruction_expression;
     symbol_table_t *symbol_table;
 } assembler_data_t;
 
@@ -104,62 +99,7 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
     const char *error;
     int error_offset;
     
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
-    {
-        data.include_expression = pcre_compile(include_pattern, 0, &error, &error_offset, 0);
-    }
-
-    if (data.include_expression == USER_ADDR_NULL)
-    {
-        result.error = error;
-        result.status = ASSEMBLER_INTERNAL_ERROR;
-    }
-
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
-    {
-        data.defword_expression = pcre_compile(defword_pattern, 0, &error, &error_offset, 0);
-    }
-
-    if (data.defword_expression == USER_ADDR_NULL)
-    {
-        result.error = error;
-        result.status = ASSEMBLER_INTERNAL_ERROR;
-    }
-
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
-    {
-        data.defbyte_expression = pcre_compile(defbyte_pattern, 0, &error, &error_offset, 0);
-    }
-
-    if (data.defbyte_expression == USER_ADDR_NULL)
-    {
-        result.error = error;
-        result.status = ASSEMBLER_INTERNAL_ERROR;
-    }
-
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
-    {
-        data.label_expression = pcre_compile(label_pattern, 0, &error, &error_offset, 0);
-    }
-
-    if (data.label_expression == USER_ADDR_NULL)
-    {
-        result.error = error;
-        result.status = ASSEMBLER_INTERNAL_ERROR;
-    }
-
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
-    {
-        data.instruction_expression = pcre_compile(instruction_pattern, 0, &error, &error_offset, 0);
-    }
-
-    if (data.instruction_expression == USER_ADDR_NULL)
-    {
-        result.error = error;
-        result.status = ASSEMBLER_INTERNAL_ERROR;
-    }
-
-    int *ovec_results = malloc(OVEC_SIZE * sizeof(int));
+    std::regex include_regex(include_pattern);
 
     if (result.status != ASSEMBLER_INTERNAL_ERROR)
     {
@@ -172,7 +112,7 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
         if (result.status == ASSEMBLER_NOOUTPUT)
         {
             FILE *file = fopen(filename, "r");
-            if (file != USER_ADDR_NULL)
+            if (file != 0)
             {
                 int lineNumber = 0;
                 char lineBuffer[LINE_BUFFER_SIZE + 1];
@@ -186,55 +126,7 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
                         // Process the line
                         if (charIndex > 0)
                         {
-                            int pcre_result = pcre_exec(data.include_expression, 0, lineBuffer, charIndex, 0, 0, ovec_results, OVEC_SIZE);
-                            if (pcre_result == 0)
-                            {
-                                // It's an include statement
-                            }
-
-                            if (pcre_result == PCRE_ERROR_NOMATCH)
-                            {
-                                pcre_result = pcre_exec(data.defword_expression, 0, lineBuffer, charIndex, 0, 0, ovec_results, OVEC_SIZE);
-                                if (pcre_result == 0)
-                                {
-                                    // It's a word definition statement
-                                }
-                            }
-
-                            if (pcre_result == PCRE_ERROR_NOMATCH)
-                            {
-                                pcre_result = pcre_exec(data.defbyte_expression, 0, lineBuffer, charIndex, 0, 0, ovec_results, OVEC_SIZE);
-                                if (pcre_result == 0)
-                                {
-                                    // It's a byte definition statement
-                                }
-                            }
-
-                            if (pcre_result == PCRE_ERROR_NOMATCH)
-                            {
-                                pcre_result = pcre_exec(data.label_expression, 0, lineBuffer, charIndex, 0, 0, ovec_results, OVEC_SIZE);
-                                if (pcre_result == 0)
-                                {
-                                    // It's a label definition statement
-                                }
-                            }
-
-                            if (pcre_result == PCRE_ERROR_NOMATCH)
-                            {
-                                pcre_result = pcre_exec(data.instruction_expression, 0, lineBuffer, charIndex, 0, 0, ovec_results, OVEC_SIZE);
-                                if (pcre_result == 0)
-                                {
-                                    // It's an instruction statement
-                                }
-                            }
-
-                            if (pcre_result != 0 && pcre_result != PCRE_ERROR_NOMATCH)
-                            {
-                                snprintf(error_buffer, ERROR_BUFFER_SIZE, "Invalid line at line %d", lineNumber);
-                                result.error = error_buffer;
-                                result.status = ASSEMBLER_ERRORS;
-                                break;
-                            }
+                            // TODO: Execute regex on line
                         }
 
                         charIndex = 0;
@@ -273,35 +165,9 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
         }
     }
 
-    if (data.symbol_table != USER_ADDR_NULL)
+    if (data.symbol_table != 0)
     {
         dispose_symbol_table(data.symbol_table);
-    }
-
-    // Free resources
-    if (data.include_expression != USER_ADDR_NULL)
-    {
-        pcre_free(data.include_expression);
-    }
-
-    if (data.defword_expression != USER_ADDR_NULL)
-    {
-        pcre_free(data.defword_expression);
-    }
-
-    if (data.defbyte_expression != USER_ADDR_NULL)
-    {
-        pcre_free(data.defbyte_expression);
-    }
-
-    if (data.label_expression != USER_ADDR_NULL)
-    {
-        pcre_free(data.label_expression);
-    }
-
-    if (data.instruction_expression != USER_ADDR_NULL)
-    {
-        pcre_free(data.instruction_expression);
     }
 
     return result;

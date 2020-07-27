@@ -1,7 +1,12 @@
 #include "ConsoleSDLRenderer.h"
 
+#if APPLE
 #include <SDL2/SDL.h>
 #include <SDL2_image/SDL_image.h>
+#else // APPLE
+#include <SDL.h>
+#include <SDL_image.h>
+#endif // APPLE
 #include <stdio.h>
 
 #include "Console.h"
@@ -11,6 +16,7 @@ ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int 
       width(width), height(height), foregroundColour(foregroundColour), backgroundColour(backgroundColour),
       fontCharsWide(fontCharsWide), fontCharsHigh(fontCharsHigh),
       cursorBlinkFrames(cursorBlinkFrames),
+      charPixelsHigh(0), charPixelsWide(0), fontBufferWidth(0), fontBufferHeight(0),
       isValid(false)
 {
     auto result = SDL_CreateWindowAndRenderer(width, height, SDL_WINDOW_SHOWN, &window, &renderer);
@@ -48,7 +54,8 @@ ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int 
 
     bool fontSuccess = true;
 
-    fontBuffer = new bool[fontSurface->w * fontSurface->h];
+    auto fontBufferSize = (uint64_t)fontSurface->w * fontSurface->h;
+    fontBuffer = new bool[fontBufferSize];
 
     SDL_LockSurface(fontSurface);
 
@@ -66,7 +73,7 @@ ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int 
             {
                 int surfaceIndex = (y * fontSurface->pitch + x);
                 int fontIndex = (y * fontSurface->w + x);
-                fontBuffer[fontIndex] = pixels[surfaceIndex] > 0;
+                fontBuffer[fontIndex] = (bool)(pixels[surfaceIndex] > 0);
             }
         }
     }

@@ -7,5 +7,4 @@ Requirements:
 - macOS 10.15+ with dev tools installed (could probably be easily ported to other platforms/versions)
 - SDL2
 - SDL2_image
-- CMake 3.0
-- pcre 8.44
+- CMake 3.0+

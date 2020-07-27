@@ -3,6 +3,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER 
+//not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 typedef struct _symbol_reference symbol_reference_t;
 typedef struct _symbol_table_entry symbol_table_entry_t;
 
@@ -37,7 +43,7 @@ struct _symbol_table
 symbol_table_error_t create_symbol_table(symbol_table_t **symbol_table)
 {
     *symbol_table = malloc(sizeof(struct _symbol_table));
-    if (symbol_table == USER_ADDR_NULL)
+    if (symbol_table == 0)
     {
         return SYMBOL_TABLE_ALLOC_FAILED;
     }
@@ -61,7 +67,7 @@ symbol_table_error_t dispose_symbol_table(symbol_table_t *symbol_table)
 
     symbol_reference_t *current_ref = symbol_table->first_reference;
     symbol_reference_t *next_ref;
-    while (current_ref != USER_ADDR_NULL)
+    while (current_ref != 0)
     {
         next_ref = current_ref->next_reference;
         free(current_ref);
@@ -78,7 +84,7 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry = 0;
     symbol_table_entry_t *last_entry = 0;
-    while (current_entry != USER_ADDR_NULL)
+    while (current_entry != 0)
     {
         next_entry = current_entry->next_entry;
         if (strncasecmp(name, current_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
@@ -90,9 +96,9 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
     }
 
     symbol_table_entry_t *new_entry = malloc(sizeof(symbol_table_entry_t));
-    if (new_entry != USER_ADDR_NULL)
+    if (new_entry != 0)
     {
-        if (last_entry != USER_ADDR_NULL)
+        if (last_entry != 0)
         {
             last_entry->next_entry = new_entry;
         }
@@ -120,7 +126,7 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
 
         symbol_reference_t *current_ref = symbol_table->first_reference;
         symbol_reference_t *next_ref;
-        while (current_ref != USER_ADDR_NULL)
+        while (current_ref != 0)
         {
             next_ref = current_ref;
             if (strncasecmp(current_ref->symbol, new_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
@@ -142,7 +148,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
 {
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry;
-    while (current_entry != USER_ADDR_NULL)
+    while (current_entry != 0)
     {
         next_entry = current_entry->next_entry;
         
@@ -154,7 +160,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
         current_entry = next_entry;
     }
 
-    if (current_entry != USER_ADDR_NULL)
+    if (current_entry != 0)
     {
         if (current_entry->signedness != SIGNEDNESS_ANY && expected_signedness != SIGNEDNESS_ANY)
         {
@@ -171,7 +177,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
     }
 
     symbol_reference_t *new_ref = malloc(sizeof(symbol_reference_t));
-    if (new_ref == USER_ADDR_NULL)
+    if (new_ref == 0)
     {
         return SYMBOL_REFERENCE_ALLOC_FAILED;
     }
@@ -185,7 +191,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
 
     symbol_reference_t *current_ref = symbol_table->first_reference;
 
-    if (current_ref == USER_ADDR_NULL)
+    if (current_ref == 0)
     {
         symbol_table->first_reference = new_ref;
     }
@@ -193,7 +199,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
     {
         symbol_reference_t *next_ref = 0;
         symbol_reference_t *last_ref = 0;
-        while (current_ref->next_reference != USER_ADDR_NULL)
+        while (current_ref->next_reference != 0)
         {
             next_ref = current_ref->next_reference;
             last_ref = current_ref;
@@ -203,7 +209,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
         last_ref->next_reference = new_ref;
     }
  
-    if (current_entry != USER_ADDR_NULL)
+    if (current_entry != 0)
     {
         return SYMBOL_REFERENCE_RESOLVABLE;
     }
@@ -215,7 +221,7 @@ symbol_table_entry_t *get_symbol(symbol_table_t *symbol_table, const char *name)
 {
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry;
-    while (current_entry != USER_ADDR_NULL)
+    while (current_entry != 0)
     {
         next_entry = current_entry->next_entry;
         if (strncasecmp(current_entry->symbol, name, SYMBOL_MAX_LENGTH) == 0)
@@ -231,7 +237,7 @@ symbol_table_entry_t *get_symbol(symbol_table_t *symbol_table, const char *name)
 symbol_resolution_t resolve_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t *symbol_type, symbol_signedness_t *signedness, uint16_t *word_value, uint8_t *byte_value)
 {
     symbol_table_entry_t *entry = get_symbol(symbol_table, name);
-    if (entry == USER_ADDR_NULL)
+    if (entry == 0)
     {
         return SYMBOL_UNASSIGNED;
     }
@@ -249,7 +255,7 @@ symbol_ref_status_t check_all_symbols_resolved(symbol_table_t *symbol_table, int
     int unresolved_count = 0;
     symbol_reference_t *current_ref = symbol_table->first_reference;
     symbol_reference_t *next_ref;
-    while (current_ref != USER_ADDR_NULL)
+    while (current_ref != 0)
     {
         next_ref = current_ref;
         if (current_ref->resolution == SYMBOL_UNASSIGNED)

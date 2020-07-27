@@ -3,7 +3,11 @@
 #include "emulator.h"
 #include "syscall.h"
 
+#if APPLE
 #include <SDL2/SDL.h>
+#else // APPLE
+#include <SDL.h>
+#endif // APPLE
 #include <stdio.h>
 #include <string.h>
 
