@@ -1,10 +1,10 @@
 #pragma once
 
-#if APPLE
+#if defined(APPLE)
 #include <SDL2/SDL.h>
-#else // APPLE
+#else // defined(APPLE)
 #include <SDL.h>
-#endif // APPLE
+#endif // defined(APPLE)
 
 typedef enum
 {

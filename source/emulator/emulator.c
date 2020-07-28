@@ -215,22 +215,32 @@ void set_stack_indexed_word(emulator* emulator, uint16_t word)
     emulator->memories.user_stack[emulator->SP + emulator->SI + 1 - STACK_END] = emWord.bytes[0];
 }
 
-void set_direct_page_word(emulator* emulator, uint16_t word)
+void set_data_indexed_byte(emulator *emulator, uint8_t byte, uint16_t index)
+{
+    emulator->memories.data[index] = byte;
+}
+
+uint8_t get_data_indexed_byte(emulator *emulator, uint16_t index)
+{
+    return emulator->memories.data[index];
+}
+
+void set_data_indexed_word(emulator* emulator, uint16_t word, uint16_t index)
 {
     emulator_word_t emWord;
     emWord.word = word;
-    emulator->memories.data[emulator->DP] = emWord.bytes[1];
-    emulator->memories.data[emulator->DP] = emWord.bytes[0];
+    emulator->memories.data[index] = emWord.bytes[1];
+    emulator->memories.data[index + 1] = emWord.bytes[0];
 }
 
 // get_stack_indexed_word would be the same as peek_word with an index,
 // so an index parameter was just added to peek_word
 
-uint16_t get_direct_page_word(emulator* emulator)
+uint16_t get_data_indexed_word(emulator* emulator, uint16_t index)
 {
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.data[emulator->DP - STACK_END];
-    value.bytes[0] = emulator->memories.data[emulator->DP + 1 - STACK_END];
+    value.bytes[1] = emulator->memories.data[index];
+    value.bytes[0] = emulator->memories.data[index + 1];
     return value.word;
 }
 
@@ -247,7 +257,11 @@ execute_status_t get_byte_for_operand(emulator* emulator, uint8_t operand, uint8
         return EXEC_NORMAL;
 
     case DIRECT_PAGE:
-        *result = emulator->memories.data[emulator->DP];
+        *result = get_data_indexed_byte(emulator, emulator->DP);
+        return EXEC_NORMAL;
+
+    case X_REGISTER:
+        *result = get_data_indexed_byte(emulator, emulator->X);
         return EXEC_NORMAL;
 
     default:
@@ -268,7 +282,11 @@ execute_status_t set_byte_for_operand(emulator* emulator, uint8_t operand, uint8
         return EXEC_NORMAL;
 
     case DIRECT_PAGE:
-        emulator->memories.data[emulator->DP] = value;
+        set_data_indexed_byte(emulator, value, emulator->DP);
+        return EXEC_NORMAL;
+
+    case X_REGISTER:
+        set_data_indexed_byte(emulator, value, emulator->X);
         return EXEC_NORMAL;
 
     default:
@@ -289,7 +307,11 @@ execute_status_t get_word_for_operand(emulator* emulator, uint8_t operand, uint1
         return EXEC_NORMAL;
 
     case DIRECT_PAGE:
-        *result = get_direct_page_word(emulator);
+        *result = get_data_indexed_word(emulator, emulator->DP);
+        return EXEC_NORMAL;
+
+    case X_REGISTER:
+        *result = get_data_indexed_word(emulator, emulator->X);
         return EXEC_NORMAL;
 
     default:
@@ -310,7 +332,11 @@ execute_status_t set_word_for_operand(emulator* emulator, uint8_t operand, uint1
         return EXEC_NORMAL;
 
     case DIRECT_PAGE:
-        set_direct_page_word(emulator, value);
+        set_data_indexed_word(emulator, value, emulator->DP);
+        return EXEC_NORMAL;
+
+    case X_REGISTER:
+        set_data_indexed_word(emulator, value, emulator->X);
         return EXEC_NORMAL;
 
     default:

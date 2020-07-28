@@ -3,16 +3,17 @@
 #include "emulator.h"
 #include "syscall.h"
 
-#if APPLE
+#if defined(APPLE)
 #include <SDL2/SDL.h>
-#else // APPLE
+#else // defined(APPLE)
 #include <SDL.h>
-#endif // APPLE
+#endif // defined(APPLE)
 #include <stdio.h>
 #include <string.h>
 
 #include "syscall_handlers.h"
 #include "key_conversion.h"
+#include "assembler.h"
 
 uint8_t testCode[] =
 {
@@ -84,6 +85,8 @@ int main (int argc, char **argv)
     {
         fprintf(stderr, "Missing argument: font filename\n");
     }
+
+    auto assemble_result = assemble("samples/helloworld.asm", 0);
 
     if (renderer != nullptr)
     {

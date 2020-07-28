@@ -15,6 +15,7 @@ typedef enum
     ASSEMBLER_ERRORS,
     ASSEMBLER_ALLOC_FAILED,
     ASSEMBLER_INPUT_ERROR,
+    ASSEMBLER_SYMBOL_ERROR,
 } assembler_status_t;
 
 typedef struct _assembler_result
