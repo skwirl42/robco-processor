@@ -1,23 +1,7 @@
-#include "assembler.h"
-
-#include <stdint.h>
-#include <stdio.h>
-#include <errno.h>
-#include <regex>
-#include <iostream>
+#include "assembler_internal.h"
 
 #include "opcodes.h"
-#include "symbols.h"
 #include "memory.h"
-
-typedef struct opcode_entry
-{
-    const char *name;
-    uint8_t opcode;
-    int arg_byte_count;
-    bool use_specified_operand;
-    uint8_t operands;
-} opcode_entry_t;
 
 opcode_entry_t opcode_entries[] =
 {
@@ -44,8 +28,8 @@ opcode_entry_t opcode_entries[] =
     { "cmpw", OPCODE_CMP + OPCODE_SIZE_BIT, 1 },
 
     // Stack instructions
-    { "pushi", OPCODE_PUSHI, 1 },
-    { "pushiw", OPCODE_PUSHI + OPCODE_SIZE_BIT, 2 },
+    { "pushi", OPCODE_PUSHI, 1, SYMBOL_BYTE },
+    { "pushiw", OPCODE_PUSHI + OPCODE_SIZE_BIT, 2, SYMBOL_WORD },
     { "pop", OPCODE_POP, 1 },
     { "popw", OPCODE_POP + OPCODE_SIZE_BIT, 1 },
     { "dup", OPCODE_DUP, 1 },
@@ -54,69 +38,37 @@ opcode_entry_t opcode_entries[] =
     { "swapw", OPCODE_SWAP + OPCODE_SIZE_BIT, 1 },
     { "roll", OPCODE_ROLL, 1 },
     { "rollw", OPCODE_ROLL + OPCODE_SIZE_BIT, 1 },
-    { "pushsi", OPCODE_PUSH, 1, true, (STACK_INDEX << 6) },
-    { "pushdp", OPCODE_PUSH, 1, true, (DIRECT_PAGE << 6) },
-    { "pushx", OPCODE_PUSH + OPCODE_SIZE_BIT, 1, true, (X_REGISTER << 6) },
-    { "pullsi", OPCODE_PULL, 1, true, STACK_INDEX },
-    { "pulldp", OPCODE_PULL, 1, true, DIRECT_PAGE },
-    { "pullx", OPCODE_PULL + OPCODE_SIZE_BIT, 1, true, X_REGISTER },
+    { "pushsi", OPCODE_PUSH, 1, SYMBOL_NO_TYPE, true, (STACK_INDEX << 6) },
+    { "pushdp", OPCODE_PUSH, 1, SYMBOL_NO_TYPE, true, (DIRECT_PAGE << 6) },
+    { "pushx", OPCODE_PUSH + OPCODE_SIZE_BIT, 1, SYMBOL_NO_TYPE, true, (X_REGISTER << 6) },
+    { "pullsi", OPCODE_PULL, 1, SYMBOL_NO_TYPE, true, STACK_INDEX },
+    { "pulldp", OPCODE_PULL, 1, SYMBOL_NO_TYPE, true, DIRECT_PAGE },
+    { "pullx", OPCODE_PULL + OPCODE_SIZE_BIT, 1, SYMBOL_NO_TYPE, true, X_REGISTER },
 
     // Flow instructions
-    { "b", OPCODE_B, 2 },
-    { "be", OPCODE_BE, 2 },
-    { "bn", OPCODE_BN, 2 },
-    { "bc", OPCODE_BC, 2 },
-    { "bo", OPCODE_BO, 2 },
-    { "jmp", OPCODE_JMP, 2 },
-    { "jsr", OPCODE_JSR, 2 },
-    { "rts", OPCODE_RTS, 1 },
-    { "syscall", OPCODE_SYSCALL, 2 },
+    { "b", OPCODE_B, 2, SYMBOL_ADDRESS_INST },
+    { "be", OPCODE_BE, 2, SYMBOL_ADDRESS_INST },
+    { "bn", OPCODE_BN, 2, SYMBOL_ADDRESS_INST },
+    { "bc", OPCODE_BC, 2, SYMBOL_ADDRESS_INST },
+    { "bo", OPCODE_BO, 2, SYMBOL_ADDRESS_INST },
+    { "jmp", OPCODE_JMP, 2, SYMBOL_ADDRESS_INST },
+    { "jsr", OPCODE_JSR, 2, SYMBOL_ADDRESS_INST },
+    { "rts", OPCODE_RTS, 1, SYMBOL_NO_TYPE },
+    { "syscall", OPCODE_SYSCALL, 2, SYMBOL_WORD },
 
     { 0, 0, 0 }
 };
 
-const char *include_pattern = "^\\.include\\s+\"(.+)\"";
-const char *defword_pattern = "^\\.defword\\s+(\\S+)\\s+(\\S+)";
-const char *defbyte_pattern = "^\\.defbyte\\s+(\\S+)\\s+(\\S+)";
-const char *label_pattern = "^(\\w+):";
-const char *instruction_pattern = "^\\s+(\\w+)\\s+(\\w+)?";
-const char *data_statement_pattern = "^\\.data\\s+((\\w+)\\s+)+";
-
-#define ERROR_BUFFER_SIZE   1024
-#define LINE_BUFFER_SIZE    1024
-
 static char error_buffer[ERROR_BUFFER_SIZE + 1];
-
-typedef struct _assembler_data
-{
-    const char **search_paths;
-    uint8_t *data;
-    size_t data_size;
-    uint8_t *instruction;
-    size_t instruction_size;
-    symbol_table_t *symbol_table;
-} assembler_data_t;
+assembler_data_t *assembler_data;
 
 assembler_result_t handle_include(assembler_data_t *data, const char *included_file)
 {
-    // These are the only statements that can be present in an include
-    std::regex defword_regex(defword_pattern, std::regex_constants::icase);
-    std::regex defbyte_regex(defbyte_pattern, std::regex_constants::icase);
+    fprintf(stdout, "Including %s\n", included_file);
 
     assembler_result_t result;
     result.status = ASSEMBLER_NOOUTPUT;
     return result;
-}
-
-void output_results(std::cmatch &results, bool do_output = false)
-{
-    if (do_output)
-    {
-        for (auto it = results.begin(); it != results.end(); it++)
-        {
-            std::cout << "---- " << it->str() << std::endl;
-        }
-    }
 }
 
 assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, int value, symbol_type_t type)
@@ -125,20 +77,17 @@ assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, i
     result.status = ASSEMBLER_NOOUTPUT;
     result.error = error_buffer;
 
-    fprintf(stdout, "-> %s = %d\n", name, value);
     symbol_error_t sym_err;
     switch (type)
     {
     case SYMBOL_WORD:
+    case SYMBOL_ADDRESS_INST:
+    case SYMBOL_ADDRESS_DATA:
         sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0);
         break;
 
     case SYMBOL_BYTE:
         sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, 0, value);
-        break;
-
-    case SYMBOL_ADDRESS:
-        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0);
         break;
     }
 
@@ -176,6 +125,54 @@ opcode_entry_t *get_opcode_entry(const char *opcode_name)
     return 0;
 }
 
+assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
+{
+    assembler_result_t result;
+    result.status = ASSEMBLER_NOOUTPUT;
+    result.error = error_buffer;
+
+    fprintf(stdout, "Handling instruction %s with arg (%s)\n", opcode->name, symbol_arg ? symbol_arg : "numerical");
+    if (symbol_arg)
+    {
+        symbol_type_t type;
+        symbol_signedness_t signedness;
+        uint16_t word_value;
+        uint8_t byte_value;
+        auto resolution = resolve_symbol(data->symbol_table, symbol_arg, &type, &signedness, &word_value, &byte_value);
+        if (resolution == SYMBOL_ASSIGNED)
+        {
+            switch (type)
+            {
+            case SYMBOL_WORD:
+                fprintf(stdout, "Got value %d for symbol %s\n", word_value, symbol_arg);
+                break;
+
+            case SYMBOL_BYTE:
+                fprintf(stdout, "Got value %d for symbol %s\n", byte_value, symbol_arg);
+                break;
+
+            case SYMBOL_ADDRESS_INST:
+                fprintf(stdout, "Got value %04x for instruction address symbol %s\n", word_value, symbol_arg);
+                break;
+
+            case SYMBOL_ADDRESS_DATA:
+                fprintf(stdout, "Got value %04x for data address symbol %s\n", word_value, symbol_arg);
+                break;
+            }
+        }
+        else
+        {
+            fprintf(stderr, "Could not resolve symbol %s\n", symbol_arg);
+        }
+    }
+    else
+    {
+        // handle literal
+    }
+
+    return result;
+}
+
 assembler_result_t assemble(const char *filename, const char **search_paths)
 {
     assembler_result_t result;
@@ -187,13 +184,8 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
     data.data_size = 0;
     data.instruction = new uint8_t[INST_SIZE];
     data.instruction_size = 0;
-
-    std::regex include_regex(include_pattern, std::regex_constants::icase);
-    std::regex defword_regex(defword_pattern, std::regex_constants::icase);
-    std::regex defbyte_regex(defbyte_pattern, std::regex_constants::icase);
-    std::regex label_regex(label_pattern, std::regex_constants::icase);
-    std::regex instruction_regex(instruction_pattern, std::regex_constants::icase);
-    std::regex data_regex(data_statement_pattern, std::regex_constants::icase);
+    data.lineNumber = 0;
+    assembler_data = &data;
 
     if (result.status != ASSEMBLER_INTERNAL_ERROR)
     {
@@ -208,7 +200,7 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
             FILE *file = fopen(filename, "r");
             if (file != 0)
             {
-                int lineNumber = 0;
+                int lineNumber = 1;
                 char lineBuffer[LINE_BUFFER_SIZE + 1];
                 int charIndex = 0;
                 int currentChar;
@@ -216,99 +208,12 @@ assembler_result_t assemble(const char *filename, const char **search_paths)
                 {
                     if (currentChar == '\r' || currentChar == '\n' || currentChar == EOF)
                     {
+                        data.lineNumber = lineNumber;
                         lineBuffer[charIndex] = 0;
                         // Process the line
                         if (charIndex > 0)
                         {
-                            // fprintf(stdout, "Working on line %d\n", lineNumber);
-                            std::cmatch results;
-                            // TODO: Test regexes on the line
-                            if (std::regex_search(lineBuffer, results, include_regex))
-                            {
-                                auto include_result = handle_include(&data, results[1].str().c_str());
-                                output_results(results);
-                            }
-                            else if (std::regex_search(lineBuffer, results, defword_regex))
-                            {
-                                int num_value;
-                                sscanf(results[2].str().c_str(), "0x%x", &num_value);
-                                auto def_result = handle_symbol_def(&data, results[1].str().c_str(), num_value, SYMBOL_WORD);
-                                output_results(results);
-                            }
-                            else if (std::regex_search(lineBuffer, results, defbyte_regex))
-                            {
-                                int num_value;
-                                sscanf(results[2].str().c_str(), "0x%x", &num_value);
-                                auto def_result = handle_symbol_def(&data, results[1].str().c_str(), num_value, SYMBOL_BYTE);
-                                output_results(results);
-                            }
-                            else if (std::regex_search(lineBuffer, results, label_regex))
-                            {
-                                auto label_result = handle_symbol_def(&data, results[1].str().c_str(), data.instruction_size, SYMBOL_ADDRESS);
-                                output_results(results);
-                            }
-                            else if (std::regex_search(lineBuffer, results, data_regex))
-                            {
-                                output_results(results);
-                            }
-                            else if (std::regex_search(lineBuffer, results, instruction_regex))
-                            {
-                                const char *instruction = results[1].str().c_str();
-                                auto opcode_entry = get_opcode_entry(instruction);
-
-                                if (opcode_entry == 0)
-                                {
-                                    snprintf(error_buffer, ERROR_BUFFER_SIZE, "Unknown instruction %s", instruction);
-                                    result.status = ASSEMBLER_ERRORS;
-                                }
-                                else
-                                {
-                                    const char *operand = 0;
-                                    if (results[2].matched)
-                                    {
-                                        operand = results[2].str().c_str();
-                                    }
-
-                                    if (operand != 0)
-                                    {
-                                        symbol_type_t type;
-                                        symbol_signedness_t signedness;
-                                        uint16_t word_value;
-                                        uint8_t byte_value;
-                                        symbol_resolution_t symbol_res = resolve_symbol(data.symbol_table, operand, &type, &signedness, &word_value, &byte_value);
-                                        if (symbol_res == SYMBOL_ASSIGNED)
-                                        {
-                                            switch (type)
-                                            {
-                                            case SYMBOL_ADDRESS:
-                                                fprintf(stdout, "Got address %s with value 0x%04x\n", operand, word_value);
-                                                break;
-
-                                            case SYMBOL_BYTE:
-                                                fprintf(stdout, "Got byte %s with value 0x%02x\n", operand, byte_value);
-                                                break;
-
-                                            case SYMBOL_WORD:
-                                                fprintf(stdout, "Got word %s with value 0x%04x\n", operand, word_value);
-                                                break;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            // Could be an immediate value, but only with pushi
-                                            fprintf(stderr, "Failed to find symbol %s\n", operand);
-                                        }
-                                    }
-                                }
-                                
-                                output_results(results);
-                            }
-                            else
-                            {
-                                snprintf(error_buffer, ERROR_BUFFER_SIZE, "Unexpected line at %d", lineNumber);
-                                result.error = error_buffer;
-                                result.status = ASSEMBLER_INPUT_ERROR;
-                            }
+                            parse_line(lineBuffer);
                         }
 
                         charIndex = 0;

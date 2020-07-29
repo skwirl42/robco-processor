@@ -11,9 +11,11 @@ extern "C" {
 
 typedef enum SYMBOL_TYPE
 {
+    SYMBOL_NO_TYPE,
     SYMBOL_WORD,
     SYMBOL_BYTE,
-    SYMBOL_ADDRESS,
+    SYMBOL_ADDRESS_INST,
+    SYMBOL_ADDRESS_DATA,
 } symbol_type_t;
 
 typedef enum SYMBOL_RESOLUTION

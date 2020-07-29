@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifdef _MSC_VER 
 //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
@@ -135,6 +136,8 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
             }
             current_ref = next_ref;
         };
+
+        // fprintf(stdout, "Creating new symbol \"%s\" with value %d\n", new_entry->symbol, new_entry->byte_value_valid ? new_entry->byte_value : new_entry->word_value);
 
         return SYMBOL_ERROR_NOERROR;
     }

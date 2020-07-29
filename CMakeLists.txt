@@ -9,6 +9,8 @@ find_package (BISON)
 if (APPLE) # The built-in flex on macOS doesn't play nice with C++17
 set(FLEX_ROOT /usr/local/homebrew/opt/flex)
 set(FLEX_EXECUTABLE /usr/local/homebrew/opt/flex/bin/flex)
+set(BISON_ROOT /usr/local/homebrew/opt/bison@2.7)
+set(BISON_EXECUTABLE /usr/local/homebrew/opt/bison@2.7/bin/bison)
 endif ()
 
 find_package (FLEX)
