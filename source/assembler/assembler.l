@@ -55,7 +55,7 @@ INSTRUCTION             [a-z]{1,7}
     yylval.opcode = get_opcode_entry(yytext);
     if (yylval.opcode)
     {
-        //fprintf(stdout, "Got opcode %s\n", yytext);
+        // fprintf(stdout, "Got opcode %s\n", yytext);
         return INSTRUCTION;
     }
     else
@@ -94,7 +94,7 @@ extern int yylex();
 
 void yyerror(const char *err)
 {
-    fprintf(stderr, "Flex error (%s) on line %d\n", err, assembler_data->lineNumber);
+    fprintf(stderr, "Flex error (%s) on line %d of file %s\n", err, assembler_data->lineNumber, assembler_data->current_filename);
 }
 
 void parse_line(const char *lineBuffer)

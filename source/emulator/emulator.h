@@ -60,6 +60,12 @@ typedef struct _emulator
     uint8_t DP;
 } emulator;
 
+typedef union
+{
+    uint16_t word;
+    uint8_t bytes[2];
+} emulator_word_t;
+
 error_t init_emulator(emulator *emulator, arch_t architecture);
 inst_result_t execute_instruction(emulator *emulator);
 uint16_t pull_word(emulator *emulator);

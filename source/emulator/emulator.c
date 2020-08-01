@@ -5,12 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-typedef union
-{
-    uint16_t word;
-    uint8_t bytes[2];
-} emulator_word_t;
-
 error_t dispose_emulator(emulator *emulator);
 
 error_t init_emulator(emulator *emulator, arch_t architecture)

@@ -28,7 +28,7 @@ line : line comment
         | comment
         ;
 
-include_def : INCLUDE_DIRECTIVE QUOTED_STRING { auto include_result = handle_include(assembler_data, $2); free($2); }
+include_def : INCLUDE_DIRECTIVE QUOTED_STRING { add_file_to_process(assembler_data, $2); free($2); }
         ;
 
 byte_def : DEFBYTE_DIRECTIVE SYMBOL BYTE_LITERAL { auto define_result = handle_symbol_def(assembler_data, $2, $3, SYMBOL_BYTE); free($2); }
@@ -61,7 +61,7 @@ word_def : DEFWORD_DIRECTIVE SYMBOL WORD_LITERAL { auto define_result = handle_s
         }
         ;
 
-label_def : SYMBOL ':' { auto define_result = handle_symbol_def(assembler_data, $2, 0, SYMBOL_ADDRESS_INST); free($2); }
+label_def : SYMBOL ':' { auto define_result = handle_symbol_def(assembler_data, $1, 0, SYMBOL_ADDRESS_INST); free($1); }
         ;
 
 data_def : DATA_DIRECTIVE SYMBOL BYTE_SEQUENCE

@@ -64,7 +64,24 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
+    const char *paths[] =
+    {
+        "samples/",
+        0
+    };
+
+    assembler_data_t *assembled_data;
+    auto assemble_result = assemble("samples/helloworld.asm", paths, &assembled_data);
+
+    if (assemble_result.error == nullptr || strlen(assemble_result.error) == 0)
+    {
+        memcpy(rcEmulator.memories.instruction, assembled_data->instruction, assembled_data->instruction_size);
+    }
+    else
+    {
+        fprintf(stderr, "Failed to properly assemble the target %s (error: %s)\n", "samples/helloworld.asm", assemble_result.error);
+        memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
+    }
     
     auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     if (result != 0)
@@ -85,8 +102,6 @@ int main (int argc, char **argv)
     {
         fprintf(stderr, "Missing argument: font filename\n");
     }
-
-    auto assemble_result = assemble("samples/helloworld.asm", 0);
 
     if (renderer != nullptr)
     {
