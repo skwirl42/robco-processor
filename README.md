@@ -8,7 +8,12 @@ Platforms:
 - Windows with Visual Studio installed
   * note: you'll need to add SDL2 and SLD2_image using nuget, as cmake's nuget support and VS C++ projects don't get along
 
+Notes:
+macOS ships with some of the tools needed, however, they're older versions that don't have the features needed. You can download newer ones using Homebrew: https://brew.sh/
+
 Requirements:
 - CMake 3.15+
 - SDL2
 - SDL2_image
+- flex (from homebrew)
+- bison (from homebrew)
