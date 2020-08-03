@@ -40,6 +40,7 @@ typedef enum _execution_state
     FINISHED,
     WAITING,
     ERROR,
+    DEBUGGING,
 } execution_state_t;
 
 typedef struct _emulator
@@ -66,8 +67,10 @@ typedef union
     uint8_t bytes[2];
 } emulator_word_t;
 
+#define DEBUGGING_BUFFER_COUNT 5
+
 error_t init_emulator(emulator *emulator, arch_t architecture);
-inst_result_t execute_instruction(emulator *emulator);
+inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER_COUNT]);
 uint16_t pull_word(emulator *emulator);
 uint8_t pull_byte(emulator *emulator);
 void push_word(emulator *emulator, uint16_t word);

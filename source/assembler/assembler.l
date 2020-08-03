@@ -17,11 +17,14 @@ DATA_DIRECTIVE          \.data
 ESCAPE_SEQUENCE         \\['\\abrnt0]
 WHITESPACE              [ \t]+
 INSTRUCTION             [a-z]{1,7}
+REGISTER_ARGUMENT       [a-z]{1,2}
 
 %%
 
 {BYTE_LITERAL} {
-    sscanf(yytext, "0x%x", &yylval.intval);
+    int val;
+    sscanf(yytext, "0x%02x", &val);
+    yylval.byteval = val;
     return BYTE_LITERAL;
 }
 
@@ -51,21 +54,33 @@ INSTRUCTION             [a-z]{1,7}
     return DATA_DIRECTIVE;
 }
 
+{REGISTER_ARGUMENT} {
+    register_argument_t *register_entry = get_register(yytext);
+    if (register_entry)
+    {
+        yylval.intval = register_entry->code;
+        return REGISTER_ARGUMENT;
+    }
+
+    yylval.opcode = get_opcode_entry(yytext);
+    if (yylval.opcode)
+    {
+        return INSTRUCTION;
+    }
+
+    yylval.strval = strdup(yytext);
+    return SYMBOL;
+}
+
 {INSTRUCTION} {
     yylval.opcode = get_opcode_entry(yytext);
     if (yylval.opcode)
     {
-        // fprintf(stdout, "Got opcode %s\n", yytext);
         return INSTRUCTION;
     }
-    else
-    {
-        // fprintf(stderr, "Thought %s might be an instruction, but it ain't\n", yytext);
-        // This may not be exactly the behaviour we want. It'll mean typos will be seen as symbols,
-        // although that does mean it'll never match one of our parser rules, which also works
-        yylval.strval = strdup(yytext);
-        return SYMBOL;
-    }
+
+    yylval.strval = strdup(yytext);
+    return SYMBOL;
 }
 
 {SYMBOL} {

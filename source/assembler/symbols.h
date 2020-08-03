@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define SYMBOL_MAX_LENGTH   30
 
@@ -61,8 +62,9 @@ typedef struct _symbol_table symbol_table_t;
 symbol_table_error_t create_symbol_table(symbol_table_t **symbol_table);
 symbol_table_error_t dispose_symbol_table(symbol_table_t *symbol_table);
 symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t type, symbol_signedness_t signedness, uint16_t word_value, uint8_t byte_value);
-symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint16_t reference_address, symbol_signedness_t expected_signedness, symbol_type_t expected_type);
+symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint8_t *reference_address, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type);
 symbol_resolution_t resolve_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t *symbol_type, symbol_signedness_t *signedness, uint16_t *word_value, uint8_t *byte_value);
+void output_symbols(FILE *output_file, symbol_table_t *symbol_table);
 
 // on enter
 // count = number of strings of at least SYMBOL_MAX_LENGTH passed into 'symbols'

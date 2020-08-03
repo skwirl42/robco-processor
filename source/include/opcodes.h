@@ -1,12 +1,23 @@
 #ifndef __OPCODES_H__
 #define __OPCODES_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
+#include "symbols.h"
+
+#define ERROR_BUFFER_SIZE   1024
+#define LINE_BUFFER_SIZE    1024
+
 #define ALU_INST_BASE           0x80
 #define FLOW_INST_BASE          0x60
 #define OTHER_INST_BASE         0x40
 #define STACK_INST_BASE         0x00
 
 #define IS_STACK_INST(opcode)   ((opcode & 0xC0) == STACK_INST_BASE)
+#define IS_BRANCH_INST(opcode)  ((opcode & 0b10000) == 0 && (opcode & 0xE0) == FLOW_INST_BASE)
 
 // Only applies to ALU and stack instructions
 #define OPCODE_SIZE_BIT         (0x20)
@@ -38,7 +49,7 @@
 #define OPCODE_SWAP                    (STACK_INST_BASE + 0b00010)
 #define OPCODE_ROLL                    (STACK_INST_BASE + 0b11111)
 #define OPCODE_PUSH                    (STACK_INST_BASE + 0b10000) // Source 0 indicates register to push
-#define OPCODE_PULL                    (STACK_INST_BASE + 0b01000) // Destination indicates register to pull the value into
+#define OPCODE_PULL                    (STACK_INST_BASE + 0b01001) // Destination indicates register to pull the value into
 
 // Flow control instructions - immediate address/ID
 #define OPCODE_B                       (FLOW_INST_BASE + 0b00000)
@@ -56,16 +67,53 @@
 
 #define SOURCE_0_MASK           0b11000000
 #define SOURCE_0(BYTE)			((BYTE & SOURCE_0_MASK) >> 6)
+#define TO_SOURCE_0(BYTE)       (BYTE << 6)
 #define SOURCE_1_MASK           0b00110000
 #define SOURCE_1(BYTE)			((BYTE & SOURCE_1_MASK) >> 4)
+#define TO_SOURCE_1(BYTE)       (BYTE << 4)
 #define SOURCE_2_MASK           0b00001100
 #define SOURCE_2(BYTE)			((BYTE & SOURCE_2_MASK) >> 2)
+#define TO_SOURCE_2(BYTE)       (BYTE << 2)
 #define DESTINATION_MASK        0b00000011
 #define DESTINATION(BYTE)		(BYTE & DESTINATION_MASK)
+#define TO_DESTINATION(BYTE)    (BYTE)
 
 #define STACK_OPERAND			0b00
 #define STACK_INDEX				0b01
 #define DIRECT_PAGE				0b10
 #define X_REGISTER				0b11
+
+typedef union
+{
+    uint16_t uword;
+    int16_t sword;
+    uint8_t bytes[2];
+} machine_word_t;
+
+typedef struct opcode_entry
+{
+    const char *name;
+    uint8_t opcode;
+    int arg_byte_count;
+    symbol_type_t argument_type;
+    symbol_signedness_t argument_signedness;
+    uint8_t use_specified_operand;
+    uint8_t operands;
+} opcode_entry_t;
+
+typedef struct _register_argument
+{
+    const char *name;
+    uint8_t code;
+} register_argument_t;
+
+opcode_entry_t *get_opcode_entry(const char *opcode_name);
+opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode);
+register_argument_t *get_register(const char *name);
+register_argument_t *get_register_by_code(uint8_t code);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __OPCODES_H__

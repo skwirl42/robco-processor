@@ -14,6 +14,7 @@
 #include "syscall_handlers.h"
 #include "key_conversion.h"
 #include "assembler.h"
+#include "opcodes.h"
 
 uint8_t testCode[] =
 {
@@ -38,6 +39,8 @@ uint8_t testCode[] =
     0x7f, 0x01, 0x02, // syscall print
     0x60, 0xFF, 0xDE  // b loop
 };
+
+const char *blank_line = "                                                            ";
 
 int mod(int a, int b)
 {
@@ -71,11 +74,13 @@ int main (int argc, char **argv)
     };
 
     assembler_data_t *assembled_data;
-    auto assemble_result = assemble("samples/helloworld.asm", paths, &assembled_data);
+    // auto assemble_result = assemble("samples/helloworld.asm", paths, &assembled_data);
+    auto assemble_result = assemble("samples/data_test.asm", paths, &assembled_data);
 
     if (assemble_result.error == nullptr || strlen(assemble_result.error) == 0)
     {
         memcpy(rcEmulator.memories.instruction, assembled_data->instruction, assembled_data->instruction_size);
+        memcpy(&rcEmulator.memories.data[0x100], assembled_data->data, assembled_data->data_size);
     }
     else
     {
@@ -95,7 +100,7 @@ int main (int argc, char **argv)
     {
         auto fontfilename = argv[1];
         // Format of the font file is 16 chars wide, 8 chars tall
-        renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 8, 10);
+        renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 8, 100);
         renderer->Clear();
     }
     else
@@ -110,11 +115,21 @@ int main (int argc, char **argv)
         bool emulate = true;
         SDL_Event event;
         int frame = 0;
+
+        int debugging_lines_start = console.GetHeight() - DEBUGGING_BUFFER_COUNT;
+        char *debugging_buffers[DEBUGGING_BUFFER_COUNT];
+        for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
+        {
+            debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
+        }
+
+        bool debugging = false;
+
         while (!done)
         {
             if (emulate && emulator_can_execute(&rcEmulator))
             {
-                auto result = execute_instruction(&rcEmulator);
+                auto result = execute_instruction(&rcEmulator, debugging_buffers);
                 if (result == EXECUTE_SYSCALL)
                 {
                     handle_current_syscall(rcEmulator, console);
@@ -124,9 +139,14 @@ int main (int argc, char **argv)
                     fprintf(stderr, "Emulation failed with an illegal instruction\n");
                     emulate = false;
                 }
+
+                if (debugging)
+                {
+                    rcEmulator.current_state = DEBUGGING;
+                }
             }
 
-            if (SDL_WaitEventTimeout(&event, 30) != 0)
+            if (SDL_PollEvent(&event))
             {
                 if (event.type == SDL_QUIT)
                 {
@@ -134,11 +154,48 @@ int main (int argc, char **argv)
                 }
                 else if (event.type == SDL_KEYDOWN)
                 {
-                    handle_key(event.key.keysym, rcEmulator, console);
+                    if (event.key.keysym.sym == SDLK_F5)
+                    {
+                        debugging = false;
+                        if (rcEmulator.current_state == DEBUGGING)
+                        {
+                            rcEmulator.current_state = RUNNING;
+                        }
+                    }
+                    else if (emulator_can_execute(&rcEmulator))
+                    {
+                        handle_key(event.key.keysym, rcEmulator, console);
+                    }
+                }
+                else if (event.type == SDL_MOUSEBUTTONDOWN)
+                {
+                    if (rcEmulator.current_state == DEBUGGING)
+                    {
+                        rcEmulator.current_state = RUNNING;
+                        debugging = true;
+                    }
+                    else
+                    {
+                        debugging = true;
+                    }
+                }
+            }
+
+            if (debugging || rcEmulator.current_state == DEBUGGING)
+            {
+                for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
+                {
+                    console.PrintAt(blank_line, 0, debugging_lines_start + i);
+                    console.PrintLineAt(debugging_buffers[i], 2, debugging_lines_start + i);
                 }
             }
 
             renderer->Render(&console, frame++);
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            delete [] debugging_buffers[i];
         }
     }
 

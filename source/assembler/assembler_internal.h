@@ -1,27 +1,13 @@
 #pragma once
 
 #include "assembler.h"
+#include "opcodes.h"
 
-#define ERROR_BUFFER_SIZE   1024
-#define LINE_BUFFER_SIZE    1024
-
-typedef struct opcode_entry
+typedef struct _byte_array
 {
-    const char *name;
-    uint8_t opcode;
-    int arg_byte_count;
-    symbol_type_t argument_type;
-    symbol_signedness_t argument_signedness;
-    bool use_specified_operand;
-    uint8_t operands;
-} opcode_entry_t;
-
-typedef union
-{
-    uint16_t uword;
-    int16_t sword;
-    uint8_t bytes[2];
-} assembler_word_t;
+    uint8_t *array;
+    size_t size;
+} byte_array_t;
 
 extern assembler_data_t *assembler_data;
 
@@ -29,5 +15,6 @@ void add_file_to_process(assembler_data_t *data, const char *included_file);
 assembler_result_t handle_file(assembler_data_t *data, const char *included_file);
 assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, int value, symbol_type_t type);
 assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg);
-opcode_entry_t *get_opcode_entry(const char *opcode_name);
 void parse_line(const char *lineBuffer);
+byte_array_t add_to_byte_array(byte_array_t array, uint8_t value);
+assembler_result_t add_data(assembler_data_t *data, const char *name, byte_array_t array);

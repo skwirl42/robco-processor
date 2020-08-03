@@ -25,6 +25,7 @@ add_executable(robcoterm
     source/emulator/emulator.c
     source/main/syscall_handlers.cpp
     source/main/key_conversion.cpp
+    source/main/opcode_table.c
     source/assembler/assembler.cpp
     source/assembler/symbols.c
     ${FLEX_AssemblerLex_OUTPUTS}

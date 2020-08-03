@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "opcodes.h"
+
 #ifdef _MSC_VER 
 //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
 #define strncasecmp _strnicmp
@@ -17,7 +19,8 @@ struct _symbol_reference
 {
     char symbol[SYMBOL_MAX_LENGTH + 1];
     symbol_reference_t *next_reference;
-    uint16_t location;
+    uint8_t *location;
+    uint16_t ref_location;
     symbol_resolution_t resolution;
     symbol_signedness_t expected_signedness;
     symbol_type_t expected_type;
@@ -40,6 +43,32 @@ struct _symbol_table
     symbol_table_entry_t *first_entry;
     symbol_reference_t *first_reference;
 };
+
+void output_symbols(FILE *output_file, symbol_table_t *symbol_table)
+{
+    symbol_table_entry_t *current_entry = symbol_table->first_entry;
+    while (current_entry != 0)
+    {
+        if (current_entry->word_value_valid)
+        {
+            fprintf(output_file, "Name: %s, value: 0x%04x %s\n", current_entry->symbol, current_entry->word_value, (current_entry->type == SYMBOL_ADDRESS_INST) ? "(address)" : "");
+        }
+        else
+        {
+            fprintf(output_file, "Name: %s, value: 0x%02x\n", current_entry->symbol, current_entry->byte_value);
+        }
+        
+        current_entry = current_entry->next_entry;
+    }
+
+    fprintf(output_file, "\nReferences:\n");
+    symbol_reference_t *current_reference = symbol_table->first_reference;
+    while (current_reference != 0)
+    {
+        fprintf(output_file, "Reference: %s, near location 0x%04x\n", current_reference->symbol, current_reference->ref_location);
+        current_reference = current_reference->next_reference;
+    }
+}
 
 symbol_table_error_t create_symbol_table(symbol_table_t **symbol_table)
 {
@@ -82,6 +111,12 @@ symbol_table_error_t dispose_symbol_table(symbol_table_t *symbol_table)
 
 symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t type, symbol_signedness_t signedness, uint16_t word_value, uint8_t byte_value)
 {
+    if (type == SYMBOL_NO_TYPE)
+    {
+        fprintf(stderr, "Trying to define a symbol (%s) with no type\n", name);
+        return SYMBOL_ERROR_INTERNAL;
+    }
+
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry = 0;
     symbol_table_entry_t *last_entry = 0;
@@ -126,15 +161,32 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
         new_entry->next_entry = 0;
 
         symbol_reference_t *current_ref = symbol_table->first_reference;
-        symbol_reference_t *next_ref;
         while (current_ref != 0)
         {
-            next_ref = current_ref;
             if (strncasecmp(current_ref->symbol, new_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
             {
                 current_ref->resolution = SYMBOL_ASSIGNED;
+                if (type == SYMBOL_BYTE)
+                {
+                    *current_ref->location = byte_value;
+                }
+                else if (current_ref->expected_signedness == SIGNEDNESS_ANY || current_ref->expected_signedness == SIGNEDNESS_UNSIGNED)
+                {
+                    machine_word_t word;
+                    word.uword = word_value;
+                    current_ref->location[0] = word.bytes[1];
+                    current_ref->location[1] = word.bytes[0];
+                }
+                else if (current_ref->expected_signedness == SIGNEDNESS_SIGNED)
+                {
+                    machine_word_t word;
+                    word.uword = word_value;
+                    word.sword -= (int16_t)current_ref->ref_location - 1;
+                    current_ref->location[0] = word.bytes[1];
+                    current_ref->location[1] = word.bytes[0];
+                }
             }
-            current_ref = next_ref;
+            current_ref = current_ref->next_reference;
         };
 
         // fprintf(stdout, "Creating new symbol \"%s\" with value %d\n", new_entry->symbol, new_entry->byte_value_valid ? new_entry->byte_value : new_entry->word_value);
@@ -147,7 +199,7 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
     }
 }
 
-symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint16_t reference_address, symbol_signedness_t expected_signedness, symbol_type_t expected_type)
+symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint8_t *reference_address, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type)
 {
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry;
@@ -189,6 +241,7 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
     new_ref->expected_signedness = expected_signedness;
     new_ref->expected_type = expected_type;
     new_ref->location = reference_address;
+    new_ref->ref_location = ref_location;
     new_ref->resolution = SYMBOL_UNASSIGNED;
     strncpy(new_ref->symbol, name, SYMBOL_MAX_LENGTH);
 

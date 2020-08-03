@@ -351,6 +351,8 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
     uint8_t source2 = SOURCE_2(sources);
     uint8_t destination = DESTINATION(sources);
 
+    emulator->CC = 0;
+
     // TODO:
     // - Find compiler-independent carry/overflow check methods
     if (baseopcode == OPCODE_INC || baseopcode == OPCODE_DEC)
@@ -416,6 +418,10 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 if (operandA == operandB)
                 {
                     emulator->CC |= CC_Z;
+                }
+                else
+                {
+                    emulator->CC &= ~CC_Z;
                 }
                 break;
 
@@ -492,6 +498,10 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 {
                     emulator->CC |= CC_Z;
                 }
+                else
+                {
+                    emulator->CC &= ~CC_Z;
+                }
                 break;
 
             case OPCODE_OR:
@@ -507,6 +517,10 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 if (operandA & 0x80)
                 {
                     emulator->CC |= CC_C;
+                }
+                else
+                {
+                    emulator->CC &= ~CC_C;
                 }
                 break;
 
@@ -527,9 +541,11 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
             if (ubyte == 0)
             {
                 emulator->CC |= CC_Z;
+                emulator->CC &= ~CC_Z;
             }
             else if (ubyte & 0x80)
             {
+                emulator->CC &= ~CC_Z;
                 emulator->CC |= CC_N;
             }
         }
@@ -699,7 +715,7 @@ execute_result_t execute_stack_instruction(emulator *emulator, uint8_t opcode)
     return result;
 }
 
-inst_result_t execute_instruction(emulator *emulator)
+inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4])
 {
     address_t original_pc = emulator->PC;
     uint8_t opcode = fetch_instruction_byte(emulator);
@@ -710,6 +726,112 @@ inst_result_t execute_instruction(emulator *emulator)
     address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
     address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
     
+    if (debugging_buffers != 0)
+    {
+        int current_buffer = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < LINE_BUFFER_SIZE; j++)
+            {
+                debugging_buffers[i][j] = 0;
+            }
+        }
+        int length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "Machine state: PC: 0x%04x, SP: 0x%04x, ISP: 0x%04x,",
+            emulator->PC,
+            emulator->SP,
+            emulator->ISP
+        );
+        
+        length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "X: 0x%04x, CC: 0x%02x, SI: 0x%02x, DP: 0x%02x",
+            emulator->X,
+            emulator->CC,
+            emulator->SI,
+            emulator->DP
+        );
+
+        int index = 0;
+        index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "Stack: ");
+        int i = emulator->SP;
+        for (int j = 0; i < 0xFFFF && j < 10; j++)
+        {
+            index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "0x%02x ", emulator->memories.user_stack[i - STACK_END]);
+            i++;
+        }
+        debugging_buffers[current_buffer++][index] = 0;
+
+        snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "[DP] 0x%02x [X] 0x%02x", emulator->memories.data[emulator->DP], emulator->memories.data[emulator->X]);
+
+        opcode_entry_t *current_opcode_entry = get_opcode_entry_from_opcode(opcode);
+        if (current_opcode_entry != 0)
+        {
+            if (current_opcode_entry->use_specified_operand)
+            {
+                register_argument_t *destarg = get_register_by_code(DESTINATION(imm_msb));
+                register_argument_t *source0 = get_register_by_code(SOURCE_0(imm_msb));
+                if (destarg != 0 && destarg->code != 0)
+                {
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: %s", current_opcode_entry->name, destarg->name);
+                }
+                else if (source0 != 0 && source0->code != 0)
+                {
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: %s", current_opcode_entry->name, source0->name);
+                }
+                else
+                {
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: 0x%04x", current_opcode_entry->name, imm_msb);
+                }
+                
+            }
+            else if (current_opcode_entry->arg_byte_count == 1)
+            {
+                if (imm_msb != 0)
+                {
+                    uint8_t dest = DESTINATION(imm_msb);
+                    uint8_t source0 = SOURCE_0(imm_msb);
+                    uint8_t source1 = SOURCE_1(imm_msb);
+                    uint8_t source2 = SOURCE_2(imm_msb);
+                    register_argument_t *destarg = get_register_by_code(dest);
+                    register_argument_t *source0arg = get_register_by_code(source0);
+                    register_argument_t *source1arg = get_register_by_code(source1);
+                    register_argument_t *source2arg = get_register_by_code(source2);
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operands: %s, %s, %s, %s", 
+                        current_opcode_entry->name, destarg->name, source0arg->name, source1arg->name, source2arg->name);
+                }
+                else
+                {
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: 0x%02x", current_opcode_entry->name, imm_msb);
+                }
+            }
+            else if (current_opcode_entry->argument_type == SYMBOL_ADDRESS_INST)
+            {
+                if (current_opcode_entry->argument_signedness == SIGNEDNESS_SIGNED)
+                {
+                    machine_word_t word;
+                    word.bytes[0] = imm_lsb;
+                    word.bytes[1] = imm_msb;
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Branch: %s, by %d", current_opcode_entry->name, word.sword);
+                }
+                else
+                {
+                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand 0x%04x\n", current_opcode_entry->name, imm_16);
+                }    
+            }
+            else if (current_opcode_entry->argument_type == SYMBOL_WORD)
+            {
+                length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand 0x%04x\n", current_opcode_entry->name, imm_16);
+            }
+            else
+            {
+                length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s\n", current_opcode_entry->name);
+            }
+        }
+        else
+        {
+            length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Failed to find opcode %02x\n", opcode);
+        }
+        debugging_buffers[current_buffer][length] = 0;
+    }
+
     if (opcode & ALU_INST_BASE)
     {
         execute_result_t execresult = execute_alu_instruction(emulator, opcode);

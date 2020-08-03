@@ -1,73 +1,55 @@
 #include "assembler_internal.h"
 
+#include <errno.h>
+#include <err.h>
 #include "opcodes.h"
 #include "memory.h"
 #include "emulator.h"
 
-opcode_entry_t opcode_entries[] =
-{
-    // ALU instructions
-    { "add",    OPCODE_ADD,                     1, SYMBOL_NO_TYPE },
-    { "addw",   OPCODE_ADD + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "sub",    OPCODE_SUB,                     1, SYMBOL_NO_TYPE },
-    { "subw",   OPCODE_SUB + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "mul",    OPCODE_MUL,                     1, SYMBOL_NO_TYPE },
-    { "mulw",   OPCODE_MUL + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "or",     OPCODE_OR,                      1, SYMBOL_NO_TYPE },
-    { "orw",    OPCODE_OR + OPCODE_SIZE_BIT,    1, SYMBOL_NO_TYPE },
-    { "and",    OPCODE_AND,                     1, SYMBOL_NO_TYPE },
-    { "andw",   OPCODE_AND + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "shr",    OPCODE_SHR,                     1, SYMBOL_NO_TYPE },
-    { "shrw",   OPCODE_SHR + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "shl",    OPCODE_SHL,                     1, SYMBOL_NO_TYPE },
-    { "shlw",   OPCODE_SHL + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "inc",    OPCODE_INC,                     1, SYMBOL_NO_TYPE },
-    { "incw",   OPCODE_INC + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "dec",    OPCODE_DEC,                     1, SYMBOL_NO_TYPE },
-    { "decw",   OPCODE_DEC + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "cmp",    OPCODE_CMP,                     1, SYMBOL_NO_TYPE },
-    { "cmpw",   OPCODE_CMP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-
-    // Stack instructions
-    { "pushi",  OPCODE_PUSHI,                   1, SYMBOL_BYTE,         SIGNEDNESS_ANY },
-    { "pushiw", OPCODE_PUSHI + OPCODE_SIZE_BIT, 2, SYMBOL_WORD,         SIGNEDNESS_ANY },
-    { "pop",    OPCODE_POP,                     1, SYMBOL_NO_TYPE },
-    { "popw",   OPCODE_POP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "dup",    OPCODE_DUP,                     1, SYMBOL_NO_TYPE },
-    { "dupw",   OPCODE_DUP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE },
-    { "swap",   OPCODE_SWAP,                    1, SYMBOL_NO_TYPE },
-    { "swapw",  OPCODE_SWAP + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE },
-    { "roll",   OPCODE_ROLL,                    1, SYMBOL_NO_TYPE },
-    { "rollw",  OPCODE_ROLL + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE },
-    { "pushsi", OPCODE_PUSH,                    1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, (STACK_INDEX << 6) },
-    { "pushdp", OPCODE_PUSH,                    1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, (DIRECT_PAGE << 6) },
-    { "pushx",  OPCODE_PUSH + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, (X_REGISTER << 6) },
-    { "pullsi", OPCODE_PULL,                    1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, STACK_INDEX },
-    { "pulldp", OPCODE_PULL,                    1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, DIRECT_PAGE },
-    { "pullx",  OPCODE_PULL + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      SIGNEDNESS_ANY,         true, X_REGISTER },
-
-    // Flow instructions
-    { "b",      OPCODE_B,                       2, SYMBOL_ADDRESS_INST, SIGNEDNESS_SIGNED },
-    { "be",     OPCODE_BE,                      2, SYMBOL_ADDRESS_INST, SIGNEDNESS_SIGNED },
-    { "bn",     OPCODE_BN,                      2, SYMBOL_ADDRESS_INST, SIGNEDNESS_SIGNED },
-    { "bc",     OPCODE_BC,                      2, SYMBOL_ADDRESS_INST, SIGNEDNESS_SIGNED },
-    { "bo",     OPCODE_BO,                      2, SYMBOL_ADDRESS_INST, SIGNEDNESS_SIGNED },
-    { "jmp",    OPCODE_JMP,                     2, SYMBOL_ADDRESS_INST, SIGNEDNESS_UNSIGNED },
-    { "jsr",    OPCODE_JSR,                     2, SYMBOL_ADDRESS_INST, SIGNEDNESS_UNSIGNED },
-    { "rts",    OPCODE_RTS,                     1, SYMBOL_NO_TYPE },
-    { "syscall", OPCODE_SYSCALL,                2, SYMBOL_WORD,         SIGNEDNESS_ANY },
-
-    { 0, 0, 0 }
-};
 
 static char error_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
+
+byte_array_t add_to_byte_array(byte_array_t array, uint8_t value)
+{
+    auto old_array = array.array;
+    auto old_size = array.size;
+    array.array = new uint8_t[array.size + 1];
+    memcpy(array.array, old_array, array.size);
+    array.array[array.size++] = value;
+    if (old_size > 0 && old_array != nullptr)
+    {
+        delete [] old_array;
+    }
+    return array;
+}
 
 void add_file_to_process(assembler_data_t *data, const char *filename)
 {
     char *new_file = new char[LINE_BUFFER_SIZE + 1];
     strncpy(new_file, filename, LINE_BUFFER_SIZE);
     data->files_to_process.push_back(new_file);
+}
+
+assembler_result_t add_data(assembler_data_t *data, const char *name, byte_array_t array)
+{
+    assembler_result_t result;
+    result.status = ASSEMBLER_NOOUTPUT;
+    result.error = error_buffer;
+
+    if (name != nullptr)
+    {
+        result = handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
+    }
+
+    memcpy(&data->data[data->data_size], array.array, array.size);
+    data->data_size += array.size;
+
+    array.size = 0;
+    delete [] array.array;
+    array.array = nullptr;
+
+    return result;
 }
 
 assembler_result_t handle_file(assembler_data_t *data, const char *filename)
@@ -115,6 +97,7 @@ assembler_result_t handle_file(assembler_data_t *data, const char *filename)
                 if (charIndex > 0)
                 {
                     parse_line(lineBuffer);
+                    // fprintf(stdout, "Got line %d: %s\n", lineNumber, lineBuffer);
                 }
 
                 if (data->files_to_process.size() > 0)
@@ -228,22 +211,6 @@ assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, i
     return result;
 }
 
-opcode_entry_t *get_opcode_entry(const char *opcode_name)
-{
-    int index = 0;
-    opcode_entry_t *result;
-    while (opcode_entries[index].name != 0)
-    {
-        if (strncasecmp(opcode_name, opcode_entries[index].name, LINE_BUFFER_SIZE) == 0)
-        {
-            return &opcode_entries[index];
-        }
-        index++;
-    }
-
-    return 0;
-}
-
 assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
 {
     assembler_result_t result;
@@ -258,13 +225,14 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
         uint16_t word_value;
         uint8_t byte_value;
         auto resolution = resolve_symbol(data->symbol_table, symbol_arg, &type, &signedness, &word_value, &byte_value);
-        assembler_word_t word;
+        machine_word_t word;
         word.uword = word_value;
         if (resolution == SYMBOL_ASSIGNED)
         {
             switch (type)
             {
             case SYMBOL_WORD:
+            case SYMBOL_ADDRESS_DATA:
                 data->instruction[data->instruction_size++] = opcode->opcode;
                 data->instruction[data->instruction_size++] = word.bytes[1];
                 data->instruction[data->instruction_size++] = word.bytes[0];
@@ -278,8 +246,7 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
             case SYMBOL_ADDRESS_INST:
                 if (opcode->argument_signedness == SIGNEDNESS_SIGNED)
                 {
-                    auto target = (int16_t)word_value - (int16_t)data->instruction_size;
-                    word.sword = target;
+                    word.sword -= (int16_t)data->instruction_size;
                     // fprintf(stdout, "Branching by %d, from %zu to %u\n", target, data->instruction_size + 3, word_value);
                     data->instruction[data->instruction_size++] = opcode->opcode;
                     data->instruction[data->instruction_size++] = word.bytes[1];
@@ -293,10 +260,6 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
                 }
                 break;
 
-            case SYMBOL_ADDRESS_DATA:
-                printf("Got value %04x for data address symbol %s\n", word_value, symbol_arg);
-                break;
-
             case SYMBOL_NO_TYPE:
                 snprintf(error_buffer, ERROR_BUFFER_SIZE, "Error resolving symbol %s", symbol_arg);
                 result.error = error_buffer;
@@ -304,9 +267,23 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
                 break;
             }
         }
+        else if (opcode->argument_type == SYMBOL_ADDRESS_INST)
+        {
+            data->instruction[data->instruction_size++] = opcode->opcode;
+            auto signedness = SIGNEDNESS_ANY;
+            if (IS_BRANCH_INST(opcode->opcode))
+            {
+                signedness = SIGNEDNESS_SIGNED;
+            }
+            auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
+                                                        &data->instruction[data->instruction_size], data->instruction_size, 
+                                                        signedness, SYMBOL_ADDRESS_INST);
+            data->instruction[data->instruction_size++] = 0;
+            data->instruction[data->instruction_size++] = 0;
+        }
         else
         {
-            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Could not resolve symbol %s", symbol_arg);
+            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Failed to find symbol %s", symbol_arg);
             result.error = error_buffer;
             result.status = ASSEMBLER_SYMBOL_ERROR;
         }
@@ -318,8 +295,9 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
     }
     else if (opcode->argument_type == SYMBOL_NO_TYPE)
     {
+        // There may be register specifications in the literal arg
         data->instruction[data->instruction_size++] = opcode->opcode;
-        data->instruction[data->instruction_size++] = 0;
+        data->instruction[data->instruction_size++] = (uint8_t)literal_arg;
 
         if (opcode->arg_byte_count > 1)
         {
@@ -345,7 +323,7 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
             }
 
             uint16_t literal = literal_arg;
-            assembler_word_t word;
+            machine_word_t word;
             word.uword = literal;
 
             data->instruction[data->instruction_size++] = opcode->opcode;
@@ -398,9 +376,25 @@ assembler_result_t assemble(const char *filename, const char **search_paths, ass
             result.error_count = file_result.error_count;
             result.status = file_result.status;
 
-            for (int i = 0; i < data.instruction_size; i++)
+            const char *output_file = "assembled.txt";
+            FILE *assembled_output = fopen(output_file, "w+");
+            if (assembled_output != 0)
             {
-                fprintf(stdout, "0x%02x\n", data.instruction[i]);
+                for (int i = 0; i < data.instruction_size;)
+                {
+                    fprintf(assembled_output, "0x%04x: ", i);
+                    for (int j = 0; j < 4 && i < data.instruction_size; j++)
+                    {
+                        fprintf(assembled_output, "0x%02x ", data.instruction[i++]);
+                    }
+                    fprintf(assembled_output, "\n");
+                }
+                fprintf(assembled_output, "\nSymbols:\n");
+                output_symbols(assembled_output, data.symbol_table);
+            }
+            else
+            {
+                fprintf(stderr, "Couldn't open assembler output file %s (errno: %d)\n", output_file, errno);
             }
         }
     }

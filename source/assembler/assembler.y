@@ -6,16 +6,21 @@ extern int yylex();
 
 %union {
     int intval;
-    uint8_t *bytearray;
+    uint8_t byteval;
+    byte_array_t bytearray = { 0, 0 };
     char *strval;
     opcode_entry_t *opcode;
 }
 
 %token <opcode> INSTRUCTION
 %token <strval> SYMBOL QUOTED_STRING 
-%token <intval> BYTE_LITERAL WORD_LITERAL INTEGER_LITERAL
+%token <intval> WORD_LITERAL INTEGER_LITERAL REGISTER_ARGUMENT
+%token <byteval> BYTE_LITERAL
 %token <bytearray> BYTE_SEQUENCE
 %token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE COMMENT
+
+%type <intval> register_list
+%type <bytearray> byte_sequence
 %%
 
 line : line comment
@@ -64,15 +69,23 @@ word_def : DEFWORD_DIRECTIVE SYMBOL WORD_LITERAL { auto define_result = handle_s
 label_def : SYMBOL ':' { auto define_result = handle_symbol_def(assembler_data, $1, 0, SYMBOL_ADDRESS_INST); free($1); }
         ;
 
-data_def : DATA_DIRECTIVE SYMBOL BYTE_SEQUENCE
-        | DATA_DIRECTIVE BYTE_SEQUENCE
+data_def : DATA_DIRECTIVE SYMBOL byte_sequence { auto add_result = add_data(assembler_data, $2, $3); free($2); }
+        | DATA_DIRECTIVE byte_sequence  { auto add_result = add_data(assembler_data, nullptr, $2); }
+        ;
+
+byte_sequence : BYTE_LITERAL { $$ = add_to_byte_array($$, $1); }
+        | byte_sequence BYTE_LITERAL { $$ = add_to_byte_array($1, $2); }
         ;
 
 instruction_line : INSTRUCTION SYMBOL { auto opcode_result = handle_instruction(assembler_data, $1, $2, 0); }
         | INSTRUCTION BYTE_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION WORD_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION INTEGER_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION register_list { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION { auto opcode_result = handle_instruction(assembler_data, $1, 0, 0); }
+        ;
+
+register_list : REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5) | TO_SOURCE_2($7)); }
         ;
 
 comment : COMMENT 
