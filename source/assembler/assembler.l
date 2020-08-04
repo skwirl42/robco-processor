@@ -4,6 +4,7 @@
 #include "assembler_internal.h"
 %}
 
+%option never-interactive
 %option noyywrap
 
 SYMBOL                  [a-zA-Z][a-zA-Z0-9_]*

@@ -58,6 +58,8 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
+const char* sample_file = "samples/data_test.asm";
+
 int main (int argc, char **argv)
 {
     emulator rcEmulator;
@@ -74,17 +76,16 @@ int main (int argc, char **argv)
     };
 
     assembler_data_t *assembled_data;
-    // auto assemble_result = assemble("samples/helloworld.asm", paths, &assembled_data);
-    auto assemble_result = assemble("samples/data_test.asm", paths, &assembled_data);
+    assemble(sample_file, paths, &assembled_data, nullptr);
 
-    if (assemble_result.error == nullptr || strlen(assemble_result.error) == 0)
+    if (assembled_data->instruction_size > 0 && assembled_data->data_size > 0)
     {
         memcpy(rcEmulator.memories.instruction, assembled_data->instruction, assembled_data->instruction_size);
         memcpy(&rcEmulator.memories.data[0x100], assembled_data->data, assembled_data->data_size);
     }
     else
     {
-        fprintf(stderr, "Failed to properly assemble the target %s (error: %s)\n", "samples/helloworld.asm", assemble_result.error);
+        fprintf(stderr, "Failed to properly assemble the target %s\n", sample_file);
         memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
     }
     

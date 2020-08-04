@@ -1,7 +1,6 @@
 #include "assembler_internal.h"
 
 #include <errno.h>
-#include <err.h>
 #include "opcodes.h"
 #include "memory.h"
 #include "emulator.h"
@@ -347,11 +346,15 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
 }
 
 assembler_data_t data;
-assembler_result_t assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data)
+void assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data, assembler_result_t* result_out)
 {
     assembler_result_t result;
     result.status = ASSEMBLER_NOOUTPUT;
-    result.error = error_buffer;
+    result.error = nullptr;
+    error_buffer[0] = 0;
+    result.error_count = 0;
+    result.warning_count = 0;
+
     data.search_paths = search_paths;
     data.data = new uint8_t[DATA_SIZE];
     data.data_size = 0;
@@ -406,5 +409,8 @@ assembler_result_t assemble(const char *filename, const char **search_paths, ass
         dispose_symbol_table(data.symbol_table);
     }
 
-    return result;
+    if (result_out != nullptr)
+    {
+        *result_out = result;
+    }
 }

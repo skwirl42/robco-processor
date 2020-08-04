@@ -8,6 +8,12 @@ extern "C" {
 #include <stdint.h>
 #include "symbols.h"
 
+#ifdef _MSC_VER 
+    //not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+#endif
+
 #define ERROR_BUFFER_SIZE   1024
 #define LINE_BUFFER_SIZE    1024
 

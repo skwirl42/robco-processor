@@ -4,14 +4,19 @@ project(robcoterm VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-find_package (BISON)
-
 if (APPLE) # The built-in flex on macOS doesn't play nice with C++17
 set(FLEX_ROOT /usr/local/homebrew/opt/flex)
 set(FLEX_EXECUTABLE /usr/local/homebrew/opt/flex/bin/flex)
 set(BISON_ROOT /usr/local/homebrew/opt/bison@2.7)
 set(BISON_EXECUTABLE /usr/local/homebrew/opt/bison@2.7/bin/bison)
 endif ()
+
+if (MSVC) # Wanted to use WSL, but it was causing issues - cygwin instead?
+set(FLEX_EXECUTABLE D:/GnuWin32/bin/flex)
+set(BISON_EXECUTABLE D:/GnuWin32/bin/bison)
+endif()
+
+find_package (BISON)
 
 find_package (FLEX)
 
@@ -51,6 +56,7 @@ endif (APPLE)
 
 if (MSVC)
     set_property(TARGET robcoterm PROPERTY VS_PACKAGE_REFERENCES "sdl2.nuget_2.0.5;sdl2_image.nuget_2.0.5")
+    target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
 endif ()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

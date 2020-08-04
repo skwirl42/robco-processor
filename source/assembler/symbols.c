@@ -6,12 +6,6 @@
 
 #include "opcodes.h"
 
-#ifdef _MSC_VER 
-//not #if defined(_WIN32) || defined(_WIN64) because we have strncasecmp in mingw
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-#endif
-
 typedef struct _symbol_reference symbol_reference_t;
 typedef struct _symbol_table_entry symbol_table_entry_t;
 

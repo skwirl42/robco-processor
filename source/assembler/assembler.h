@@ -48,7 +48,7 @@ typedef struct _assembler_result
     const char *error;
 } assembler_result_t;
 
-assembler_result_t assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data);
+void assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data, assembler_result_t *result);
 
 #ifdef __cplusplus
 }
