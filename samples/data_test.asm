@@ -1,32 +1,31 @@
 .include "syscall.asm"
 
+; "Hello world!"
 .data HELLO_WORLD 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x77 0x6F 0x72 0x6C 0x64 0x21 0x0A 0x00
 
-    syscall CLEAR
-start:
-    pushi 0
+    syscall CLEAR           ; Clear the screen
+    pushi 0                 ; Set DP to point to the first byte of the direct page
     pulldp
-    pushi 0
-    add so,dp,so,so
-    sub dp,dp,so,so
-    pushiw HELLO_WORLD
+start:
+    pushi 0                 ; Set DP to 0
+    pull [dp]
+    pushiw HELLO_WORLD      ; Set X to the start of the string data
     pullx
 loop:
-    pushi 0
-    add so,x,so,so
-    dup
-    pushi 0
+    push [x+]               ; Push the string byte at X, then increment X by 1
+    dup                     ; Dup the string byte
+    pushi 0                 ; Compare it to 0
     cmp
-    be print_str
-    inc dp,so,so,so
-    pushx
-    incw
-    pullx
-    b loop
+    be print_str            ; Branch if eq
+    push [dp]               ; Increment the value at DP
+    inc
+    pull [dp]
+    b loop                  ; Loop
 
 print_str:
-    add so,dp,so,so
-    pushi 0
-    syscall PRINT
+    pop                     ; Drop the string's null terminator
+    push [dp]               ; Drop DP (currently the string length)
+    pushi 0                 ; Add a 0 byte, to make a full word out of DP
+    syscall PRINT           ; Print the string
 
-    b start
+    b start                 ; Do it again!

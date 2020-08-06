@@ -209,6 +209,11 @@ void set_stack_indexed_word(emulator* emulator, uint16_t word)
     emulator->memories.user_stack[emulator->SP + emulator->SI + 1 - STACK_END] = emWord.bytes[0];
 }
 
+void set_stack_indexed_byte(emulator* emulator, uint8_t byte)
+{
+    emulator->memories.user_stack[emulator->SP + emulator->SI - STACK_END] = byte;
+}
+
 void set_data_indexed_byte(emulator *emulator, uint8_t byte, uint16_t index)
 {
     emulator->memories.data[index] = byte;
@@ -229,6 +234,8 @@ void set_data_indexed_word(emulator* emulator, uint16_t word, uint16_t index)
 
 // get_stack_indexed_word would be the same as peek_word with an index,
 // so an index parameter was just added to peek_word
+#define get_stack_indexed_word(emulator, index) peek_word(emulator, index)
+#define get_stack_indexed_byte(emulator, index) peek_byte(emulator, index)
 
 uint16_t get_data_indexed_word(emulator* emulator, uint16_t index)
 {
@@ -618,6 +625,104 @@ execute_result_t execute_stack_instruction(emulator *emulator, uint8_t opcode)
         else
         {
             result.status = EXEC_ILLEGAL_INSTRUCTION;
+        }
+    }
+    else if (baseopcode == OPCODE_PULL_INDEXED)
+    {
+        uint8_t register_id = SOURCE_2(sources);
+        uint8_t increment = SOURCE_0(sources);
+        uint8_t decrement = SOURCE_1(sources);
+        uint16_t index = 0;
+        uint8_t stack_indexed = 0;
+        switch (register_id)
+        {
+        case DIRECT_PAGE:
+            index = emulator->DP;
+            break;
+        
+        case X_REGISTER:
+            index = emulator->X;
+            break;
+        
+        case STACK_INDEX:
+            index = emulator->SI;
+            stack_indexed = 1;
+            break;
+        }
+        // TODO: set_data_indexed_*
+        if (wide)
+        {
+            uint16_t word = pull_word(emulator);
+            stack_indexed ? set_stack_indexed_word(emulator, word) : set_data_indexed_word(emulator, word, index);
+        }
+        else
+        {
+            uint8_t byte = pull_byte(emulator);
+            stack_indexed ? set_stack_indexed_byte(emulator, byte) : set_data_indexed_byte(emulator, byte, index);
+        }
+
+        switch (register_id)
+        {
+        case DIRECT_PAGE:
+            emulator->DP += increment - decrement;
+            break;
+        
+        case X_REGISTER:
+            emulator->X += increment - decrement;
+            break;
+        
+        case STACK_INDEX:
+            emulator->SI += increment - decrement;
+            break;
+        }
+    }
+    else if (baseopcode == OPCODE_PUSH_INDEXED)
+    {
+        uint8_t register_id = SOURCE_2(sources);
+        uint8_t increment = SOURCE_0(sources);
+        uint8_t decrement = SOURCE_1(sources);
+        uint16_t index = 0;
+        uint8_t stack_indexed = 0;
+        switch (register_id)
+        {
+        case DIRECT_PAGE:
+            index = emulator->DP;
+            break;
+        
+        case X_REGISTER:
+            index = emulator->X;
+            break;
+        
+        case STACK_INDEX:
+            index = emulator->SI;
+            stack_indexed = 1;
+            break;
+        }
+        // TODO: get_data_indexed_*
+        if (wide)
+        {
+            uint16_t word = (stack_indexed) ? get_stack_indexed_word(emulator, index) : get_data_indexed_word(emulator, index);
+            push_word(emulator, word);
+        }
+        else
+        {
+            uint8_t byte = (stack_indexed) ? get_stack_indexed_byte(emulator, index) : get_data_indexed_byte(emulator, index);
+            push_byte(emulator, byte);
+        }
+
+        switch (register_id)
+        {
+        case DIRECT_PAGE:
+            emulator->DP += increment - decrement;
+            break;
+        
+        case X_REGISTER:
+            emulator->X += increment - decrement;
+            break;
+        
+        case STACK_INDEX:
+            emulator->SI += increment - decrement;
+            break;
         }
     }
     else if (wide)

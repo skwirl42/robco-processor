@@ -112,6 +112,7 @@ int main (int argc, char **argv)
     if (renderer != nullptr)
     {
 		Console console(60, 24);
+        Console debugConsole(60,24);
         bool done = false;
         bool emulate = true;
         SDL_Event event;
@@ -184,14 +185,17 @@ int main (int argc, char **argv)
 
             if (debugging || rcEmulator.current_state == DEBUGGING)
             {
+                debugConsole.Clear();
                 for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
                 {
-                    console.PrintAt(blank_line, 0, debugging_lines_start + i);
-                    console.PrintLineAt(debugging_buffers[i], 2, debugging_lines_start + i);
+                    debugConsole.PrintLineAt(debugging_buffers[i], 2, debugging_lines_start + i);
                 }
+                renderer->Render(&debugConsole, frame++);
             }
-
-            renderer->Render(&console, frame++);
+            else
+            {
+                renderer->Render(&console, frame++);
+            }
         }
 
         for (int i = 0; i < 4; i++)

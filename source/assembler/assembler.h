@@ -25,6 +25,7 @@ typedef enum
     ASSEMBLER_INPUT_ERROR,
     ASSEMBLER_SYMBOL_ERROR,
     ASSEMBLER_VALUE_OOB,
+    ASSEMBLER_INVALID_ARGUMENT,
 } assembler_status_t;
 
 typedef struct _assembler_data

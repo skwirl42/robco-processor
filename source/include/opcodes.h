@@ -56,6 +56,8 @@ extern "C" {
 #define OPCODE_ROLL                    (STACK_INST_BASE + 0b11111)
 #define OPCODE_PUSH                    (STACK_INST_BASE + 0b10000) // Source 0 indicates register to push
 #define OPCODE_PULL                    (STACK_INST_BASE + 0b01001) // Destination indicates register to pull the value into
+#define OPCODE_PUSH_INDEXED            (STACK_INST_BASE + 0b10010)
+#define OPCODE_PULL_INDEXED            (STACK_INST_BASE + 0b01010)
 
 // Flow control instructions - immediate address/ID
 #define OPCODE_B                       (FLOW_INST_BASE + 0b00000)
@@ -89,6 +91,15 @@ extern "C" {
 #define DIRECT_PAGE				0b10
 #define X_REGISTER				0b11
 
+typedef enum _register_access_mode
+{
+    NONE,
+    STACK_ONLY,
+    IMMEDIATE_OPERANDS,
+    STACK_TO_FROM_REGISTER,
+    REGISTER_INDEXED,
+} register_access_mode_t;
+
 typedef union
 {
     uint16_t uword;
@@ -102,6 +113,7 @@ typedef struct opcode_entry
     uint8_t opcode;
     int arg_byte_count;
     symbol_type_t argument_type;
+    register_access_mode_t access_mode;
     symbol_signedness_t argument_signedness;
     uint8_t use_specified_operand;
     uint8_t operands;

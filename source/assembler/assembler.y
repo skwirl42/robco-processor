@@ -14,12 +14,12 @@ extern int yylex();
 
 %token <opcode> INSTRUCTION
 %token <strval> SYMBOL QUOTED_STRING 
-%token <intval> WORD_LITERAL INTEGER_LITERAL REGISTER_ARGUMENT
+%token <intval> WORD_LITERAL INTEGER_LITERAL REGISTER_ARGUMENT INCREMENT
 %token <byteval> BYTE_LITERAL
 %token <bytearray> BYTE_SEQUENCE
 %token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE COMMENT
 
-%type <intval> register_list
+%type <intval> register_list indexed_register
 %type <bytearray> byte_sequence
 %%
 
@@ -82,10 +82,18 @@ instruction_line : INSTRUCTION SYMBOL { auto opcode_result = handle_instruction(
         | INSTRUCTION WORD_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION INTEGER_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION register_list { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION indexed_register { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION { auto opcode_result = handle_instruction(assembler_data, $1, 0, 0); }
         ;
 
 register_list : REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5) | TO_SOURCE_2($7)); }
+        | REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5)); }
+        | REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)); }
+        | REGISTER_ARGUMENT { $$ = TO_DESTINATION($1); }
+        ;
+
+indexed_register : '[' REGISTER_ARGUMENT ']' { $$ = TO_SOURCE_2($2); }
+        | '[' REGISTER_ARGUMENT INCREMENT ']' { $$ = TO_SOURCE_2($2) | (($3 < 0) ? (TO_SOURCE_1(-$3)) : (TO_SOURCE_0($3))); }
         ;
 
 comment : COMMENT 

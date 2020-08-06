@@ -19,6 +19,8 @@ ESCAPE_SEQUENCE         \\['\\abrnt0]
 WHITESPACE              [ \t]+
 INSTRUCTION             [a-z]{1,7}
 REGISTER_ARGUMENT       [a-z]{1,2}
+INCREMENT               \+{1,2}
+DECREMENT               \-{1,2}
 
 %%
 
@@ -53,6 +55,16 @@ REGISTER_ARGUMENT       [a-z]{1,2}
 
 {DATA_DIRECTIVE} {
     return DATA_DIRECTIVE;
+}
+
+{INCREMENT} {
+    yylval.intval = yyleng;
+    return INCREMENT;
+}
+
+{DECREMENT} {
+    yylval.intval = -yyleng;
+    return INCREMENT;
 }
 
 {REGISTER_ARGUMENT} {

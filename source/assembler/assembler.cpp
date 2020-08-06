@@ -217,7 +217,25 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
     result.error = error_buffer;
 
     // printf("Handling instruction %s with arg (%s)\n", opcode->name, symbol_arg ? symbol_arg : "numerical");
-    if (symbol_arg)
+    if (opcode->access_mode == STACK_ONLY && (symbol_arg != nullptr || literal_arg != 0))
+    {
+        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Stack-only instruction %s cannot take parameters", opcode->name);
+        result.status = ASSEMBLER_INVALID_ARGUMENT;
+    }
+    else if (opcode->access_mode == REGISTER_INDEXED)
+    {
+        if (SOURCE_2(literal_arg) == 0)
+        {
+            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s requires a register to be specified", opcode->name);
+            result.status = ASSEMBLER_INVALID_ARGUMENT;
+        }
+        else
+        {
+            data->instruction[data->instruction_size++] = opcode->opcode;
+            data->instruction[data->instruction_size++] = (uint8_t)literal_arg;
+        }
+    }
+    else if (symbol_arg)
     {
         symbol_type_t type;
         symbol_signedness_t signedness;
@@ -383,6 +401,7 @@ void assemble(const char *filename, const char **search_paths, assembler_data_t 
             FILE *assembled_output = fopen(output_file, "w+");
             if (assembled_output != 0)
             {
+                fprintf(assembled_output, "Code:\n");
                 for (int i = 0; i < data.instruction_size;)
                 {
                     fprintf(assembled_output, "0x%04x: ", i);
@@ -392,6 +411,18 @@ void assemble(const char *filename, const char **search_paths, assembler_data_t 
                     }
                     fprintf(assembled_output, "\n");
                 }
+
+                fprintf(assembled_output, "\nCode:\n");
+                for (int i = 0; i < data.data_size;)
+                {
+                    fprintf(assembled_output, "0x%04x: ", i);
+                    for (int j = 0; j < 4 && i < data.data_size; j++)
+                    {
+                        fprintf(assembled_output, "0x%02x ", data.data[i++]);
+                    }
+                    fprintf(assembled_output, "\n");
+                }
+
                 fprintf(assembled_output, "\nSymbols:\n");
                 output_symbols(assembled_output, data.symbol_table);
             }
