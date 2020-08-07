@@ -3,10 +3,9 @@
 #include <errno.h>
 #include "opcodes.h"
 #include "memory.h"
-#include "emulator.h"
-
 
 static char error_buffer[ERROR_BUFFER_SIZE + 1];
+char temp_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
 
 byte_array_t add_to_byte_array(byte_array_t array, uint8_t value)
@@ -30,15 +29,11 @@ void add_file_to_process(assembler_data_t *data, const char *filename)
     data->files_to_process.push_back(new_file);
 }
 
-assembler_result_t add_data(assembler_data_t *data, const char *name, byte_array_t array)
+void add_data(assembler_data_t *data, const char *name, byte_array_t array)
 {
-    assembler_result_t result;
-    result.status = ASSEMBLER_NOOUTPUT;
-    result.error = error_buffer;
-
     if (name != nullptr)
     {
-        result = handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
+        handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
     }
 
     memcpy(&data->data[data->data_size], array.array, array.size);
@@ -47,18 +42,13 @@ assembler_result_t add_data(assembler_data_t *data, const char *name, byte_array
     array.size = 0;
     delete [] array.array;
     array.array = nullptr;
-
-    return result;
 }
 
-assembler_result_t handle_file(assembler_data_t *data, const char *filename)
+void handle_file(assembler_data_t *data, const char *filename)
 {
     auto old_filename = data->current_filename;
     auto old_line_number = data->lineNumber;
     data->current_filename = filename;
-
-    assembler_result_t result;
-    result.status = ASSEMBLER_NOOUTPUT;
 
     FILE *file = fopen(filename, "r");
 
@@ -77,6 +67,7 @@ assembler_result_t handle_file(assembler_data_t *data, const char *filename)
                 break;
             }
         }
+        delete [] path_buffer;
     }
 
     if (file != 0)
@@ -107,7 +98,7 @@ assembler_result_t handle_file(assembler_data_t *data, const char *filename)
                         auto file = *it;
                         data->files_to_process.erase(data->files_to_process.begin());
                         it = data->files_to_process.begin();
-                        auto include_result = handle_file(data, file);
+                        handle_file(data, file);
                         delete [] file;
                     }
                 }
@@ -120,9 +111,8 @@ assembler_result_t handle_file(assembler_data_t *data, const char *filename)
             if (charIndex >= LINE_BUFFER_SIZE)
             {
                 // Deal with this case
-                snprintf(error_buffer, ERROR_BUFFER_SIZE, "Line %d is too long", lineNumber);
-                result.error = error_buffer;
-                result.status = ASSEMBLER_INPUT_ERROR;
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Line %d is too long", lineNumber);
+                add_error(data, temp_buffer, ASSEMBLER_INPUT_ERROR);
             }
             else
             {
@@ -132,32 +122,25 @@ assembler_result_t handle_file(assembler_data_t *data, const char *filename)
 
         if (currentChar == EOF && ferror(file) != 0)
         {
-            snprintf(error_buffer, ERROR_BUFFER_SIZE, "File read error (%s - %d)", filename, ferror(file));
-            result.error = error_buffer;
-            result.status = ASSEMBLER_IO_ERROR;
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "File read error (%s - %d)", filename, ferror(file));
+            add_error(data, temp_buffer, ASSEMBLER_IO_ERROR);
         }
 
         fclose(file);
     }
     else
     {
-        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Failed to open file (%s)", filename);
-        fprintf(stderr, "%s\n", error_buffer);
-        result.error = error_buffer;
-        result.status = ASSEMBLER_IO_ERROR;
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to open file (%s)", filename);
+        fprintf(stderr, "%s\n", temp_buffer);
+        add_error(data, temp_buffer, ASSEMBLER_IO_ERROR);
     }
 
     data->lineNumber = old_line_number;
     data->current_filename = old_filename;
-    return result;
 }
 
-assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, int value, symbol_type_t type)
+void handle_symbol_def(assembler_data_t *data, const char *name, int value, symbol_type_t type)
 {
-    assembler_result_t result;
-    result.status = ASSEMBLER_NOOUTPUT;
-    result.error = error_buffer;
-
     if (type == SYMBOL_ADDRESS_INST)
     {
         value = data->instruction_size;
@@ -187,47 +170,37 @@ assembler_result_t handle_symbol_def(assembler_data_t *data, const char *name, i
         break;
     }
 
-    if (sym_err == SYMBOL_ERROR_NOERROR)
+    if (sym_err == SYMBOL_ERROR_ALLOC_FAILED)
     {
-        result.status = ASSEMBLER_SUCCESS;
-    }
-    else if (sym_err == SYMBOL_ERROR_ALLOC_FAILED)
-    {
-        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Couldn't allocate space for a symbol named %s", name);
-        result.status = ASSEMBLER_ALLOC_FAILED;
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't allocate space for a symbol named %s", name);
+        add_error(data, temp_buffer, ASSEMBLER_ALLOC_FAILED);
     }
     else if (sym_err == SYMBOL_ERROR_EXISTS)
     {
-        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Tried to redefine a symbol named %s", name);
-        result.status = ASSEMBLER_SYMBOL_ERROR;
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to redefine a symbol named %s", name);
+        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
     }
     else if (sym_err == SYMBOL_ERROR_INTERNAL)
     {
-        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Internal error trying to define a symbol named %s", name);
-        result.status = ASSEMBLER_INTERNAL_ERROR;
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Internal error trying to define a symbol named %s", name);
+        add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
     }
-
-    return result;
 }
 
-assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
+void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
 {
-    assembler_result_t result;
-    result.status = ASSEMBLER_NOOUTPUT;
-    result.error = error_buffer;
-
     // printf("Handling instruction %s with arg (%s)\n", opcode->name, symbol_arg ? symbol_arg : "numerical");
     if (opcode->access_mode == STACK_ONLY && (symbol_arg != nullptr || literal_arg != 0))
     {
-        snprintf(error_buffer, ERROR_BUFFER_SIZE, "Stack-only instruction %s cannot take parameters", opcode->name);
-        result.status = ASSEMBLER_INVALID_ARGUMENT;
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Stack-only instruction %s cannot take parameters", opcode->name);
+        add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
     }
     else if (opcode->access_mode == REGISTER_INDEXED)
     {
         if (SOURCE_2(literal_arg) == 0)
         {
-            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s requires a register to be specified", opcode->name);
-            result.status = ASSEMBLER_INVALID_ARGUMENT;
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s requires a register to be specified", opcode->name);
+            add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
         }
         else
         {
@@ -278,9 +251,8 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
                 break;
 
             case SYMBOL_NO_TYPE:
-                snprintf(error_buffer, ERROR_BUFFER_SIZE, "Error resolving symbol %s", symbol_arg);
-                result.error = error_buffer;
-                result.status = ASSEMBLER_SYMBOL_ERROR;
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error resolving symbol %s", symbol_arg);
+                add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
                 break;
             }
         }
@@ -300,9 +272,8 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
         }
         else
         {
-            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Failed to find symbol %s", symbol_arg);
-            result.error = error_buffer;
-            result.status = ASSEMBLER_SYMBOL_ERROR;
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find symbol %s", symbol_arg);
+            add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
         }
     }
     else if (opcode->use_specified_operand)
@@ -328,9 +299,8 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
         if ((opcode->argument_type == SYMBOL_WORD && (literal_arg > 65535 || literal_arg < -32768))
             || (opcode->argument_type == SYMBOL_BYTE && (literal_arg > 255 || literal_arg < -128)))
         {
-            snprintf(error_buffer, ERROR_BUFFER_SIZE, "Opcode %s cannot accommodate a value of %d", opcode->name, literal_arg);
-            result.error = error_buffer;
-            result.status = ASSEMBLER_VALUE_OOB;
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Opcode %s cannot accommodate a value of %d", opcode->name, literal_arg);
+            add_error(data, temp_buffer, ASSEMBLER_VALUE_OOB);
         }
         else if (opcode->argument_type == SYMBOL_WORD)
         {
@@ -357,22 +327,22 @@ assembler_result_t handle_instruction(assembler_data_t *data, opcode_entry_t *op
             data->instruction[data->instruction_size++] = opcode->opcode;
             data->instruction[data->instruction_size++] = literal_arg;
         }
-        
     }
+}
 
-    return result;
+void add_error(assembler_data_t *data, const char *error_string, assembler_status_t status)
+{
+    assembler_error_t error;
+    error.status = status;
+    error.line_number = data->lineNumber;
+    error.error_start = data->error_buffer_size;
+    snprintf(&data->error_buffer[error.error_start], ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
+    data->errors.push_back(error);
 }
 
 assembler_data_t data;
-void assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data, assembler_result_t* result_out)
+void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data)
 {
-    assembler_result_t result;
-    result.status = ASSEMBLER_NOOUTPUT;
-    result.error = nullptr;
-    error_buffer[0] = 0;
-    result.error_count = 0;
-    result.warning_count = 0;
-
     data.search_paths = search_paths;
     data.data = new uint8_t[DATA_SIZE];
     data.data_size = 0;
@@ -381,67 +351,63 @@ void assemble(const char *filename, const char **search_paths, assembler_data_t 
     data.lineNumber = 0;
     assembler_data = &data;
 
-    if (result.status != ASSEMBLER_INTERNAL_ERROR)
+    error_buffer[0] = 0;
+    data.error_buffer = error_buffer;
+    data.error_buffer_size = 0;
+    *assembled_data = assembler_data;
+
+    if (create_symbol_table(&data.symbol_table) != SYMBOL_TABLE_NOERROR)
     {
-        if (create_symbol_table(&data.symbol_table) != SYMBOL_TABLE_NOERROR)
-        {
-            result.error = "Failed to create the symbol table";
-            result.status = ASSEMBLER_ALLOC_FAILED;
-        }
-
-        if (result.status == ASSEMBLER_NOOUTPUT)
-        {
-            auto file_result = handle_file(&data, filename);
-            result.error = file_result.error;
-            result.warning_count = file_result.warning_count;
-            result.error_count = file_result.error_count;
-            result.status = file_result.status;
-
-            const char *output_file = "assembled.txt";
-            FILE *assembled_output = fopen(output_file, "w+");
-            if (assembled_output != 0)
-            {
-                fprintf(assembled_output, "Code:\n");
-                for (int i = 0; i < data.instruction_size;)
-                {
-                    fprintf(assembled_output, "0x%04x: ", i);
-                    for (int j = 0; j < 4 && i < data.instruction_size; j++)
-                    {
-                        fprintf(assembled_output, "0x%02x ", data.instruction[i++]);
-                    }
-                    fprintf(assembled_output, "\n");
-                }
-
-                fprintf(assembled_output, "\nCode:\n");
-                for (int i = 0; i < data.data_size;)
-                {
-                    fprintf(assembled_output, "0x%04x: ", i);
-                    for (int j = 0; j < 4 && i < data.data_size; j++)
-                    {
-                        fprintf(assembled_output, "0x%02x ", data.data[i++]);
-                    }
-                    fprintf(assembled_output, "\n");
-                }
-
-                fprintf(assembled_output, "\nSymbols:\n");
-                output_symbols(assembled_output, data.symbol_table);
-            }
-            else
-            {
-                fprintf(stderr, "Couldn't open assembler output file %s (errno: %d)\n", output_file, errno);
-            }
-        }
+        add_error(&data, "Failed to create the symbol table", ASSEMBLER_ALLOC_FAILED);
+        return;
     }
 
-    *assembled_data = &data;
+    handle_file(&data, filename);
+    if (data.errors.size() > 0)
+    {
+        return;
+    }
+
+    if (output_file == nullptr)
+    {
+        output_file = "assembled.txt";
+    }
+    
+    FILE *assembled_output = fopen(output_file, "w+");
+    if (assembled_output != 0)
+    {
+        fprintf(assembled_output, "Code:\n");
+        for (int i = 0; i < data.instruction_size;)
+        {
+            fprintf(assembled_output, "0x%04x: ", i);
+            for (int j = 0; j < 4 && i < data.instruction_size; j++)
+            {
+                fprintf(assembled_output, "0x%02x ", data.instruction[i++]);
+            }
+            fprintf(assembled_output, "\n");
+        }
+
+        fprintf(assembled_output, "\nData:\n");
+        for (int i = 0; i < data.data_size;)
+        {
+            fprintf(assembled_output, "0x%04x: ", i);
+            for (int j = 0; j < 4 && i < data.data_size; j++)
+            {
+                fprintf(assembled_output, "0x%02x ", data.data[i++]);
+            }
+            fprintf(assembled_output, "\n");
+        }
+
+        fprintf(assembled_output, "\nSymbols:\n");
+        output_symbols(assembled_output, data.symbol_table);
+    }
+    else
+    {
+        fprintf(stderr, "Couldn't open assembler output file %s (errno: %d)\n", output_file, errno);
+    }
 
     if (data.symbol_table != 0)
     {
         dispose_symbol_table(data.symbol_table);
-    }
-
-    if (result_out != nullptr)
-    {
-        *result_out = result;
     }
 }

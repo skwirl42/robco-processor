@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Assembler Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/assembler",
+            "args": ["--include-dirs", "${workspaceFolder}/samples/", "${workspaceFolder}/samples/data_test.asm", "${workspaceFolder}/data_test.out"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
             "name": "Debug Launch",
             "type": "cppdbg",
             "request": "launch",

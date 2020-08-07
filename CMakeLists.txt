@@ -46,6 +46,23 @@ target_include_directories(robcoterm PRIVATE
 FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
 
 if (APPLE)
+    add_executable(assembler
+        source/main/opcode_table.c
+        source/assembler/assembler.cpp
+        source/assembler/assembler_main.cpp
+        source/assembler/symbols.c
+        ${FLEX_AssemblerLex_OUTPUTS}
+        ${BISON_AssemblerYacc_OUTPUTS}
+        )
+    target_include_directories(assembler PRIVATE 
+        source/main
+        source/assembler
+        source/include)
+
+    target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
+    target_link_libraries(assembler stdc++)
+    target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
+
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
     find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)

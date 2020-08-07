@@ -36,54 +36,56 @@ line : line comment
 include_def : INCLUDE_DIRECTIVE QUOTED_STRING { add_file_to_process(assembler_data, $2); free($2); }
         ;
 
-byte_def : DEFBYTE_DIRECTIVE SYMBOL BYTE_LITERAL { auto define_result = handle_symbol_def(assembler_data, $2, $3, SYMBOL_BYTE); free($2); }
+byte_def : DEFBYTE_DIRECTIVE SYMBOL BYTE_LITERAL { handle_symbol_def(assembler_data, $2, $3, SYMBOL_BYTE); free($2); }
         | DEFBYTE_DIRECTIVE SYMBOL INTEGER_LITERAL
         {
                 if ($3 > 255 || $3 < -128)
                 {
-                        fprintf(stderr, "Integer out of range for byte size %d\n", $3);
+                        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Integer out of range for byte size %d", $3);
+                        add_error(assembler_data, temp_buffer, ASSEMBLER_VALUE_OOB);
                 }
                 else
                 {
-                        auto define_result = handle_symbol_def(assembler_data, $2, $3, SYMBOL_BYTE);
+                        handle_symbol_def(assembler_data, $2, $3, SYMBOL_BYTE);
                 }
                 free($2);
         }
         ;
 
-word_def : DEFWORD_DIRECTIVE SYMBOL WORD_LITERAL { auto define_result = handle_symbol_def(assembler_data, $2, $3, SYMBOL_WORD); free($2); }
+word_def : DEFWORD_DIRECTIVE SYMBOL WORD_LITERAL { handle_symbol_def(assembler_data, $2, $3, SYMBOL_WORD); free($2); }
         | DEFWORD_DIRECTIVE SYMBOL INTEGER_LITERAL
         {
                 if ($3 > 65535 || $3 < -32768)
                 {
-                        fprintf(stderr, "Integer out of range for word size %d\n", $3);
+                        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Integer out of range for word size %d", $3);
+                        add_error(assembler_data, temp_buffer, ASSEMBLER_VALUE_OOB);
                 }
                 else
                 {
-                        auto define_result = handle_symbol_def(assembler_data, $2, $3, SYMBOL_WORD);
+                        handle_symbol_def(assembler_data, $2, $3, SYMBOL_WORD);
                 }
                 free($2);
         }
         ;
 
-label_def : SYMBOL ':' { auto define_result = handle_symbol_def(assembler_data, $1, 0, SYMBOL_ADDRESS_INST); free($1); }
+label_def : SYMBOL ':' { handle_symbol_def(assembler_data, $1, 0, SYMBOL_ADDRESS_INST); free($1); }
         ;
 
-data_def : DATA_DIRECTIVE SYMBOL byte_sequence { auto add_result = add_data(assembler_data, $2, $3); free($2); }
-        | DATA_DIRECTIVE byte_sequence  { auto add_result = add_data(assembler_data, nullptr, $2); }
+data_def : DATA_DIRECTIVE SYMBOL byte_sequence { add_data(assembler_data, $2, $3); free($2); }
+        | DATA_DIRECTIVE byte_sequence  { add_data(assembler_data, nullptr, $2); }
         ;
 
 byte_sequence : BYTE_LITERAL { $$ = add_to_byte_array($$, $1); }
         | byte_sequence BYTE_LITERAL { $$ = add_to_byte_array($1, $2); }
         ;
 
-instruction_line : INSTRUCTION SYMBOL { auto opcode_result = handle_instruction(assembler_data, $1, $2, 0); }
-        | INSTRUCTION BYTE_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION WORD_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION INTEGER_LITERAL { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION register_list { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION indexed_register { auto opcode_result = handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION { auto opcode_result = handle_instruction(assembler_data, $1, 0, 0); }
+instruction_line : INSTRUCTION SYMBOL { handle_instruction(assembler_data, $1, $2, 0); }
+        | INSTRUCTION BYTE_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION WORD_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION INTEGER_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION register_list { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION indexed_register { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION { handle_instruction(assembler_data, $1, 0, 0); }
         ;
 
 register_list : REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5) | TO_SOURCE_2($7)); }

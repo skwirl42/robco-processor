@@ -120,9 +120,12 @@ DECREMENT               \-{1,2}
 
 extern int yylex();
 
+char temp_error_buffer[ERROR_BUFFER_SIZE+1];
+
 void yyerror(const char *err)
 {
-    fprintf(stderr, "Flex error (%s) on line %d of file %s\n", err, assembler_data->lineNumber, assembler_data->current_filename);
+    snprintf(temp_error_buffer, ERROR_BUFFER_SIZE, "Flex error (%s) on line %d of file %s", err, assembler_data->lineNumber, assembler_data->current_filename);
+    add_error(assembler_data, temp_error_buffer, ASSEMBLER_SYNTAX_ERROR);
 }
 
 void parse_line(const char *lineBuffer)

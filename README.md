@@ -5,6 +5,7 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 
 ## Platforms:
 - macOS 10.15+ with dev tools installed
+  * Install SDL2 and SLD2_image in any way you choose
   * flex (latest) and bison (2.7) need to be installed via homebrew: https://brew.sh/
 - Windows with Visual Studio installed
   * note: you'll need to add SDL2 and SLD2_image using nuget, as cmake's nuget support and VS C++ projects don't get along

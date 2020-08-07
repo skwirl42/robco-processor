@@ -19,14 +19,20 @@ typedef enum
     ASSEMBLER_NOOUTPUT,
     ASSEMBLER_IO_ERROR,
     ASSEMBLER_INTERNAL_ERROR,
-    ASSEMBLER_WARNINGS,
-    ASSEMBLER_ERRORS,
     ASSEMBLER_ALLOC_FAILED,
     ASSEMBLER_INPUT_ERROR,
     ASSEMBLER_SYMBOL_ERROR,
     ASSEMBLER_VALUE_OOB,
     ASSEMBLER_INVALID_ARGUMENT,
+    ASSEMBLER_SYNTAX_ERROR,
 } assembler_status_t;
+
+typedef struct _assembler_error
+{
+    assembler_status_t status;
+    int error_start;
+    int line_number;
+} assembler_error_t;
 
 typedef struct _assembler_data
 {
@@ -39,17 +45,12 @@ typedef struct _assembler_data
     int lineNumber;
     const char *current_filename;
     std::vector<char*> files_to_process;
+    std::vector<assembler_error_t> errors;
+    char * error_buffer;
+    int error_buffer_size;
 } assembler_data_t;
 
-typedef struct _assembler_result
-{
-    assembler_status_t status;
-    int warning_count;
-    int error_count;
-    const char *error;
-} assembler_result_t;
-
-void assemble(const char *filename, const char **search_paths, assembler_data_t **assembled_data, assembler_result_t *result);
+void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data);
 
 #ifdef __cplusplus
 }

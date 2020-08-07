@@ -76,7 +76,13 @@ int main (int argc, char **argv)
     };
 
     assembler_data_t *assembled_data;
-    assemble(sample_file, paths, &assembled_data, nullptr);
+    assemble(sample_file, paths, nullptr, &assembled_data);
+
+    if (assembled_data->errors.size() > 0)
+    {
+        fprintf(stderr, "%s", assembled_data->error_buffer);
+        return -1;
+    }
 
     if (assembled_data->instruction_size > 0 && assembled_data->data_size > 0)
     {
@@ -107,6 +113,7 @@ int main (int argc, char **argv)
     else
     {
         fprintf(stderr, "Missing argument: font filename\n");
+        return -1;
     }
 
     if (renderer != nullptr)
