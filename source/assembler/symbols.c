@@ -247,16 +247,12 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
     }
     else
     {
-        symbol_reference_t *next_ref = 0;
-        symbol_reference_t *last_ref = 0;
         while (current_ref->next_reference != 0)
         {
-            next_ref = current_ref->next_reference;
-            last_ref = current_ref;
-            current_ref = next_ref;
+            current_ref = current_ref->next_reference;
         }
 
-        last_ref->next_reference = new_ref;
+        current_ref->next_reference = new_ref;
     }
  
     if (current_entry != 0)
@@ -307,17 +303,16 @@ symbol_ref_status_t check_all_symbols_resolved(symbol_table_t *symbol_table, int
     symbol_reference_t *next_ref;
     while (current_ref != 0)
     {
-        next_ref = current_ref;
         if (current_ref->resolution == SYMBOL_UNASSIGNED)
         {
             strncpy(unresolved_symbol_names[unresolved_count], current_ref->symbol, SYMBOL_MAX_LENGTH);
             unresolved_count++;
+            if (unresolved_count > *unresolved_name_count)
+            {
+                return SYMBOL_REFERENCE_NAMES_EXCEEDED;
+            }
         }
-        current_ref = next_ref;
-        if (unresolved_count >= *unresolved_name_count)
-        {
-            return SYMBOL_REFERENCE_NAMES_EXCEEDED;
-        }
+        current_ref = current_ref->next_reference;
     };
 
     if (unresolved_count == 0)

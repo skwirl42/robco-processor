@@ -48,6 +48,7 @@ typedef struct _assembler_data
     std::vector<assembler_error_t> errors;
     char * error_buffer;
     int error_buffer_size;
+    int symbol_references_count;
 } assembler_data_t;
 
 void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data);

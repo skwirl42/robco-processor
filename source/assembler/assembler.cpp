@@ -211,10 +211,30 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
     else if (symbol_arg)
     {
         symbol_type_t type;
-        symbol_signedness_t signedness;
+        symbol_signedness_t signedness = SIGNEDNESS_ANY;
         uint16_t word_value;
         uint8_t byte_value;
         auto resolution = resolve_symbol(data->symbol_table, symbol_arg, &type, &signedness, &word_value, &byte_value);
+        if (resolution != SYMBOL_ASSIGNED)
+        {
+            if (opcode->argument_type == SYMBOL_ADDRESS_INST)
+            {
+                if (IS_BRANCH_INST(opcode->opcode))
+                {
+                    signedness = SIGNEDNESS_SIGNED;
+                }
+                auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
+                                                            &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                            signedness, SYMBOL_ADDRESS_INST);
+            }
+            else 
+            {
+                auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg,
+                                                            &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                            opcode->argument_signedness, opcode->argument_type);
+            }
+            data->symbol_references_count++;
+        }
         machine_word_t word;
         word.uword = word_value;
         if (resolution == SYMBOL_ASSIGNED)
@@ -264,16 +284,8 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
             {
                 signedness = SIGNEDNESS_SIGNED;
             }
-            auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
-                                                        &data->instruction[data->instruction_size], data->instruction_size, 
-                                                        signedness, SYMBOL_ADDRESS_INST);
             data->instruction[data->instruction_size++] = 0;
             data->instruction[data->instruction_size++] = 0;
-        }
-        else
-        {
-            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find symbol %s", symbol_arg);
-            add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
         }
     }
     else if (opcode->use_specified_operand)
@@ -336,8 +348,9 @@ void add_error(assembler_data_t *data, const char *error_string, assembler_statu
     error.status = status;
     error.line_number = data->lineNumber;
     error.error_start = data->error_buffer_size;
-    snprintf(&data->error_buffer[error.error_start], ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
+    int length = snprintf(&data->error_buffer[error.error_start], ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
     data->errors.push_back(error);
+    data->error_buffer_size += length;
 }
 
 assembler_data_t data;
@@ -349,6 +362,7 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     data.instruction = new uint8_t[INST_SIZE];
     data.instruction_size = 0;
     data.lineNumber = 0;
+    data.symbol_references_count = 0;
     assembler_data = &data;
 
     error_buffer[0] = 0;
@@ -363,6 +377,37 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     }
 
     handle_file(&data, filename);
+
+    if (data.symbol_references_count > 0)
+    {
+        data.current_filename = filename;
+        char **symbol_buffers = new char*[data.symbol_references_count];
+
+        for (int i = 0; i < data.symbol_references_count; i++)
+        {
+            symbol_buffers[i] = new char[SYMBOL_MAX_LENGTH + 1];
+        }
+
+        int symbol_count = data.symbol_references_count;
+        auto result = check_all_symbols_resolved(data.symbol_table, &symbol_count, symbol_buffers);
+
+        if (result != SYMBOL_REFERENCE_RESOLVABLE)
+        {
+            for (int i = 0; i < symbol_count; i++)
+            {
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Unresolved symbol %s", symbol_buffers[i]);
+                add_error(&data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+            }
+        }
+
+        for (int i = 0; i < data.symbol_references_count; i++)
+        {
+            delete [] symbol_buffers[i];
+        }
+
+        delete [] symbol_buffers;
+    }
+
     if (data.errors.size() > 0)
     {
         return;

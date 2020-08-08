@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/assembler",
-            "args": ["--include-dirs", "${workspaceFolder}/samples/", "${workspaceFolder}/samples/data_test.asm", "${workspaceFolder}/data_test.out"],
+            "args": ["${workspaceFolder}/test/unresolved_symbols.asm"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
