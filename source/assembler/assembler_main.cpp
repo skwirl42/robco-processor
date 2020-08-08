@@ -2,6 +2,14 @@
 #include "opcodes.h"
 #include <getopt.h>
 
+void usage()
+{
+    printf("Usage:\n");
+    printf("assembler [--include-dirs <dir1>[;<dir2>[;<dir3>] ..] <input file> [<output file>]\n");
+    printf("\t--include-dirs: a semi-colon delimited list of directories where include files can be found\n");
+    printf("\t<output file>: a file to write the assembled program into. Defaults to \"assembled.txt\"\n");
+}
+
 int main(int argc, char **argv)
 {
     char includes_buffer[LINE_BUFFER_SIZE+1];
@@ -9,14 +17,16 @@ int main(int argc, char **argv)
 
     static struct option long_options[] =
     {
+        { "help", no_argument, 0, 'H' },
         { "include-dirs", required_argument, 0, 'I' },
         { 0, 0, 0, 0 }
     };
     int c = 0;
     int option_index = 0;
+    bool show_usage = false;
     while (c >= 0)
     {
-        c = getopt_long(argc, argv, "I:", long_options, &option_index);
+        c = getopt_long(argc, argv, "HI:", long_options, &option_index);
         if (c == -1)
         {
             break;
@@ -26,6 +36,15 @@ int main(int argc, char **argv)
         {
             strncpy(includes_buffer, optarg, LINE_BUFFER_SIZE);
         }
+        else if (c == 'H')
+        {
+            show_usage = true;
+        }
+    }
+
+    if (show_usage)
+    {
+        usage();
     }
 
     const char **includes;
@@ -69,7 +88,15 @@ int main(int argc, char **argv)
             printf("%s\n", assembled_data->error_buffer);
             return -1;
         }
+        else
+        {
+            printf("Program assembled successfully\n");
+        }
     }
-
+    else if (!show_usage)
+    {
+        usage();
+    }
+    
     return 0;
 }
