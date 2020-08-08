@@ -1,5 +1,6 @@
 #include "syscall_handlers.h"
 #include "syscall.h"
+#include "opcodes.h"
 
 #include <deque>
 
@@ -170,8 +171,9 @@ void handle_keypress_for_syscall(emulator &emulator, int key)
 {
     if (emulator.current_state == WAITING && emulator.current_syscall == SYSCALL_GETCH)
     {
-        uint16_t uword = *((uint16_t*)&key);
-        push_word(&emulator, uword);
+        machine_word_t word;
+        word.sword = key;
+        push_word(&emulator, word.uword);
         emulator.current_syscall = SYSCALL_NONE;
         emulator.current_state = RUNNING;
     }

@@ -58,7 +58,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/data_test.asm";
+const char* sample_file = "samples/echo.asm";
 
 int main (int argc, char **argv)
 {
@@ -171,7 +171,7 @@ int main (int argc, char **argv)
                             rcEmulator.current_state = RUNNING;
                         }
                     }
-                    else if (emulator_can_execute(&rcEmulator))
+                    else
                     {
                         handle_key(event.key.keysym, rcEmulator, console);
                     }

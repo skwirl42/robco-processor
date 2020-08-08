@@ -108,7 +108,16 @@ DECREMENT               \-{1,2}
 \"[^\n\"]+\" {
     //fprintf(stdout, "Got quoted string: %s\n", yytext);
     yylval.strval = strdup(yytext+1);
-    yylval.strval[yyleng-2] = 0;
+    if (yylval.strval[yyleng-3] == 'n' && yylval.strval[yyleng-4] == '\\')
+    {
+        yylval.strval[yyleng-4] = 0x0A;
+        yylval.strval[yyleng-3] = 0;
+    }
+    else
+    {
+        yylval.strval[yyleng-2] = 0;
+    }
+    
     return QUOTED_STRING;
 }
 

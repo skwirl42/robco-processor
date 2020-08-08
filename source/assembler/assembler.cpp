@@ -44,6 +44,18 @@ void add_data(assembler_data_t *data, const char *name, byte_array_t array)
     array.array = nullptr;
 }
 
+void add_string_to_data(assembler_data_t *data, const char *name, const char *string)
+{
+    if (name != nullptr)
+    {
+        handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
+    }
+
+    memcpy(&data->data[data->data_size], string, strlen(string) + 1);
+    data->data[data->data_size + strlen(string)] = 0;
+    data->data_size += strlen(string) + 1;
+}
+
 void handle_file(assembler_data_t *data, const char *filename)
 {
     auto old_filename = data->current_filename;
@@ -217,21 +229,28 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
         auto resolution = resolve_symbol(data->symbol_table, symbol_arg, &type, &signedness, &word_value, &byte_value);
         if (resolution != SYMBOL_ASSIGNED)
         {
+            symbol_ref_status_t add_ref_result;
             if (opcode->argument_type == SYMBOL_ADDRESS_INST)
             {
                 if (IS_BRANCH_INST(opcode->opcode))
                 {
                     signedness = SIGNEDNESS_SIGNED;
                 }
-                auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
-                                                            &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
-                                                            signedness, SYMBOL_ADDRESS_INST);
+                add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
+                                                        &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                        signedness, SYMBOL_ADDRESS_INST);
             }
             else 
             {
-                auto add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg,
-                                                            &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
-                                                            opcode->argument_signedness, opcode->argument_type);
+                add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg,
+                                                        &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                        opcode->argument_signedness, opcode->argument_type);
+            }
+
+            if (add_ref_result != SYMBOL_REFERENCE_RESOLVABLE && add_ref_result != SYMBOL_REFERENCE_SUCCESS)
+            {
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error trying to add a reference to symbol %s", symbol_arg);
+                add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
             }
             data->symbol_references_count++;
         }
@@ -279,11 +298,6 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
         else if (opcode->argument_type == SYMBOL_ADDRESS_INST)
         {
             data->instruction[data->instruction_size++] = opcode->opcode;
-            auto signedness = SIGNEDNESS_ANY;
-            if (IS_BRANCH_INST(opcode->opcode))
-            {
-                signedness = SIGNEDNESS_SIGNED;
-            }
             data->instruction[data->instruction_size++] = 0;
             data->instruction[data->instruction_size++] = 0;
         }

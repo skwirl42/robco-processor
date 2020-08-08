@@ -19,4 +19,5 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
 void parse_line(const char *lineBuffer);
 byte_array_t add_to_byte_array(byte_array_t array, uint8_t value);
 void add_data(assembler_data_t *data, const char *name, byte_array_t array);
+void add_string_to_data(assembler_data_t *data, const char *name, const char *string);
 void add_error(assembler_data_t *data, const char *error_string, assembler_status_t status);

@@ -73,6 +73,8 @@ label_def : SYMBOL ':' { handle_symbol_def(assembler_data, $1, 0, SYMBOL_ADDRESS
 
 data_def : DATA_DIRECTIVE SYMBOL byte_sequence { add_data(assembler_data, $2, $3); free($2); }
         | DATA_DIRECTIVE byte_sequence  { add_data(assembler_data, nullptr, $2); }
+        | DATA_DIRECTIVE SYMBOL QUOTED_STRING { add_string_to_data(assembler_data, $2, $3); free($2); free($3); }
+        | DATA_DIRECTIVE QUOTED_STRING { add_string_to_data(assembler_data, nullptr, $2); free($2); }
         ;
 
 byte_sequence : BYTE_LITERAL { $$ = add_to_byte_array($$, $1); }
