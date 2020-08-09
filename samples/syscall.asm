@@ -10,6 +10,7 @@
 .defword			SETATTR			0x0104
 .defword			SETATTRC		0x0105
 .defword			CLEAR			0x0106
+.defword            GETCURSOR       0x0107
 
 ; Holotape access
 .defword			HOLOTAPECHECK   0x0200

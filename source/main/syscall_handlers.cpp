@@ -24,6 +24,16 @@ execution_state_t handle_syscall_setcursor(emulator &emulator, Console &console)
     return RUNNING;
 }
 
+execution_state_t handle_syscall_getcursor(emulator &emulator, Console &console)
+{
+    int cursorX;
+    int cursorY;
+    console.GetCursor(cursorX, cursorY);
+    push_word(&emulator, cursorX);
+    push_word(&emulator, cursorY);
+    return RUNNING;
+}
+
 execution_state_t handle_syscall_setch(emulator &emulator, Console &console)
 {
     char character = pull_byte(&emulator);
@@ -145,6 +155,10 @@ void handle_current_syscall(emulator &emulator, Console &console)
 
     case SYSCALL_SETCURSOR:
         nextState = handle_syscall_setcursor(emulator, console);
+        break;
+
+    case SYSCALL_GETCURSOR:
+        nextState = handle_syscall_getcursor(emulator, console);
         break;
 
     case SYSCALL_GETCH:

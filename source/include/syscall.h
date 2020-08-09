@@ -14,6 +14,7 @@
 #define			SYSCALL_SETATTR			0x0104
 #define			SYSCALL_SETATTRC		0x0105
 #define			SYSCALL_CLEAR			0x0106
+#define         SYSCALL_GETCURSOR       0x0107
 
 // Holotape access
 #define			SYSCALL_HOLOTAPECHECK   0x0200

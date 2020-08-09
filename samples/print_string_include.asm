@@ -1,4 +1,7 @@
-; Expects X to be set to the beginning of the string
+; Expects X to be set to the beginning of the string,
+; modifies DP, and uses byte 0 of the direct page.
+; Include this after your own code to ensure that your code 
+; is executed first.
 print_string:
     pushi 0                 ; Initialize DP and [DP] to 0
     pulldp
@@ -20,4 +23,20 @@ str_print:
     push [dp]               ; Push the value at DP (currently the string length)
     pushi 0                 ; Add a 0 byte, to make a full word out of [DP]
     syscall PRINT           ; Print the string
+    rts
+
+; Cursor X and Y are on the stack, string is at X
+print_string_at:
+    syscall SETCURSOR
+    pop
+    jsr print_string
+    rts
+
+; Call with X pointing at string
+print_string_at_bottom_and_go_back:
+    syscall GETCURSOR
+    pushiw 0
+    pushiw 23
+    jsr print_string_at
+    syscall SETCURSOR
     rts
