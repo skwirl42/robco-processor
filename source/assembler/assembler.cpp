@@ -89,8 +89,14 @@ void handle_file(assembler_data_t *data, const char *filename)
         char lineBuffer[LINE_BUFFER_SIZE + 1];
         int charIndex = 0;
         int currentChar;
-        while ((currentChar = fgetc(file)) != EOF)
+        bool had_eof = false;
+        while (!had_eof && (currentChar = fgetc(file)))
         {
+            if (currentChar == EOF)
+            {
+                had_eof = true;
+            }
+
             if (currentChar == '\r' || currentChar == '\n' || currentChar == EOF)
             {
                 data->lineNumber = lineNumber;

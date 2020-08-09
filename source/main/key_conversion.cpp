@@ -1,34 +1,23 @@
 #include "key_conversion.h"
 
 const char *shifted_nums = ")!@#$%^&*(";
+const char *shifted_keys = " !\"#$%&\"()*+<_>?)!@#$%^&*(::<+>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}^_~ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~";
 
 int sdl_keycode_to_console_key(SDL_Keysym &keysym)
 {
     int console_key = 0;
     bool has_shift = keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT;
-    if (keysym.sym >= 'a' && keysym.sym <= 'z')
-    {
-        console_key = keysym.sym;
-        if (has_shift)
-        {
-            console_key = console_key & 0b1011111;
-        }
-    }
-    else if (keysym.sym >= '0' && keysym.sym <= '9')
+    if (keysym.sym >= 0 && keysym.sym < 0x7F)
     {
         if (has_shift)
         {
-            int index = keysym.sym - '0';
-            console_key = shifted_nums[index];
+            int index = keysym.sym - ' ';
+            console_key = shifted_keys[index];
         }
         else
         {
             console_key = keysym.sym;
         }
-    }
-    else if (keysym.sym >= 0 && keysym.sym <= 0x7F)
-    {
-        console_key = keysym.sym;
     }
     else
     {
@@ -40,6 +29,22 @@ int sdl_keycode_to_console_key(SDL_Keysym &keysym)
 
         case SDLK_END:
             console_key = KEY_END;
+            break;
+
+        case SDLK_LEFT:
+            console_key = KEY_LEFT_ARROW;
+            break;
+
+        case SDLK_RIGHT:
+            console_key = KEY_RIGHT_ARROW;
+            break;
+
+        case SDLK_DOWN:
+            console_key = KEY_DOWN_ARROW;
+            break;
+
+        case SDLK_UP:
+            console_key = KEY_UP_ARROW;
             break;
         }
     }
