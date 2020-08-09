@@ -30,6 +30,6 @@ While the main executable assembles a program before executing it, you can use t
 - [ ] Write a programming guide
 - [x] Better error handling for the assembler
 - [ ] Update the debugger to support showing the next instruction to be executed, instead of the last
-- [ ] Update the denugger to properly show the source arguments for register indexed instructions
+- [ ] Update the debugger to properly show the source arguments for register indexed instructions
 - [ ] Allow for swapping between the debug and regular console while execution remains paused
 - [ ] More better user experience
