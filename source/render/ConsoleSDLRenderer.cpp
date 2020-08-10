@@ -10,6 +10,48 @@
 #include <stdio.h>
 
 #include "Console.h"
+#include "graphics.h"
+#include "emulator.h"
+
+namespace
+{
+    uint32_t lut1[]
+    {
+        0xFF000000,
+        0xFF00FF00
+    };
+
+    uint32_t lut2[]
+    {
+        0xFF000000,
+        0xFF005500,
+        0xFF00AA00,
+        0xFF00FF00
+    };
+
+    uint32_t lut4[]
+    {
+        0xFF000000,
+        0xFF001100,
+        0xFF002200,
+        0xFF002200,
+        0xFF003300,
+        0xFF004400,
+        0xFF005500,
+        0xFF006600,
+        0xFF007700,
+        0xFF008800,
+        0xFF009900,
+        0xFF00AA00,
+        0xFF00BB00,
+        0xFF00CC00,
+        0xFF00DD00,
+        0xFF00EE00,
+        0xFF00FF00
+    };
+
+    uint32_t lut8[256];
+}
 
 ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int height, uint32_t foregroundColour, uint32_t backgroundColour, uint16_t fontCharsWide, uint16_t fontCharsHigh, int cursorBlinkFrames)
     : window(nullptr), renderer(nullptr), texture(nullptr), fontBuffer(nullptr),
@@ -93,6 +135,12 @@ ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int 
     {
         Cleanup();
         return;
+    }
+
+    for (int i = 0; i < 256; i++)
+    {
+        uint8_t byte = i & 0xFF;
+        lut8[i] = 0xFF000000 | (byte << 8);
     }
 
     isValid = true;
@@ -195,4 +243,128 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
     {
         fprintf(stderr, "Failed to lock texture (%s)\n", SDL_GetError());
     } 
+}
+
+void ConsoleSDLRenderer::Render(emulator* emulator)
+{
+    if (!isValid) return;
+    if (!emulator->graphics_mode.enabled) return;
+
+    uint32_t* pixels;
+    int pitch;
+    if (SDL_LockTexture(texture, nullptr, (void**)&pixels, &pitch) == 0)
+    {
+        auto pixelPitch = pitch / 4;
+
+        auto emulator_pix_per_line = graphics_pixels_per_line(emulator->graphics_mode);
+        int pix_per_emu_pix = 1;
+        if (emulator_pix_per_line < 192)
+        {
+            pix_per_emu_pix = 4;
+        }
+        else if (emulator_pix_per_line < 320)
+        {
+            pix_per_emu_pix = 2;
+        }
+
+        auto emulator_lines = graphics_get_row_count(emulator->graphics_mode);
+        auto emulator_columns = graphics_bytes_per_line(emulator->graphics_mode);
+        auto border_width = (width - (emulator_pix_per_line * pix_per_emu_pix)) / 2;
+        auto border_height = (height - (emulator_lines * pix_per_emu_pix)) / 2;
+        auto emulator_pixels = (pixel_byte_t*)(&emulator->memories.data[emulator->graphics_start]);
+        int pixel_divisor = graphics_get_bit_divisor(emulator->graphics_mode);
+        //printf("Pix per: %d, lines: %d, border: %dx%d\n", pix_per_emu_pix, emulator_lines, border_width, border_height);
+
+        for (int y = 0; y < height; y++)
+        {
+            bool inYBorder = (y < border_height) || ((height - y) < border_height);
+            for (int x = 0; x < width; x++)
+            {
+                bool inXBorder = ((x < border_width) || ((width - x) < border_width));
+
+                if (inYBorder || inXBorder)
+                {
+                    pixels[(y * pixelPitch) + x] = emulator->graphics_mode.border ? foregroundColour : backgroundColour;
+                }
+                else
+                {
+                    int emuX = (x - border_width) / pix_per_emu_pix;
+                    int emuY = (y - border_height) / pix_per_emu_pix;
+                    uint32_t pixelValue = backgroundColour;
+                    int byte = (emuY * emulator_columns) + (emuX / pixel_divisor);
+                    auto pixel_byte = emulator_pixels[byte];
+                    int bit = emuX & 0b111;
+                    int two_bits = emuX & 0b11;
+                    int nybble = emuX & 1;
+                    switch (emulator->graphics_mode.depth)
+                    {
+                    case ONE_BIT_PER_PIXEL:
+                        switch (bit)
+                        {
+                        case 0:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel0];
+                            break;
+                        case 1:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel1];
+                            break;
+                        case 2:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel2];
+                            break;
+                        case 3:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel3];
+                            break;
+                        case 4:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel4];
+                            break;
+                        case 5:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel5];
+                            break;
+                        case 6:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel6];
+                            break;
+                        case 7:
+                            pixelValue = lut1[pixel_byte.one_bit.pixel7];
+                            break;
+                        }
+                        break;
+
+                    case TWO_BITS_PER_PIXEL:
+                        switch (two_bits)
+                        {
+                        case 0:
+                            pixelValue = lut2[pixel_byte.two_bit.pixel0];
+                            break;
+                        case 1:
+                            pixelValue = lut2[pixel_byte.two_bit.pixel1];
+                            break;
+                        case 2:
+                            pixelValue = lut2[pixel_byte.two_bit.pixel2];
+                            break;
+                        case 3:
+                            pixelValue = lut2[pixel_byte.two_bit.pixel3];
+                            break;
+                        }
+                        break;
+
+                    case FOUR_BITS_PER_PIXEL:
+                        pixelValue = nybble ? lut4[pixel_byte.four_bit.pixel1] : lut4[pixel_byte.four_bit.pixel0];
+                        break;
+
+                    case EIGHT_BITS_PER_PIXEL:
+                        pixelValue = lut8[pixel_byte.eight_bit];
+                        break;
+                    }
+                    pixels[(y * pixelPitch) + x] = pixelValue;
+                }
+            }
+        }
+
+        SDL_UnlockTexture(texture);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+    }
+    else
+    {
+        fprintf(stderr, "Failed to lock texture (%s)\n", SDL_GetError());
+    }
 }

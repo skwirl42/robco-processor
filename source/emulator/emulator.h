@@ -8,6 +8,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "memory.h"
+#include "graphics.h"
 
 typedef enum _arch
 {
@@ -32,6 +33,7 @@ typedef enum _inst_result
     SUCCESS,
     EXECUTE_SYSCALL,
     ILLEGAL_INSTRUCTION,
+    SYNC,
 } inst_result_t;
 
 typedef enum _execution_state
@@ -50,6 +52,10 @@ typedef struct _emulator
 
     uint16_t current_syscall;
     execution_state_t current_state;
+
+    // Graphics will be in the 'data' memory
+    address_t graphics_start;
+    graphics_mode_t graphics_mode;
 
     // Registers
     address_t PC;

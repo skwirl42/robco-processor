@@ -5,8 +5,10 @@
 
 #if defined(APPLE)
 #include <SDL2/SDL.h>
+#define OUT_FILE    stderr
 #else // defined(APPLE)
 #include <SDL.h>
+#define OUT_FILE    stdout
 #endif // defined(APPLE)
 #include <stdio.h>
 #include <string.h>
@@ -58,14 +60,14 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/echo_getstring.asm";
+const char* sample_file = "samples/graphics_test.asm";
 
 int main (int argc, char **argv)
 {
     emulator rcEmulator;
     if (init_emulator(&rcEmulator, ARCH_ORIGINAL) != NO_ERROR)
     {
-        fprintf(stderr, "Emulator error\n");
+        fprintf(OUT_FILE, "Emulator error\n");
         return -1;
     }
 
@@ -80,25 +82,28 @@ int main (int argc, char **argv)
 
     if (assembled_data->errors.size() > 0)
     {
-        fprintf(stderr, "%s", assembled_data->error_buffer);
+        fprintf(OUT_FILE, "%s", assembled_data->error_buffer);
         return -1;
     }
 
-    if (assembled_data->instruction_size > 0 && assembled_data->data_size > 0)
+    if (assembled_data->instruction_size > 0)
     {
         memcpy(rcEmulator.memories.instruction, assembled_data->instruction, assembled_data->instruction_size);
-        memcpy(&rcEmulator.memories.data[0x100], assembled_data->data, assembled_data->data_size);
+        if (assembled_data->data_size > 0)
+        {
+            memcpy(&rcEmulator.memories.data[0x100], assembled_data->data, assembled_data->data_size);
+        }
     }
     else
     {
-        fprintf(stderr, "Failed to properly assemble the target %s\n", sample_file);
+        fprintf(OUT_FILE, "Failed to properly assemble the target %s\n", sample_file);
         memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
     }
     
     auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
     if (result != 0)
     {
-        fprintf(stderr, "Failed to initialize SDL (%s)\n", SDL_GetError());
+        fprintf(OUT_FILE, "Failed to initialize SDL (%s)\n", SDL_GetError());
         return -1;
     }
 
@@ -112,7 +117,7 @@ int main (int argc, char **argv)
     }
     else
     {
-        fprintf(stderr, "Missing argument: font filename\n");
+        fprintf(OUT_FILE, "Missing argument: font filename\n");
         return -1;
     }
 
@@ -138,14 +143,18 @@ int main (int argc, char **argv)
         {
             if (emulate && emulator_can_execute(&rcEmulator))
             {
-                auto result = execute_instruction(&rcEmulator, debugging_buffers);
+                inst_result_t result;
+                while ((result = execute_instruction(&rcEmulator, debugging_buffers)) == SUCCESS)
+                {
+                    // just spin until we get some other result
+                }
                 if (result == EXECUTE_SYSCALL)
                 {
                     handle_current_syscall(rcEmulator, console);
                 }
                 else if (result == ILLEGAL_INSTRUCTION)
                 {
-                    fprintf(stderr, "Emulation failed with an illegal instruction\n");
+                    fprintf(OUT_FILE, "Emulation failed with an illegal instruction\n");
                     emulate = false;
                 }
 
@@ -201,7 +210,14 @@ int main (int argc, char **argv)
             }
             else
             {
-                renderer->Render(&console, frame++);
+                if (rcEmulator.graphics_mode.enabled)
+                {
+                    renderer->Render(&rcEmulator);
+                }
+                else
+                {
+                    renderer->Render(&console, frame++);
+                }
             }
         }
 

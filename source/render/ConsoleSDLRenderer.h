@@ -7,6 +7,7 @@ class Console;
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
+typedef struct _emulator emulator;
 
 class ConsoleSDLRenderer
 {
@@ -18,6 +19,7 @@ public:
 	void SetColours(uint32_t foregroundColour, uint32_t backgroundColour);
 
 	void Render(Console *console, int frame);
+    void Render(emulator* emulator);
 
     bool IsValid() { return isValid; }
 

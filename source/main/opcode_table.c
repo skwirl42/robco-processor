@@ -62,6 +62,8 @@ opcode_entry_t opcode_entries[] =
     { "rts",    OPCODE_RTS,                     1, SYMBOL_NO_TYPE,      NONE },
     { "syscall", OPCODE_SYSCALL,                2, SYMBOL_WORD,         IMMEDIATE_OPERANDS,     SIGNEDNESS_ANY },
 
+    { "sync",   OPCODE_SYNC,                    1, SYMBOL_NO_TYPE,      NONE },
+
     { 0, 0, 0 }
 };
 

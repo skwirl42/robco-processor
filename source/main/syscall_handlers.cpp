@@ -1,6 +1,7 @@
 #include "syscall_handlers.h"
 #include "syscall.h"
 #include "opcodes.h"
+#include "graphics.h"
 
 #include <deque>
 
@@ -127,6 +128,44 @@ execution_state_t handle_syscall_getch(emulator &emulator, Console &console)
     return RUNNING;
 }
 
+union mode_byte
+{
+    uint8_t byte;
+    graphics_mode_t mode;
+};
+
+execution_state_t handle_syscall_graphicstart(emulator& emulator, Console& console)
+{
+    mode_byte mode;
+    mode.byte = pull_byte(&emulator);
+    auto graphics_begin = emulator.X;
+    auto memory_required = graphics_mem_size_for_mode(mode.mode);
+
+    if ((graphics_begin + memory_required) > DATA_SIZE)
+    {
+        push_byte(&emulator, GRAPHICS_ERROR_SPACE_TOO_SMALL);
+    }
+    else if (mode.mode.depth > EIGHT_BITS_PER_PIXEL || mode.mode.resolution > RES_480x320)
+    {
+        push_byte(&emulator, GRAPHICS_ERROR_UNSUPPORTED_MODE);
+    }
+    else
+    {
+        mode.mode.enabled = true;
+        emulator.graphics_mode = mode.mode;
+        emulator.graphics_start = graphics_begin;
+        push_byte(&emulator, GRAPHICS_ERROR_OK);
+    }
+
+    return RUNNING;
+}
+
+execution_state_t handle_syscall_graphicend(emulator& emulator, Console& console)
+{
+    emulator.graphics_mode.enabled = 0;
+    return RUNNING;
+}
+
 void handle_current_syscall(emulator &emulator, Console &console)
 {
     // printf("Handling syscall 0x%04x\n", emulator.current_syscall);
@@ -163,6 +202,14 @@ void handle_current_syscall(emulator &emulator, Console &console)
 
     case SYSCALL_GETCH:
         nextState = handle_syscall_getch(emulator, console);
+        break;
+
+    case SYSCALL_GRAPHICSTART:
+        nextState = handle_syscall_graphicstart(emulator, console);
+        break;
+
+    case SYSCALL_GRAPHICEND:
+        nextState = handle_syscall_graphicend(emulator, console);
         break;
 
     case SYSCALL_EXIT:

@@ -59,6 +59,8 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
     memset(emulator->memories.user_stack, 0, STACK_SIZE);
 
     emulator->current_state = RUNNING;
+    emulator->graphics_mode.enabled = 0;
+    emulator->graphics_start = 0;
     emulator->PC = EXECUTE_BEGIN;
     emulator->SP = STACK_BEGIN;
     emulator->ISP = INST_STACK_BEGIN;
@@ -991,6 +993,10 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
             result = EXECUTE_SYSCALL;
             break;
         
+        case OPCODE_SYNC:
+            result = SYNC;
+            break;
+
         default:
             result = ILLEGAL_INSTRUCTION; 
             break;

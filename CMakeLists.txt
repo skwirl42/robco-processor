@@ -28,6 +28,7 @@ add_executable(robcoterm
     source/render/Console.cpp
     source/render/ConsoleSDLRenderer.cpp
     source/emulator/emulator.c
+    source/emulator/graphics.c
     source/main/syscall_handlers.cpp
     source/main/key_conversion.cpp
     source/main/opcode_table.c
@@ -72,7 +73,6 @@ if (APPLE)
 endif (APPLE)
 
 if (MSVC)
-    set_property(TARGET robcoterm PROPERTY VS_PACKAGE_REFERENCES "sdl2.nuget_2.0.5;sdl2_image.nuget_2.0.5")
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
 endif ()
 

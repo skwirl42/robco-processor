@@ -128,6 +128,7 @@ DECREMENT               \-{1,2}
 %%
 
 extern int yylex();
+extern int yyparse();
 
 char temp_error_buffer[ERROR_BUFFER_SIZE+1];
 
