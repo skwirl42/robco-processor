@@ -7,7 +7,11 @@
     pullx
     jsr print_string
 start:
-    pushiw STRING
+    pushi 1             ; Set echo for get_string
+    pulldp
+    pushi 1
+    pull [dp]
+    pushiw STRING       ; Put the target string address into X
     pullx
     jsr get_string
     jsr print_string
