@@ -69,7 +69,7 @@ void handle_file(assembler_data_t *data, const char *filename)
         char * path_buffer = new char[ERROR_BUFFER_SIZE + 1];
         const char * current_search_path = 0;
         int i = 0;
-        while ((current_search_path = data->search_paths[i]) != 0)
+        while ((current_search_path = data->search_paths[i++]) != 0)
         {
             strncpy(path_buffer, current_search_path, ERROR_BUFFER_SIZE);
             strncat(path_buffer, filename, ERROR_BUFFER_SIZE);

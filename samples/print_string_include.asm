@@ -17,7 +17,6 @@ str_loop:
     inc
     pull [dp]
     b str_loop              ; Loop
-
 str_print:
     pop                     ; Drop the string's null terminator
     push [dp]               ; Push the value at DP (currently the string length)
