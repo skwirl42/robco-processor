@@ -6,7 +6,7 @@
     pushiw PROMPT
     pullx
     jsr print_string
-start:
+loop:
     pushi 1             ; Set echo for get_string
     pulldp
     pushi 1
@@ -15,7 +15,7 @@ start:
     pullx
     jsr get_string
     jsr print_string
-    b start
+    b loop
 
 .include "print_string_include.asm"
 .include "get_string_include.asm"

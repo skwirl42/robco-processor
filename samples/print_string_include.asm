@@ -7,7 +7,7 @@ print_string:
     pulldp
     pushi 0
     pull [dp]
-str_loop:
+print_str_loop:
     push [x+]               ; Push the string byte at X, then increment X by 1
     dup                     ; Dup the string byte
     pushi 0                 ; Compare it to 0
@@ -16,7 +16,7 @@ str_loop:
     push [dp]               ; Increment the value at DP
     inc
     pull [dp]
-    b str_loop              ; Loop
+    b print_str_loop        ; Loop
 str_print:
     pop                     ; Drop the string's null terminator
     push [dp]               ; Push the value at DP (currently the string length)
