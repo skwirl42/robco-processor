@@ -33,7 +33,7 @@ void add_data(assembler_data_t *data, const char *name, byte_array_t array)
 {
     if (name != nullptr)
     {
-        handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
+        handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
     }
 
     memcpy(&data->data[data->data_size], array.array, array.size);
@@ -48,12 +48,19 @@ void add_string_to_data(assembler_data_t *data, const char *name, const char *st
 {
     if (name != nullptr)
     {
-        handle_symbol_def(data, name, 0, SYMBOL_ADDRESS_DATA);
+        handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
     }
 
-    memcpy(&data->data[data->data_size], string, strlen(string) + 1);
+    memcpy(&data->data[data->data_size], string, strlen(string));
     data->data[data->data_size + strlen(string)] = 0;
     data->data_size += strlen(string) + 1;
+}
+
+void reserve_data(assembler_data_t* data, const char* name, uint16_t size)
+{
+    handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
+
+    data->data_size += size;
 }
 
 void handle_file(assembler_data_t *data, const char *filename)
@@ -176,11 +183,11 @@ void handle_symbol_def(assembler_data_t *data, const char *name, int value, symb
     case SYMBOL_WORD:
     case SYMBOL_ADDRESS_INST:
     case SYMBOL_ADDRESS_DATA:
-        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0);
+        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0, true);
         break;
 
     case SYMBOL_BYTE:
-        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, 0, value);
+        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, 0, value, true);
         break;
 
     case SYMBOL_NO_TYPE:
@@ -383,6 +390,10 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     data.instruction_size = 0;
     data.lineNumber = 0;
     data.symbol_references_count = 0;
+
+    memset(data.data, 0, DATA_SIZE);
+    memset(data.instruction, 0, INST_SIZE);
+
     assembler_data = &data;
 
     error_buffer[0] = 0;
@@ -452,15 +463,22 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
             fprintf(assembled_output, "\n");
         }
 
+        const int max_data_print = 512;
         fprintf(assembled_output, "\nData:\n");
-        for (int i = 0; i < data.data_size;)
+        auto data_length = (data.data_size > max_data_print) ? max_data_print : data.data_size;
+        for (int i = 0; i < data_length;)
         {
             fprintf(assembled_output, "0x%04x: ", i);
-            for (int j = 0; j < 4 && i < data.data_size; j++)
+            for (int j = 0; j < 4 && i < data_length; j++)
             {
                 fprintf(assembled_output, "0x%02x ", data.data[i++]);
             }
             fprintf(assembled_output, "\n");
+        }
+
+        if (data_length != data.data_size)
+        {
+            fprintf(assembled_output, " ... \n");
         }
 
         fprintf(assembled_output, "\nSymbols:\n");

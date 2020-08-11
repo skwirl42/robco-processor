@@ -92,7 +92,7 @@ typedef union _pixel_byte
 } pixel_byte_t;
 
 // A return value of 0 means the mode isn't supported
-uint16_t graphics_mem_size_for_mode(graphics_mode_t mode);
+int graphics_mem_size_for_mode(graphics_mode_t mode);
 int graphics_get_bit_divisor(graphics_mode_t mode);
 uint16_t graphics_bytes_per_line(graphics_mode_t mode);
 uint16_t graphics_pixels_per_line(graphics_mode_t mode);

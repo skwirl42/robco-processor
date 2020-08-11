@@ -17,7 +17,7 @@ extern int yylex();
 %token <intval> WORD_LITERAL INTEGER_LITERAL REGISTER_ARGUMENT INCREMENT
 %token <byteval> BYTE_LITERAL
 %token <bytearray> BYTE_SEQUENCE
-%token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE COMMENT
+%token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE RESERVE_DIRECTIVE COMMENT
 
 %type <intval> register_list indexed_register
 %type <bytearray> byte_sequence
@@ -30,6 +30,7 @@ line : line comment
         | word_def
         | label_def
         | data_def
+        | reserve_def
         | comment
         ;
 
@@ -75,6 +76,9 @@ data_def : DATA_DIRECTIVE SYMBOL byte_sequence { add_data(assembler_data, $2, $3
         | DATA_DIRECTIVE byte_sequence  { add_data(assembler_data, nullptr, $2); }
         | DATA_DIRECTIVE SYMBOL QUOTED_STRING { add_string_to_data(assembler_data, $2, $3); free($2); free($3); }
         | DATA_DIRECTIVE QUOTED_STRING { add_string_to_data(assembler_data, nullptr, $2); free($2); }
+        ;
+
+reserve_def : RESERVE_DIRECTIVE SYMBOL INTEGER_LITERAL { reserve_data(assembler_data, $2, $3); free($2); }
         ;
 
 byte_sequence : BYTE_LITERAL { $$ = add_to_byte_array($$, $1); }

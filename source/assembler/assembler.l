@@ -9,13 +9,15 @@
 
 SYMBOL                  [a-zA-Z][a-zA-Z0-9_]*
 BYTE_LITERAL            0x[a-fA-F0-9]{2}
-WORD_LITERAL            0x[a-fA-F0-9]{4}
+WORD_LITERAL            0x[a-fA-F0-9]+
 INTEGER_LITERAL         [+\-]?[0-9]+
+BINARY_LITERAL          0b[01]+
 INCLUDE_DIRECTIVE       \.include
 DEFBYTE_DIRECTIVE       \.defbyte
 DEFWORD_DIRECTIVE       \.defword
 DATA_DIRECTIVE          \.data
-ESCAPE_SEQUENCE         \\['\\abrnt0]
+RESERVE_DIRECTIVE       \.reserve
+ESCAPE_SEQUENCE         \\["'\\abrnt0]
 WHITESPACE              [ \t]+
 INSTRUCTION             [a-z]{1,7}
 REGISTER_ARGUMENT       [a-z]{1,2}
@@ -55,6 +57,10 @@ DECREMENT               \-{1,2}
 
 {DATA_DIRECTIVE} {
     return DATA_DIRECTIVE;
+}
+
+{RESERVE_DIRECTIVE} {
+    return RESERVE_DIRECTIVE;
 }
 
 {INCREMENT} {

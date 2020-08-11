@@ -141,12 +141,17 @@ int main (int argc, char **argv)
 
         while (!done)
         {
+            inst_result_t result = SUCCESS;
             if (emulate && emulator_can_execute(&rcEmulator))
             {
-                inst_result_t result;
+                const int max_cycles = 100;
+                int current_cycle = 0;
                 while ((result = execute_instruction(&rcEmulator, debugging_buffers)) == SUCCESS)
                 {
-                    // just spin until we get some other result
+                    if (current_cycle++ == max_cycles)
+                    {
+                        break;
+                    }
                 }
                 if (result == EXECUTE_SYSCALL)
                 {
@@ -212,7 +217,10 @@ int main (int argc, char **argv)
             {
                 if (rcEmulator.graphics_mode.enabled)
                 {
-                    renderer->Render(&rcEmulator);
+                    if (result == SYNC)
+                    {
+                        renderer->Render(&rcEmulator);
+                    }
                 }
                 else
                 {

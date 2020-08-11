@@ -103,7 +103,7 @@ symbol_table_error_t dispose_symbol_table(symbol_table_t *symbol_table)
     return SYMBOL_TABLE_NOERROR;
 }
 
-symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t type, symbol_signedness_t signedness, uint16_t word_value, uint8_t byte_value)
+symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t type, symbol_signedness_t signedness, uint16_t word_value, uint8_t byte_value, uint8_t resolve_references)
 {
     if (type == SYMBOL_NO_TYPE)
     {
@@ -154,34 +154,37 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
         new_entry->signedness = signedness;
         new_entry->next_entry = 0;
 
-        symbol_reference_t *current_ref = symbol_table->first_reference;
-        while (current_ref != 0)
+        if (resolve_references)
         {
-            if (strncasecmp(current_ref->symbol, new_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
+            symbol_reference_t* current_ref = symbol_table->first_reference;
+            while (current_ref != 0)
             {
-                current_ref->resolution = SYMBOL_ASSIGNED;
-                if (type == SYMBOL_BYTE)
+                if (strncasecmp(current_ref->symbol, new_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
                 {
-                    *current_ref->location = byte_value;
+                    current_ref->resolution = SYMBOL_ASSIGNED;
+                    if (type == SYMBOL_BYTE)
+                    {
+                        *current_ref->location = byte_value;
+                    }
+                    else if (current_ref->expected_signedness == SIGNEDNESS_ANY || current_ref->expected_signedness == SIGNEDNESS_UNSIGNED)
+                    {
+                        machine_word_t word;
+                        word.uword = word_value;
+                        current_ref->location[0] = word.bytes[1];
+                        current_ref->location[1] = word.bytes[0];
+                    }
+                    else if (current_ref->expected_signedness == SIGNEDNESS_SIGNED)
+                    {
+                        machine_word_t word;
+                        word.uword = word_value;
+                        word.sword -= (int16_t)current_ref->ref_location - 1;
+                        current_ref->location[0] = word.bytes[1];
+                        current_ref->location[1] = word.bytes[0];
+                    }
                 }
-                else if (current_ref->expected_signedness == SIGNEDNESS_ANY || current_ref->expected_signedness == SIGNEDNESS_UNSIGNED)
-                {
-                    machine_word_t word;
-                    word.uword = word_value;
-                    current_ref->location[0] = word.bytes[1];
-                    current_ref->location[1] = word.bytes[0];
-                }
-                else if (current_ref->expected_signedness == SIGNEDNESS_SIGNED)
-                {
-                    machine_word_t word;
-                    word.uword = word_value;
-                    word.sword -= (int16_t)current_ref->ref_location - 1;
-                    current_ref->location[0] = word.bytes[1];
-                    current_ref->location[1] = word.bytes[0];
-                }
-            }
-            current_ref = current_ref->next_reference;
-        };
+                current_ref = current_ref->next_reference;
+            };
+        }
 
         // fprintf(stdout, "Creating new symbol \"%s\" with value %d\n", new_entry->symbol, new_entry->byte_value_valid ? new_entry->byte_value : new_entry->word_value);
 

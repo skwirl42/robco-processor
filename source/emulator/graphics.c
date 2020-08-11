@@ -21,7 +21,7 @@ int graphics_get_bit_divisor(graphics_mode_t mode)
 	return bit_divisor;
 }
 
-uint16_t graphics_mem_size_for_mode(graphics_mode_t mode)
+int graphics_mem_size_for_mode(graphics_mode_t mode)
 {
 	int dimensions = 0;
 	switch (mode.resolution)

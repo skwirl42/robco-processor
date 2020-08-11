@@ -23,6 +23,9 @@ find_package (FLEX)
 BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
 FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
 
+BISON_TARGET(CompilerYacc source/compiler/compiler.y ${CMAKE_CURRENT_BINARY_DIR}/compiler_yacc.cpp)
+FLEX_TARGET(CompilerLex source/compiler/compiler.l  ${CMAKE_CURRENT_BINARY_DIR}/compiler_lex.cpp)
+
 add_executable(robcoterm 
     source/main/main.cpp
     source/render/Console.cpp
@@ -37,6 +40,7 @@ add_executable(robcoterm
     ${FLEX_AssemblerLex_OUTPUTS}
     ${BISON_AssemblerYacc_OUTPUTS}
     )
+
 target_include_directories(robcoterm PRIVATE 
     source/main
     source/render
@@ -44,7 +48,20 @@ target_include_directories(robcoterm PRIVATE
     source/assembler
     source/include)
 
-FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
+add_executable(compiler
+    source/compiler/compiler_main.cpp
+    source/compiler/compiler.cpp
+    source/main/opcode_table.c
+    source/assembler/symbols.c
+    ${FLEX_CompilerLex_OUTPUTS}
+    ${BISON_CompilerYacc_OUTPUTS}
+    )
+
+target_include_directories(compiler PRIVATE 
+    source/main
+    source/compiler
+    source/assembler
+    source/include)
 
 if (APPLE)
     add_executable(assembler
@@ -55,6 +72,7 @@ if (APPLE)
         ${FLEX_AssemblerLex_OUTPUTS}
         ${BISON_AssemblerYacc_OUTPUTS}
         )
+
     target_include_directories(assembler PRIVATE 
         source/main
         source/assembler
@@ -63,6 +81,10 @@ if (APPLE)
     target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(assembler stdc++)
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
+
+    target_link_directories(compiler PUBLIC /usr/local/homebrew/lib)
+    target_link_libraries(compiler stdc++)
+    target_include_directories(compiler PUBLIC /usr/local/homebrew/include)
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
@@ -74,6 +96,7 @@ endif (APPLE)
 
 if (MSVC)
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
+    target_include_directories(compiler PUBLIC D:/GnuWin32/include)
 endif ()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
