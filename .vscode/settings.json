@@ -63,6 +63,16 @@
         "__functional_03": "cpp",
         "__memory": "cpp",
         "regex": "cpp",
-        "deque": "cpp"
+        "deque": "cpp",
+        "__tree": "cpp",
+        "csignal": "cpp",
+        "fstream": "cpp",
+        "iomanip": "cpp",
+        "list": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "stack": "cpp",
+        "strstream": "cpp",
+        "thread": "cpp"
     }
 }

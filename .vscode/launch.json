@@ -17,6 +17,18 @@
             "MIMode": "lldb"
         },
         {
+            "name": "Compiler Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/compiler",
+            "args": ["${workspaceFolder}/source/include/syscall.h"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
             "name": "Debug Launch",
             "type": "cppdbg",
             "request": "launch",

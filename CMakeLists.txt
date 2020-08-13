@@ -48,6 +48,8 @@ target_include_directories(robcoterm PRIVATE
     source/assembler
     source/include)
 
+find_package (Boost COMPONENTS wave)
+
 add_executable(compiler
     source/compiler/compiler_main.cpp
     source/compiler/compiler.cpp
@@ -61,7 +63,8 @@ target_include_directories(compiler PRIVATE
     source/main
     source/compiler
     source/assembler
-    source/include)
+    source/include
+    ${Boost_INCLUDE_DIRS})
 
 if (APPLE)
     add_executable(assembler
@@ -82,8 +85,8 @@ if (APPLE)
     target_link_libraries(assembler stdc++)
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
 
-    target_link_directories(compiler PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(compiler stdc++)
+    target_link_directories(compiler PUBLIC /usr/local/homebrew/lib ${Boost_LIBRARY_DIRS})
+    target_link_libraries(compiler stdc++ ${Boost_LIBRARIES})
     target_include_directories(compiler PUBLIC /usr/local/homebrew/include)
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
