@@ -21,7 +21,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/compiler",
-            "args": ["${workspaceFolder}/source/include/syscall.h"],
+            "args": ["${workspaceFolder}/target/main.c", "${workspaceFolder}/build/main.cpp.c"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

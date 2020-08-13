@@ -60,25 +60,47 @@ void compiler::add_system_include_dir(const char *path)
     wave_context->add_sysinclude_path(path);
 }
 
-void compiler::preprocess()
+void compiler::preprocess(const char *cpp_out_name)
 {
     try
     {
+        boost::scoped_ptr<std::ostream> file;
+
+        if (cpp_out_name != nullptr)
+        {
+            this->cpp_out_name = cpp_out_name;
+            file.reset(new std::ofstream(cpp_out_name, std::ios_base::out));
+        }
+
         auto first = wave_context->begin();
         auto last = wave_context->end();
         while (first != last)
         {
-            std::cout << (*first).get_value();
+            (file ? *file : std::cout) << (*first).get_value();
             ++first;
+        }
+    }
+    catch (const boost::wave::cpp_exception &e)
+    {
+        switch (e.get_severity())
+        {
+        case boost::wave::util::severity_remark:
+        case boost::wave::util::severity_warning:
+            std::cerr << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
+            break;
+
+        default:
+            std::cerr << "Preprocessing explosion " << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
+            break;
         }
     }
     catch (const boost::wrapexcept<boost::wave::cpplexer::lexing_exception> &e)
     {
-        std::cerr << "Lexing exception " << e.what() << " in file " << e.file_name() << ":" << e.line_no() << std::endl;
+        std::cerr << "Lexing exception " << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
     }
     catch (const boost::wave::cpplexer::lexing_exception &e)
     {
-        std::cerr << "Lexing exception " << e.what() << " in file " << e.file_name() << ":" << e.line_no() << std::endl;
+        std::cerr << "Lexing exception " << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
     }
     catch(const std::exception& e)
     {

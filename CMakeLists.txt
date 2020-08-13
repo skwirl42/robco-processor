@@ -23,9 +23,6 @@ find_package (FLEX)
 BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
 FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
 
-BISON_TARGET(CompilerYacc source/compiler/compiler.y ${CMAKE_CURRENT_BINARY_DIR}/compiler_yacc.cpp)
-FLEX_TARGET(CompilerLex source/compiler/compiler.l  ${CMAKE_CURRENT_BINARY_DIR}/compiler_lex.cpp)
-
 add_executable(robcoterm 
     source/main/main.cpp
     source/render/Console.cpp
@@ -53,16 +50,11 @@ find_package (Boost COMPONENTS wave)
 add_executable(compiler
     source/compiler/compiler_main.cpp
     source/compiler/compiler.cpp
-    source/main/opcode_table.c
-    source/assembler/symbols.c
-    ${FLEX_CompilerLex_OUTPUTS}
-    ${BISON_CompilerYacc_OUTPUTS}
     )
 
 target_include_directories(compiler PRIVATE 
     source/main
     source/compiler
-    source/assembler
     source/include
     ${Boost_INCLUDE_DIRS})
 

@@ -29,7 +29,7 @@ public:
 	void add_include_dir(const char *path);
 	void add_system_include_dir(const char *path);
 
-	void preprocess();
+	void preprocess(const char *cpp_out_name = nullptr);
 	void parse();
 	void generate();
 	void add_error(const char* err, CompilerError error);
@@ -42,4 +42,5 @@ private:
 	boost::scoped_ptr<std::string> input;
 	boost::scoped_ptr<context_type> wave_context;
 	const char *filename;
+	const char *cpp_out_name;
 };
