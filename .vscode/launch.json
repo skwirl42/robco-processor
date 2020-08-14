@@ -21,7 +21,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/compiler",
-            "args": ["${workspaceFolder}/target/main.c", "${workspaceFolder}/build/main.cpp.c"],
+            "args": ["${workspaceFolder}/target/main.c"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

@@ -35,12 +35,12 @@ public:
 	void add_error(const char* err, CompilerError error);
 	void add_error(std::string err, CompilerError error);
 
-	bool is_valid() { return input_stream && input && wave_context; }
+	bool is_valid() { return input_stream && input && cpp_context; }
 
 private:
 	boost::scoped_ptr<std::ifstream> input_stream;
 	boost::scoped_ptr<std::string> input;
-	boost::scoped_ptr<context_type> wave_context;
+	boost::scoped_ptr<context_type> cpp_context;
 	const char *filename;
 	const char *cpp_out_name;
 };

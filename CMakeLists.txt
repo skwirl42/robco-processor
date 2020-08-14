@@ -11,13 +11,12 @@ set(BISON_ROOT /usr/local/homebrew/opt/bison@2.7)
 set(BISON_EXECUTABLE /usr/local/homebrew/opt/bison@2.7/bin/bison)
 endif ()
 
-if (MSVC) # Wanted to use WSL, but it was causing issues - cygwin instead?
+if (MSVC) # Wanted to use WSL, but it was causing issues - GnuWin32
 set(FLEX_EXECUTABLE D:/GnuWin32/bin/flex)
 set(BISON_EXECUTABLE D:/GnuWin32/bin/bison)
 endif()
 
 find_package (BISON)
-
 find_package (FLEX)
 
 BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
@@ -53,7 +52,6 @@ add_executable(compiler
     )
 
 target_include_directories(compiler PRIVATE 
-    source/main
     source/compiler
     source/include
     ${Boost_INCLUDE_DIRS})
@@ -77,9 +75,8 @@ if (APPLE)
     target_link_libraries(assembler stdc++)
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
 
-    target_link_directories(compiler PUBLIC /usr/local/homebrew/lib ${Boost_LIBRARY_DIRS})
+    target_link_directories(compiler PUBLIC ${Boost_LIBRARY_DIRS})
     target_link_libraries(compiler stdc++ ${Boost_LIBRARIES})
-    target_include_directories(compiler PUBLIC /usr/local/homebrew/include)
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")

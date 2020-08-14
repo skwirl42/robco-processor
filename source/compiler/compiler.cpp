@@ -1,6 +1,7 @@
 #include "compiler_internal.hpp"
 
 #include <stdexcept>
+#include <boost/spirit/include/qi.hpp>
 
 char lineBuffer[LINE_BUFFER_SIZE + 1];
 compiler* compiler_data = nullptr;
@@ -38,7 +39,7 @@ compiler::compiler(const char *filename) : filename(filename)
         input_stream->unsetf(std::ios::skipws);
 
         input.reset(new std::string(std::istreambuf_iterator<char>(input_stream->rdbuf()), std::istreambuf_iterator<char>()));
-        wave_context.reset(new context_type(input->begin(), input->end(), filename));
+        cpp_context.reset(new context_type(input->begin(), input->end(), filename));
     }
     catch(const std::exception& e)
     {
@@ -52,12 +53,12 @@ compiler::~compiler()
 
 void compiler::add_include_dir(const char *path)
 {
-    wave_context->add_include_path(path);
+    cpp_context->add_include_path(path);
 }
 
 void compiler::add_system_include_dir(const char *path)
 {
-    wave_context->add_sysinclude_path(path);
+    cpp_context->add_sysinclude_path(path);
 }
 
 void compiler::preprocess(const char *cpp_out_name)
@@ -72,8 +73,8 @@ void compiler::preprocess(const char *cpp_out_name)
             file.reset(new std::ofstream(cpp_out_name, std::ios_base::out));
         }
 
-        auto first = wave_context->begin();
-        auto last = wave_context->end();
+        auto first = cpp_context->begin();
+        auto last = cpp_context->end();
         while (first != last)
         {
             (file ? *file : std::cout) << (*first).get_value();
@@ -106,7 +107,6 @@ void compiler::preprocess(const char *cpp_out_name)
     {
         std::cerr << e.what() << '\n';
     }
-    
 }
 
 void compiler::parse()
