@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compiler.hpp"
+#include "translation_unit.hpp"
 
 #include <string>
 

@@ -73,6 +73,8 @@
         "set": "cpp",
         "stack": "cpp",
         "strstream": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "typeindex": "cpp",
+        "variant": "cpp"
     }
 }

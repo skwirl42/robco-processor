@@ -1,4 +1,5 @@
 ; This has gotta get labelled something else
+; gonna need to set some standards
 .data _string "Hello, world!\n"
 
 __start:
@@ -36,6 +37,8 @@ _main:
     pushw [dp]              ; - save the value of [DP] on the stack
     pushw _string           ; print_str(_string);
     jsr _print_str
-    pullw [dp]              ; - restore [DP]
+    push 0                  ; - restore [DP]
+    pulldp
+    pullw [dp]
     pushw [dp]              ; return result;
     rts

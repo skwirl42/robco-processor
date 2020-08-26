@@ -105,13 +105,13 @@ void compiler::preprocess(const char *cpp_out_name)
     }
     catch(const std::exception& e)
     {
-        std::cerr << e.what() << '\n';
+        std::cerr << e.what() << std::endl;
     }
 }
 
 void compiler::parse()
 {
-
+    translation_unit<std::string::iterator> parser;
 }
 
 void compiler::generate()
