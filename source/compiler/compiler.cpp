@@ -2,6 +2,11 @@
 
 #include <stdexcept>
 #include <boost/spirit/include/qi.hpp>
+#include <boost/variant/apply_visitor.hpp>
+
+namespace qi = boost::spirit::qi;
+namespace wave = boost::wave;
+namespace ascii = boost::spirit::ascii;
 
 char lineBuffer[LINE_BUFFER_SIZE + 1];
 compiler* compiler_data = nullptr;
@@ -81,12 +86,12 @@ void compiler::preprocess(const char *cpp_out_name)
             ++first;
         }
     }
-    catch (const boost::wave::cpp_exception &e)
+    catch (const wave::cpp_exception &e)
     {
         switch (e.get_severity())
         {
-        case boost::wave::util::severity_remark:
-        case boost::wave::util::severity_warning:
+        case wave::util::severity_remark:
+        case wave::util::severity_warning:
             std::cerr << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
             break;
 
@@ -95,11 +100,11 @@ void compiler::preprocess(const char *cpp_out_name)
             break;
         }
     }
-    catch (const boost::wrapexcept<boost::wave::cpplexer::lexing_exception> &e)
+    catch (const boost::wrapexcept<wave::cpplexer::lexing_exception> &e)
     {
         std::cerr << "Lexing exception " << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
     }
-    catch (const boost::wave::cpplexer::lexing_exception &e)
+    catch (const wave::cpplexer::lexing_exception &e)
     {
         std::cerr << "Lexing exception " << e.description() << " in " << e.file_name() << ":" << e.line_no() << std::endl;
     }
@@ -109,9 +114,22 @@ void compiler::preprocess(const char *cpp_out_name)
     }
 }
 
-void compiler::parse()
+void compiler::parse(std::string &input)
 {
     translation_unit<std::string::iterator> parser;
+    ast_root ast;
+    ast_visitor visitor{};
+    if (qi::phrase_parse(input.begin(), input.end(), parser, ascii::space, ast))
+    {
+        for (auto node : ast.nodes)
+        {
+            boost::apply_visitor(visitor, node);
+        }
+    }
+    else
+    {
+        std::cout << "(" << input << ")" << " did not contain anything parseable" << std::endl;
+    }
 }
 
 void compiler::generate()

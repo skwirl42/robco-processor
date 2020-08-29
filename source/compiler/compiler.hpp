@@ -30,7 +30,7 @@ public:
 	void add_system_include_dir(const char *path);
 
 	void preprocess(const char *cpp_out_name = nullptr);
-	void parse();
+	void parse(std::string &input);
 	void generate();
 	void add_error(const char* err, CompilerError error);
 	void add_error(std::string err, CompilerError error);

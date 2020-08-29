@@ -13,14 +13,17 @@ int main(int argc, char** argv)
 	boost::scoped_ptr<compiler> compiler_ptr(new compiler(argv[1]));
 	if (compiler_ptr->is_valid())
 	{
-		if (argc >= 3)
-		{
-			compiler_ptr->preprocess(argv[2]);
-		}
-		else
-		{
-			compiler_ptr->preprocess();
-		}
+		// if (argc >= 3)
+		// {
+		// 	compiler_ptr->preprocess(argv[2]);
+		// }
+		// else
+		// {
+		// 	compiler_ptr->preprocess();
+		// }
+
+	    std::string testString{"filet_mignon = jam + cheese * bucket - 17"};
+		compiler_ptr->parse(testString);
 	}
 	
 	return 0;

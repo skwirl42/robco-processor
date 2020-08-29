@@ -75,6 +75,7 @@
         "strstream": "cpp",
         "thread": "cpp",
         "typeindex": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "numeric": "cpp"
     }
 }
