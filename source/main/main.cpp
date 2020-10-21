@@ -60,7 +60,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/echo_getstring.asm";
+const char* sample_file = "samples/graphics_test.asm";
 
 int main (int argc, char **argv)
 {
@@ -149,7 +149,10 @@ int main (int argc, char **argv)
 
         while (!done)
         {
-            get_debug_info(&rcEmulator, debugging_buffers);
+            if (debugging)
+            {
+                get_debug_info(&rcEmulator, debugging_buffers);
+            }
 
             inst_result_t result = SUCCESS;
             if (emulate && emulator_can_execute(&rcEmulator))

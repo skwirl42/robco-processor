@@ -36,10 +36,10 @@ start:
 	b loop
 draw_start:
 	pushiw GRAPHICS_START
+	dupw
 	pullx
 	sync
-	pushiw 0
-	dup
+	pushi 0
 	pulldp
 	pullw [dp]
 

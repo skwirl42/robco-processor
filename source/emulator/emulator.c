@@ -930,6 +930,7 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
         
         case OPCODE_SYNC:
+            new_pc--;
             result = SYNC;
             break;
 
