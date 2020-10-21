@@ -13,7 +13,8 @@ struct _symbol_reference
 {
     char symbol[SYMBOL_MAX_LENGTH + 1];
     symbol_reference_t *next_reference;
-    uint8_t *location;
+    symbol_resolve_callback_t callback;
+    void *context;
     uint16_t ref_location;
     symbol_resolution_t resolution;
     symbol_signedness_t expected_signedness;
@@ -162,25 +163,12 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
                 if (strncasecmp(current_ref->symbol, new_entry->symbol, SYMBOL_MAX_LENGTH) == 0)
                 {
                     current_ref->resolution = SYMBOL_ASSIGNED;
-                    if (type == SYMBOL_BYTE)
+                    machine_word_t word;
+                    if (type != SYMBOL_BYTE)
                     {
-                        *current_ref->location = byte_value;
-                    }
-                    else if (current_ref->expected_signedness == SIGNEDNESS_ANY || current_ref->expected_signedness == SIGNEDNESS_UNSIGNED)
-                    {
-                        machine_word_t word;
                         word.uword = word_value;
-                        current_ref->location[0] = word.bytes[1];
-                        current_ref->location[1] = word.bytes[0];
                     }
-                    else if (current_ref->expected_signedness == SIGNEDNESS_SIGNED)
-                    {
-                        machine_word_t word;
-                        word.uword = word_value;
-                        word.sword -= (int16_t)current_ref->ref_location - 1;
-                        current_ref->location[0] = word.bytes[1];
-                        current_ref->location[1] = word.bytes[0];
-                    }
+                    current_ref->callback(current_ref->context, current_ref->ref_location, type, current_ref->expected_signedness, byte_value, word);
                 }
                 current_ref = current_ref->next_reference;
             };
@@ -196,7 +184,7 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
     }
 }
 
-symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint8_t *reference_address, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type)
+symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, symbol_resolve_callback_t resolve_callback, void *context, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type)
 {
     symbol_table_entry_t *current_entry = symbol_table->first_entry;
     symbol_table_entry_t *next_entry;
@@ -237,7 +225,8 @@ symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const cha
     new_ref->next_reference = 0;
     new_ref->expected_signedness = expected_signedness;
     new_ref->expected_type = expected_type;
-    new_ref->location = reference_address;
+    new_ref->callback = resolve_callback;
+    new_ref->context = context;
     new_ref->ref_location = ref_location;
     new_ref->resolution = SYMBOL_UNASSIGNED;
     strncpy(new_ref->symbol, name, SYMBOL_MAX_LENGTH);

@@ -1,12 +1,256 @@
 #include "assembler_internal.h"
 
 #include <errno.h>
+#include <optional>
 #include "opcodes.h"
 #include "memory.h"
 
-static char error_buffer[ERROR_BUFFER_SIZE + 1];
+namespace
+{
+    const uint16_t MIN_INSTRUCTION_ALLOC_SIZE = 0x100;
+}
+
+typedef struct _assembler_data
+{
+    const char **search_paths;
+    std::vector<assembled_region_t*> regions;
+    assembled_region_t *current_region;
+    symbol_table_t *symbol_table;
+    int lineNumber;
+    const char *current_filename;
+    std::vector<char*> files_to_process;
+    std::vector<assembler_error_t> errors;
+    char * error_buffer;
+    int error_buffer_size;
+    int symbol_references_count;
+    uint16_t current_org_address;
+    std::optional<uint16_t> execution_start;
+    bool current_org_address_valid;
+} assembler_data_t;
+
+char *error_buffer = new char[ERROR_BUFFER_SIZE + 1];
 char temp_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
+const char *current_filename;
+int *lineNumber;
+
+assembler_status_t get_starting_executable_address(assembler_data_t *data, uint16_t *address)
+{
+    *address = 0;
+    if (data->execution_start.has_value())
+    {
+        *address = data->execution_start.value();
+        return ASSEMBLER_SUCCESS;
+    }
+
+    return ASSEMBLER_UNINITIALIZED_VALUE;
+}
+
+int get_error_buffer_size(assembler_data_t *data)
+{
+    return data->error_buffer_size;
+}
+
+const char *get_error_buffer(assembler_data_t *data)
+{
+    return data->error_buffer;
+}
+
+bool region_contains_address(assembled_region_t *region, uint16_t address)
+{
+    auto next_region_address = region->start_location + region->length;
+    return (address >= region->start_location) && (address < next_region_address);
+}
+
+bool region_intersects_range(assembled_region_t *region, uint16_t address, uint16_t length)
+{
+    auto query_end_address = address + length - 1;
+    return region_contains_address(region, address) || region_contains_address(region, query_end_address);
+}
+
+assembled_region_t *find_region_containing(assembler_data_t *data, uint16_t address)
+{
+    for (auto region : data->regions)
+    {
+        if (region_contains_address(region, address))
+        {
+            return region;
+        }
+    }
+
+    return nullptr;
+}
+
+int find_new_address_for_region_of_size(assembler_data_t *data, uint16_t size)
+{
+    uint16_t search_start = 0x100;
+    bool found_new_start = false;
+
+    if (data->regions.size() > 0)
+    {
+        for (auto region : data->regions)
+        {
+            if (region_intersects_range(region, search_start, size))
+            {
+                search_start = region->start_location + region->length;
+                found_new_start = true;
+            }
+            else
+            {
+                return search_start;
+            }
+        }
+
+        // We've exhausted the regions, but we didn't do anything with the final
+        // search position
+        if (found_new_start && (search_start + size) <= DATA_SIZE)
+        {
+            return search_start;
+        }
+    }
+    else
+    {
+        return search_start;
+    }
+
+    return -1;
+}
+
+assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, bool allocate_memory = true, int base_address = -1)
+{
+    assembled_region_t *new_region = nullptr;
+    if (base_address >= 0)
+    {
+        bool region_available = true;
+        for (auto region : data->regions)
+        {
+            if (region_intersects_range(region, base_address, size))
+            {
+                region_available = false;
+                break;
+            }
+        }
+
+        if (region_available)
+        {
+            new_region = new assembled_region_t { (uint16_t)base_address, 0, size };
+            new_region->data = nullptr;
+            new_region->data_length = 0;
+
+            if (allocate_memory)
+            {
+                new_region->data = new uint8_t[size];
+                new_region->data_length = size;
+            }
+        }
+        else
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "No space to place a region at 0x%04x of %d size", base_address, size);
+            add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+        }
+    }
+    else
+    {
+        // Find an empty starting address that can fit this data
+        int new_address = find_new_address_for_region_of_size(data, size);
+        if (new_address >= 0)
+        {
+            new_region = new assembled_region_t { (uint16_t)new_address, 0, size };
+            new_region->data = nullptr;
+            new_region->data_length = 0;
+
+            if (allocate_memory)
+            {
+                new_region->data = new uint8_t[size];
+                new_region->data_length = size;
+            }
+        }
+        else
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't find a suitable address to place a region of %d size", size);
+            add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+        }
+    }
+
+    if (new_region == nullptr)
+    {
+        if (base_address >= 0)
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "No available space for data at %d of size %d", base_address, size);
+        }
+        else
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "No available space for data of size %d", size);
+        }
+        
+        add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+    }
+    else
+    {
+        // By default regions are not marked as executable.
+        // Functions adding code should set their regions to
+        // executable
+        new_region->executable = false;
+        data->regions.push_back(new_region);
+    }
+    
+    return new_region;
+}
+
+// Returns the amount the region has been extended by
+// This value can be smaller than extend_by, and must be checked by the caller
+// By default the extension will be by MIN_INSTRUCTION_ALLOC_SIZE, since it's likely to only
+//  be used for instructions as data definitions
+uint16_t extend_region(assembler_data_t *data, assembled_region_t *region, uint16_t extend_by = MIN_INSTRUCTION_ALLOC_SIZE)
+{
+    uint16_t extended_by = 0;
+    bool error = false;
+    auto new_size = region->length + extend_by;
+    auto extend_it = [region](uint16_t new_size)
+    {
+        auto current_data = region->data;
+        auto data_length = region->data_length;
+        auto new_region = new uint8_t[new_size];
+        memcpy(new_region, current_data, data_length);
+        region->length = new_size;
+        region->data_length = new_size;
+    };
+
+    for (auto existing_region : data->regions)
+    {
+        if (existing_region != region && region_intersects_range(existing_region, region->start_location, new_size))
+        {
+            // We'd extend into another region, so we'll need to reduce the number of bytes we're allocating
+            auto available_size = existing_region->start_location - region->start_location;
+            if (available_size < region->length)
+            {
+                error = true;
+                // TODO: Handle this overlap error!
+            }
+            else if (available_size == region->length)
+            {
+                error = true;
+                // TODO: Report that there's no room to grow
+            }
+            else
+            {
+                auto region_length = region->length;
+                extend_it(available_size);
+                extended_by = available_size - region_length;
+                break;
+            }
+        }
+    }
+
+    if (!error && extended_by == 0)
+    {
+        auto region_length = region->length;
+        extend_it(new_size);
+        extended_by = new_size - region_length;
+    }
+
+    return extended_by;
+}
 
 byte_array_t add_to_byte_array(byte_array_t array, uint8_t value)
 {
@@ -31,13 +275,19 @@ void add_file_to_process(assembler_data_t *data, const char *filename)
 
 void add_data(assembler_data_t *data, const char *name, byte_array_t array)
 {
-    if (name != nullptr)
+    assembled_region_t *region = create_new_region(data, array.size, true);
+
+    if (region == nullptr)
     {
-        handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
+        return;
     }
 
-    memcpy(&data->data[data->data_size], array.array, array.size);
-    data->data_size += array.size;
+    if (name != nullptr)
+    {
+        handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
+    }
+
+    memcpy(region->data, array.array, array.size);
 
     array.size = 0;
     delete [] array.array;
@@ -46,21 +296,27 @@ void add_data(assembler_data_t *data, const char *name, byte_array_t array)
 
 void add_string_to_data(assembler_data_t *data, const char *name, const char *string)
 {
-    if (name != nullptr)
+    uint16_t string_size = strlen(string);
+    assembled_region_t *region = create_new_region(data, string_size + 1, true);
+
+    if (region == nullptr)
     {
-        handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
+        return;
     }
 
-    memcpy(&data->data[data->data_size], string, strlen(string));
-    data->data[data->data_size + strlen(string)] = 0;
-    data->data_size += strlen(string) + 1;
+    if (name != nullptr)
+    {
+        handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
+    }
+
+    memcpy(region->data, string, strlen(string));
+    region->data[strlen(string)] = 0;
 }
 
 void reserve_data(assembler_data_t* data, const char* name, uint16_t size)
 {
-    handle_symbol_def(data, name, data->data_size, SYMBOL_ADDRESS_DATA);
-
-    data->data_size += size;
+    assembled_region_t *region = create_new_region(data, size, false);
+    handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
 }
 
 void handle_file(assembler_data_t *data, const char *filename)
@@ -164,35 +420,121 @@ void handle_file(assembler_data_t *data, const char *filename)
     data->current_filename = old_filename;
 }
 
+int get_current_instruction_address(assembler_data_t *data)
+{
+    // TODO:
+    // If not enough room for the post-bytes in the current region, then allocate a new region for them
+    // OR
+    // Extend the region, if possible
+    if (data->current_region != nullptr)
+    {
+        uint16_t address = data->current_region->start_location + data->current_region->current_instruction_offset;
+        if (region_contains_address(data->current_region, address) && region_contains_address(data->current_region, address + 2))
+        {
+            if (data->current_region->executable)
+            {
+                return data->current_region->start_location + data->current_region->current_instruction_offset;
+            }
+            else
+            {
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Memory at address 0x%04x is not executable - overlaps with data region starting at 0x%04x", address, data->current_region->start_location);
+                add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+                return -1;
+            }
+        }
+        else if (region_contains_address(data->current_region, address) && !region_contains_address(data->current_region, address + 2))
+        {
+            auto extended_by_bytes = extend_region(data, data->current_region);
+            if (extended_by_bytes < 2)
+            {
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't extend region at 0x%04x to accommodate new instructions", address);
+                add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+                return -1;
+            }
+            else
+            {
+                return address;
+            }
+        }
+        else
+        {
+            // TODO: See if there's already an allocation for it,
+            // OR
+            // Create a new region
+        }
+    }
+    else
+    {
+        auto new_region = create_new_region(data, MIN_INSTRUCTION_ALLOC_SIZE, true);
+        if (new_region != nullptr)
+        {
+            new_region->executable = true;
+            data->current_region = new_region;
+            return new_region->start_location;
+        }
+    }
+    return -1;
+}
+
+void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_type_t symbol_type, symbol_signedness_t expected_signedness, uint8_t byte_value, machine_word_t word_value)
+{
+    auto data = reinterpret_cast<assembler_data_t*>(context);
+    auto region = find_region_containing(data, ref_location);
+    if (region == nullptr)
+    {
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x", ref_location);
+        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+        return;
+    }
+
+    auto ref_index = ref_location - region->start_location;
+    if (symbol_type == SYMBOL_BYTE)
+    {
+        region->data[ref_index] = byte_value;
+    }
+    else
+    {
+        if (expected_signedness == SIGNEDNESS_SIGNED)
+        {
+            // NOTE: This is assuming that the only symbol ref looking for a signed word is a branch instruction
+            word_value.sword -= (int16_t)ref_location - 1;
+        }
+        region->data[ref_index] = word_value.bytes[1];
+        region->data[ref_index + 1] = word_value.bytes[0];
+    }
+}
+
 void handle_symbol_def(assembler_data_t *data, const char *name, int value, symbol_type_t type)
 {
-    if (type == SYMBOL_ADDRESS_INST)
+    symbol_error_t sym_err = SYMBOL_ERROR_NOERROR;
+    if ((type == SYMBOL_ADDRESS_INST || type == SYMBOL_ADDRESS_DATA) && value < 0)
     {
-        value = data->instruction_size;
+        sym_err = SYMBOL_ERROR_INTERNAL;
     }
 
-    if (type == SYMBOL_ADDRESS_DATA)
+    if (type == SYMBOL_ADDRESS_INST && value == 0)
     {
-        // the data segment will get written to after the direct page area
-        value = data->data_size + 0x100;
+        value = get_current_instruction_address(data);
     }
 
-    symbol_error_t sym_err;
+    if (sym_err == SYMBOL_ERROR_NOERROR)
+    {
     switch (type)
     {
-    case SYMBOL_WORD:
-    case SYMBOL_ADDRESS_INST:
-    case SYMBOL_ADDRESS_DATA:
-        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0, true);
-        break;
+        case SYMBOL_WORD:
+        case SYMBOL_ADDRESS_INST:
+        case SYMBOL_ADDRESS_DATA:
+            sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, value, 0, true);
+            break;
 
-    case SYMBOL_BYTE:
-        sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, 0, value, true);
-        break;
+        case SYMBOL_BYTE:
+            sym_err = add_symbol(data->symbol_table, name, type, SIGNEDNESS_ANY, 0, value, true);
+            break;
 
-    case SYMBOL_NO_TYPE:
-        sym_err = SYMBOL_ERROR_INTERNAL;
-        break;
+        case SYMBOL_NO_TYPE:
+            sym_err = SYMBOL_ERROR_INTERNAL;
+            break;
+        }
     }
 
     if (sym_err == SYMBOL_ERROR_ALLOC_FAILED)
@@ -212,8 +554,68 @@ void handle_symbol_def(assembler_data_t *data, const char *name, int value, symb
     }
 }
 
+void handle_org_directive(assembler_data_t *data, uint16_t address)
+{
+    assembled_region_t *target_region = nullptr;
+    for (auto region : data->regions)
+    {
+        if (region_contains_address(region, address))
+        {
+            target_region = region;
+        }
+    }
+
+    if (target_region == nullptr)
+    {
+        target_region = create_new_region(data, MIN_INSTRUCTION_ALLOC_SIZE, true, address);
+    }
+
+    if (target_region != nullptr)
+    {
+        target_region->current_instruction_offset = address - target_region->start_location;
+        target_region->executable = true;
+        data->current_region = target_region;
+    }
+}
+
+void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, std::optional<uint8_t> byte0 = std::nullopt, std::optional<uint8_t> byte1 = std::nullopt)
+{
+    auto address = get_current_instruction_address(data);
+    if (!data->execution_start.has_value())
+    {
+        data->execution_start = address;
+    }
+
+    // Write the bytes to the current region
+    auto offset = data->current_region->current_instruction_offset;
+
+    data->current_region->data[offset++] = opcode;
+
+    if (byte0.has_value())
+    {
+        data->current_region->data[offset++] = byte0.value();
+    }
+
+    if (byte1.has_value())
+    {
+        data->current_region->data[offset++] = byte1.value();
+    }
+
+    data->current_region->current_instruction_offset = offset;
+}
+
 void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
 {
+    int current_instruction_address = get_current_instruction_address(data);
+    if (current_instruction_address < 0 || data->current_region == nullptr)
+    {
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Not able to locate or allocate new instruction memory");
+        add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+        return;
+    }
+
+    auto current_region = data->current_region;
+
     // printf("Handling instruction %s with arg (%s)\n", opcode->name, symbol_arg ? symbol_arg : "numerical");
     if (opcode->access_mode == STACK_ONLY && (symbol_arg != nullptr || literal_arg != 0))
     {
@@ -222,16 +624,8 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
     }
     else if (opcode->access_mode == REGISTER_INDEXED)
     {
-        if (SOURCE_2(literal_arg) == 0)
-        {
-            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s requires a register to be specified", opcode->name);
-            add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
-        }
-        else
-        {
-            data->instruction[data->instruction_size++] = opcode->opcode;
-            data->instruction[data->instruction_size++] = (uint8_t)literal_arg;
-        }
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s cannot be handled through this function", opcode->name);
+        add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
     }
     else if (symbol_arg)
     {
@@ -250,13 +644,13 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
                     signedness = SIGNEDNESS_SIGNED;
                 }
                 add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg, 
-                                                        &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                        symbol_resolution_callback, data, current_instruction_address + 1,
                                                         signedness, SYMBOL_ADDRESS_INST);
             }
             else 
             {
                 add_ref_result = add_symbol_reference(data->symbol_table, symbol_arg,
-                                                        &data->instruction[data->instruction_size + 1], data->instruction_size + 1, 
+                                                        symbol_resolution_callback, data, current_instruction_address + 1,
                                                         opcode->argument_signedness, opcode->argument_type);
             }
 
@@ -275,31 +669,20 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
             {
             case SYMBOL_WORD:
             case SYMBOL_ADDRESS_DATA:
-                data->instruction[data->instruction_size++] = opcode->opcode;
-                data->instruction[data->instruction_size++] = word.bytes[1];
-                data->instruction[data->instruction_size++] = word.bytes[0];
+                apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
                 break;
 
             case SYMBOL_BYTE:
-                data->instruction[data->instruction_size++] = opcode->opcode;
-                data->instruction[data->instruction_size++] = byte_value;
+                apply_machine_instruction(data, opcode->opcode, byte_value);
                 break;
 
             case SYMBOL_ADDRESS_INST:
                 if (opcode->argument_signedness == SIGNEDNESS_SIGNED)
                 {
-                    word.sword -= (int16_t)data->instruction_size;
+                    word.sword -= (int16_t)current_instruction_address;
                     // fprintf(stdout, "Branching by %d, from %zu to %u\n", target, data->instruction_size + 3, word_value);
-                    data->instruction[data->instruction_size++] = opcode->opcode;
-                    data->instruction[data->instruction_size++] = word.bytes[1];
-                    data->instruction[data->instruction_size++] = word.bytes[0];
                 }
-                else
-                {
-                    data->instruction[data->instruction_size++] = opcode->opcode;
-                    data->instruction[data->instruction_size++] = word.bytes[1];
-                    data->instruction[data->instruction_size++] = word.bytes[0];
-                }
+                apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
                 break;
 
             case SYMBOL_NO_TYPE:
@@ -310,25 +693,24 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
         }
         else if (opcode->argument_type == SYMBOL_ADDRESS_INST)
         {
-            data->instruction[data->instruction_size++] = opcode->opcode;
-            data->instruction[data->instruction_size++] = 0;
-            data->instruction[data->instruction_size++] = 0;
+            // The two following bytes will be resolved later
+            apply_machine_instruction(data, opcode->opcode, 0, 0);
         }
-    }
-    else if (opcode->use_specified_operand)
-    {
-        data->instruction[data->instruction_size++] = opcode->opcode;
-        data->instruction[data->instruction_size++] = opcode->operands;
     }
     else if (opcode->argument_type == SYMBOL_NO_TYPE)
     {
         // There may be register specifications in the literal arg
-        data->instruction[data->instruction_size++] = opcode->opcode;
-        data->instruction[data->instruction_size++] = (uint8_t)literal_arg;
-
-        if (opcode->arg_byte_count > 1)
+        if (opcode->arg_byte_count == 0)
         {
-            data->instruction[data->instruction_size++] = 0;
+            apply_machine_instruction(data, opcode->opcode);
+        }
+        else if (opcode->arg_byte_count == 1)
+        {
+            apply_machine_instruction(data, opcode->opcode, (uint8_t)literal_arg);
+        }
+        else if (opcode->arg_byte_count > 1)
+        {
+            apply_machine_instruction(data, opcode->opcode, 0, (uint8_t)literal_arg);
         }
     }
     else
@@ -352,9 +734,7 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
             machine_word_t word;
             word.uword = literal;
 
-            data->instruction[data->instruction_size++] = opcode->opcode;
-            data->instruction[data->instruction_size++] = word.bytes[1];
-            data->instruction[data->instruction_size++] = word.bytes[0];
+            apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
         }
         else
         {
@@ -363,10 +743,28 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
                 literal_arg += 256;
             }
 
-            data->instruction[data->instruction_size++] = opcode->opcode;
-            data->instruction[data->instruction_size++] = literal_arg;
+            apply_machine_instruction(data, opcode->opcode, (uint8_t)literal_arg);
         }
     }
+}
+
+void handle_indexed_instruction(assembler_data_t *data, opcode_entry_t *opcode, register_index_t &index_register)
+{
+    // Prepare opcode
+    uint8_t opcode_value = opcode->opcode | index_register.index_register->code;
+
+    // Prepare increment post-byte
+    int8_t increment_byte = index_register.increment_amount;
+    if (index_register.is_pre_increment)
+    {
+        increment_byte |= OP_STACK_INCREMENT_PRE;
+    }
+    else
+    {
+        increment_byte &= ~OP_STACK_INCREMENT_PRE;
+    }
+
+    apply_machine_instruction(data, opcode_value, increment_byte);
 }
 
 void add_error(assembler_data_t *data, const char *error_string, assembler_status_t status)
@@ -380,19 +778,34 @@ void add_error(assembler_data_t *data, const char *error_string, assembler_statu
     data->error_buffer_size += length;
 }
 
+assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_t *buffer)
+{
+    if (data->regions.size() == 0)
+    {
+        return ASSEMBLER_NOOUTPUT;
+    }
+
+    if (!data->execution_start.has_value())
+    {
+        return ASSEMBLER_UNINITIALIZED_VALUE;
+    }
+
+    for (auto region : data->regions)
+    {
+        uint8_t *region_start = &buffer[region->start_location];
+        memcpy(region_start, region->data, region->data_length);
+    }
+
+    return ASSEMBLER_SUCCESS;
+}
+
 assembler_data_t data;
 void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data)
 {
     data.search_paths = search_paths;
-    data.data = new uint8_t[DATA_SIZE];
-    data.data_size = 0;
-    data.instruction = new uint8_t[INST_SIZE];
-    data.instruction_size = 0;
     data.lineNumber = 0;
     data.symbol_references_count = 0;
-
-    memset(data.data, 0, DATA_SIZE);
-    memset(data.instruction, 0, INST_SIZE);
+    data.current_org_address_valid = false;
 
     assembler_data = &data;
 
@@ -400,6 +813,9 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     data.error_buffer = error_buffer;
     data.error_buffer_size = 0;
     *assembled_data = assembler_data;
+
+    current_filename = assembler_data->current_filename;
+    lineNumber = &assembler_data->lineNumber;
 
     if (create_symbol_table(&data.symbol_table) != SYMBOL_TABLE_NOERROR)
     {
@@ -452,33 +868,55 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     FILE *assembled_output = fopen(output_file, "w+");
     if (assembled_output != 0)
     {
+        fprintf(assembled_output, "Execution start: 0x%04x\n", data.execution_start.value());
+
         fprintf(assembled_output, "Code:\n");
-        for (int i = 0; i < data.instruction_size;)
+        int i = 0;
+        auto output_line = [assembled_output, &i](assembled_region_t *region, int data_length)
         {
-            fprintf(assembled_output, "0x%04x: ", i);
-            for (int j = 0; j < 4 && i < data.instruction_size; j++)
+            fprintf(assembled_output, "0x%04x: ", region->start_location + i);
+            for (int j = 0; j < 4 && i < region->data_length; j++)
             {
-                fprintf(assembled_output, "0x%02x ", data.instruction[i++]);
+                fprintf(assembled_output, "0x%02x ", region->data[i++]);
             }
             fprintf(assembled_output, "\n");
+        };
+
+        for (auto region : data.regions)
+        {
+            if (region->executable)
+            {
+                for (i = 0; i < region->data_length && i < region->current_instruction_offset;)
+                {
+                    output_line(region, region->data_length);
+                }
+            }
         }
 
         const int max_data_print = 512;
         fprintf(assembled_output, "\nData:\n");
-        auto data_length = (data.data_size > max_data_print) ? max_data_print : data.data_size;
-        for (int i = 0; i < data_length;)
+        for (auto region : data.regions)
         {
-            fprintf(assembled_output, "0x%04x: ", i);
-            for (int j = 0; j < 4 && i < data_length; j++)
+            if (!region->executable)
             {
-                fprintf(assembled_output, "0x%02x ", data.data[i++]);
-            }
-            fprintf(assembled_output, "\n");
-        }
+                auto data_length = region->data_length < max_data_print ? region->data_length : max_data_print;
+                if (region->data == nullptr || region->data_length == 0)
+                {
+                    fprintf(assembled_output, "0x%04x: reserved %d bytes\n", region->start_location, region->length);
+                }
+                else
+                {
+                    for (i = 0; i < data_length;)
+                    {
+                        output_line(region, data_length);
+                    }
 
-        if (data_length != data.data_size)
-        {
-            fprintf(assembled_output, " ... \n");
+                    if (data_length != region->data_length)
+                    {
+                        fprintf(assembled_output, " ... \n");
+                    }
+                }
+            }
         }
 
         fprintf(assembled_output, "\nSymbols:\n");

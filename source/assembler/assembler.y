@@ -7,19 +7,21 @@ extern int yylex();
 %union {
     int intval;
     uint8_t byteval;
-    byte_array_t bytearray = { 0, 0 };
+    byte_array_t bytearray;
     char *strval;
     opcode_entry_t *opcode;
+    register_index_t index_register;
 }
 
 %token <opcode> INSTRUCTION
 %token <strval> SYMBOL QUOTED_STRING 
-%token <intval> WORD_LITERAL INTEGER_LITERAL REGISTER_ARGUMENT INCREMENT
+%token <intval> WORD_LITERAL INTEGER_LITERAL INCREMENT
 %token <byteval> BYTE_LITERAL
 %token <bytearray> BYTE_SEQUENCE
-%token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE RESERVE_DIRECTIVE COMMENT
+%token <index_register> REGISTER_ARGUMENT
+%token DEFBYTE_DIRECTIVE DEFWORD_DIRECTIVE INCLUDE_DIRECTIVE DATA_DIRECTIVE RESERVE_DIRECTIVE ORG_DIRECTIVE COMMENT
 
-%type <intval> register_list indexed_register
+%type <index_register> indexed_register
 %type <bytearray> byte_sequence
 %%
 
@@ -31,6 +33,7 @@ line : line comment
         | label_def
         | data_def
         | reserve_def
+        | org_def
         | comment
         ;
 
@@ -81,6 +84,9 @@ data_def : DATA_DIRECTIVE SYMBOL byte_sequence { add_data(assembler_data, $2, $3
 reserve_def : RESERVE_DIRECTIVE SYMBOL INTEGER_LITERAL { reserve_data(assembler_data, $2, $3); free($2); }
         ;
 
+org_def : ORG_DIRECTIVE WORD_LITERAL { handle_org_directive(assembler_data, $2); }
+        ;
+
 byte_sequence : BYTE_LITERAL { $$ = add_to_byte_array($$, $1); }
         | byte_sequence BYTE_LITERAL { $$ = add_to_byte_array($1, $2); }
         ;
@@ -89,19 +95,13 @@ instruction_line : INSTRUCTION SYMBOL { handle_instruction(assembler_data, $1, $
         | INSTRUCTION BYTE_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION WORD_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION INTEGER_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION register_list { handle_instruction(assembler_data, $1, 0, $2); }
-        | INSTRUCTION indexed_register { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION indexed_register { handle_indexed_instruction(assembler_data, $1, $2); }
         | INSTRUCTION { handle_instruction(assembler_data, $1, 0, 0); }
         ;
 
-register_list : REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5) | TO_SOURCE_2($7)); }
-        | REGISTER_ARGUMENT ',' REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)) | (TO_SOURCE_1($5)); }
-        | REGISTER_ARGUMENT ',' REGISTER_ARGUMENT { $$ = (TO_DESTINATION($1) | TO_SOURCE_0($3)); }
-        | REGISTER_ARGUMENT { $$ = TO_DESTINATION($1); }
-        ;
-
-indexed_register : '[' REGISTER_ARGUMENT ']' { $$ = TO_SOURCE_2($2); }
-        | '[' REGISTER_ARGUMENT INCREMENT ']' { $$ = TO_SOURCE_2($2) | (($3 < 0) ? (TO_SOURCE_1(-$3)) : (TO_SOURCE_0($3))); }
+indexed_register : '[' REGISTER_ARGUMENT ']' { $$ = $2; $$.increment_amount = 0; }
+        | '[' REGISTER_ARGUMENT INCREMENT ']' { $$ = $2; $$.increment_amount = $3; }
+        | '[' INCREMENT REGISTER_ARGUMENT ']' { $$ = $3; $$.increment_amount = $2; $$.is_pre_increment = 1; }
         ;
 
 comment : COMMENT 

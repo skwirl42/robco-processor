@@ -83,9 +83,9 @@ int main(int argc, char **argv)
         }
 
         assemble(argv[optind], includes, output_file, &assembled_data);
-        if (assembled_data->errors.size() > 0)
+        if (get_error_buffer_size(assembler_data) > 0)
         {
-            printf("%s\n", assembled_data->error_buffer);
+            printf("%s\n", error_buffer);
             return -1;
         }
         else

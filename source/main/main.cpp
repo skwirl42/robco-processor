@@ -60,7 +60,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/graphics_test.asm";
+const char* sample_file = "samples/echo_getstring.asm";
 
 int main (int argc, char **argv)
 {
@@ -71,6 +71,8 @@ int main (int argc, char **argv)
         return -1;
     }
 
+    //print_opcode_entries();
+
     const char *paths[] =
     {
         "samples/",
@@ -80,24 +82,26 @@ int main (int argc, char **argv)
     assembler_data_t *assembled_data;
     assemble(sample_file, paths, nullptr, &assembled_data);
 
-    if (assembled_data->errors.size() > 0)
+    if (get_error_buffer_size(assembled_data) > 0)
     {
-        fprintf(OUT_FILE, "%s", assembled_data->error_buffer);
+        fprintf(OUT_FILE, "%s", get_error_buffer(assembled_data));
         return -1;
     }
 
-    if (assembled_data->instruction_size > 0)
-    {
-        memcpy(rcEmulator.memories.instruction, assembled_data->instruction, assembled_data->instruction_size);
-        if (assembled_data->data_size > 0)
-        {
-            memcpy(&rcEmulator.memories.data[0x100], assembled_data->data, assembled_data->data_size);
-        }
-    }
-    else
+    auto apply_result = apply_assembled_data_to_buffer(assembled_data, rcEmulator.memories.data);
+
+    if (apply_result != ASSEMBLER_SUCCESS)
     {
         fprintf(OUT_FILE, "Failed to properly assemble the target %s\n", sample_file);
-        memcpy(rcEmulator.memories.instruction, testCode, sizeof(testCode));
+        return -1;
+    }
+
+    auto exec_address_result = get_starting_executable_address(assembled_data, &rcEmulator.PC);
+
+    if (exec_address_result != ASSEMBLER_SUCCESS)
+    {
+        fprintf(OUT_FILE, "Couldn't get an executable address from the assembled target %s\n", sample_file);
+        return -1;
     }
     
     auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
@@ -137,18 +141,25 @@ int main (int argc, char **argv)
             debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
         }
 
-        bool debugging = false;
+        bool debugging = true;
 
         while (!done)
         {
+            get_debug_info(&rcEmulator, debugging_buffers);
+
             inst_result_t result = SUCCESS;
             if (emulate && emulator_can_execute(&rcEmulator))
             {
                 const int max_cycles = 100;
                 int current_cycle = 0;
-                while ((result = execute_instruction(&rcEmulator, debugging_buffers)) == SUCCESS)
+                while ((result = execute_instruction(&rcEmulator)) == SUCCESS)
                 {
                     if (current_cycle++ == max_cycles)
+                    {
+                        break;
+                    }
+
+                    if (debugging)
                     {
                         break;
                     }

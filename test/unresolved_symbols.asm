@@ -14,7 +14,7 @@ loop:
     dup                     ; Dup the string byte
     pushi 0                 ; Compare it to 0
     cmp
-    be print_string         ; Branch if eq
+    beq print_string        ; Branch if eq
     push [dp]               ; Increment the value at DP
     inc
     pull [dp]

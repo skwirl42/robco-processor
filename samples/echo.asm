@@ -13,7 +13,7 @@ loop:
     syscall GETCH
     pushi 0         ; Compare the MSB of the returned character with 0
     cmp
-    be print_char   ; If it's 0, then the next byte is an ASCII character, so print it
+    beq print_char  ; If it's 0, then the next byte is an ASCII character, so print it
     pop             ; Drop the byte, since it's not ASCII
     pushiw NON_PRINTABLE
     pullx

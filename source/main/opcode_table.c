@@ -6,45 +6,47 @@
 opcode_entry_t opcode_entries[] =
 {
     // ALU instructions
-    { "add",    OPCODE_ADD,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "addw",   OPCODE_ADD + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "sub",    OPCODE_SUB,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "subw",   OPCODE_SUB + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "mul",    OPCODE_MUL,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "mulw",   OPCODE_MUL + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "or",     OPCODE_OR,                      1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "orw",    OPCODE_OR + OPCODE_SIZE_BIT,    1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "and",    OPCODE_AND,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "andw",   OPCODE_AND + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "shr",    OPCODE_SHR,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "shrw",   OPCODE_SHR + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "shl",    OPCODE_SHL,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "shlw",   OPCODE_SHL + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "inc",    OPCODE_INC,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "incw",   OPCODE_INC + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "dec",    OPCODE_DEC,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "decw",   OPCODE_DEC + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "cmp",    OPCODE_CMP,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "cmpw",   OPCODE_CMP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "add",    OPCODE_ADD,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "addw",   OPCODE_ADD + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "sub",    OPCODE_SUB,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "subw",   OPCODE_SUB + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "mul",    OPCODE_MUL,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "mulw",   OPCODE_MUL + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "div",    OPCODE_DIV,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "divw",   OPCODE_DIV + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "or",     OPCODE_OR,                      0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "orw",    OPCODE_OR + OPCODE_SIZE_BIT,    0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "and",    OPCODE_AND,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "andw",   OPCODE_AND + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "shr",    OPCODE_SHR,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "shrw",   OPCODE_SHR + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "shl",    OPCODE_SHL,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "shlw",   OPCODE_SHL + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "inc",    OPCODE_INC,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "incw",   OPCODE_INC + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "dec",    OPCODE_DEC,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "decw",   OPCODE_DEC + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "cmp",    OPCODE_CMP,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "cmpw",   OPCODE_CMP + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
 
     // Stack instructions
     { "pushi",  OPCODE_PUSHI,                   1, SYMBOL_BYTE,         IMMEDIATE_OPERANDS,     SIGNEDNESS_ANY },
     { "pushiw", OPCODE_PUSHI + OPCODE_SIZE_BIT, 2, SYMBOL_WORD,         IMMEDIATE_OPERANDS,     SIGNEDNESS_ANY },
-    { "pop",    OPCODE_POP,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "popw",   OPCODE_POP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "dup",    OPCODE_DUP,                     1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "dupw",   OPCODE_DUP + OPCODE_SIZE_BIT,   1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "swap",   OPCODE_SWAP,                    1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "swapw",  OPCODE_SWAP + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "roll",   OPCODE_ROLL,                    1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "rollw",  OPCODE_ROLL + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      STACK_ONLY },
-    { "pushsi", OPCODE_PUSH,                    1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, (STACK_INDEX << 6) },
-    { "pushdp", OPCODE_PUSH,                    1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, (DIRECT_PAGE << 6) },
-    { "pushx",  OPCODE_PUSH + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, (X_REGISTER << 6) },
-    { "pullsi", OPCODE_PULL,                    1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, STACK_INDEX },
-    { "pulldp", OPCODE_PULL,                    1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, DIRECT_PAGE },
-    { "pullx",  OPCODE_PULL + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER, SIGNEDNESS_ANY,         1, X_REGISTER },
+    { "pop",    OPCODE_POP,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "popw",   OPCODE_POP + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "dup",    OPCODE_DUP,                     0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "dupw",   OPCODE_DUP + OPCODE_SIZE_BIT,   0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "swap",   OPCODE_SWAP,                    0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "swapw",  OPCODE_SWAP + OPCODE_SIZE_BIT,  0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "roll",   OPCODE_ROLL,                    0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "rollw",  OPCODE_ROLL + OPCODE_SIZE_BIT,  0, SYMBOL_NO_TYPE,      STACK_ONLY },
+    { "pushdp", OPCODE_PUSHDP,                  0, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER },
+    { "pushx",  OPCODE_PUSHX,                   0, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER },
+    { "pulldp", OPCODE_PULLDP,                  0, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER },
+    { "pullx",  OPCODE_PULLX,                   0, SYMBOL_NO_TYPE,      STACK_TO_FROM_REGISTER },
     
+    // TODO: The argument byte is a twos complement pre/post increment/decrement
+    // Need to find a way to handle these with the individual opcodes
     // Register indexed
     { "push",   OPCODE_PUSH_INDEXED,                    1, SYMBOL_NO_TYPE,  REGISTER_INDEXED },
     { "pushw",  OPCODE_PUSH_INDEXED + OPCODE_SIZE_BIT,  1, SYMBOL_NO_TYPE,  REGISTER_INDEXED },
@@ -53,26 +55,26 @@ opcode_entry_t opcode_entries[] =
 
     // Flow instructions
     { "b",      OPCODE_B,                       2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
-    { "be",     OPCODE_BE,                      2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
-    { "bn",     OPCODE_BN,                      2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
-    { "bc",     OPCODE_BC,                      2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
-    { "bo",     OPCODE_BO,                      2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "beq",    OPCODE_BEQ,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "blt",    OPCODE_BLT,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "ble",    OPCODE_BLE,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "bcr",    OPCODE_BCR,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "bov",    OPCODE_BOV,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
+    { "bdiv0",  OPCODE_BDIV0,                   2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_SIGNED },
     { "jmp",    OPCODE_JMP,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_UNSIGNED },
     { "jsr",    OPCODE_JSR,                     2, SYMBOL_ADDRESS_INST, IMMEDIATE_OPERANDS,     SIGNEDNESS_UNSIGNED },
-    { "rts",    OPCODE_RTS,                     1, SYMBOL_NO_TYPE,      NONE },
+    { "rts",    OPCODE_RTS,                     0, SYMBOL_NO_TYPE,      NONE },
     { "syscall", OPCODE_SYSCALL,                2, SYMBOL_WORD,         IMMEDIATE_OPERANDS,     SIGNEDNESS_ANY },
 
-    { "sync",   OPCODE_SYNC,                    1, SYMBOL_NO_TYPE,      NONE },
+    { "sync",   OPCODE_SYNC,                    0, SYMBOL_NO_TYPE,      NONE },
 
     { 0, 0, 0 }
 };
 
 register_argument_t registers[] =
 {
-    { "so",     STACK_OPERAND },
-    { "si",     STACK_INDEX },
-    { "dp",     DIRECT_PAGE },
-    { "x",      X_REGISTER },
+    { "dp",     OP_STACK_AND_DP },
+    { "x",      OP_STACK_AND_X },
 
     { 0, 0 }
 };
@@ -94,6 +96,11 @@ opcode_entry_t *get_opcode_entry(const char *opcode_name)
 
 opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode)
 {
+    if (IS_INDEXED_INST(opcode))
+    {
+        opcode &= ~OP_STACK_REGISTER_MASK;
+    }
+
     int index = 0;
     while (opcode_entries[index].name != 0)
     {
@@ -107,12 +114,12 @@ opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode)
     return 0;
 }
 
-register_argument_t *get_register(const char *name)
+register_argument_t *get_register(const char *register_name)
 {
     int index = 0;
     while (registers[index].name != 0)
     {
-        if (strncasecmp(name, registers[index].name, LINE_BUFFER_SIZE) == 0)
+        if (strncasecmp(register_name, registers[index].name, LINE_BUFFER_SIZE) == 0)
         {
             return &registers[index];
         }
@@ -122,17 +129,12 @@ register_argument_t *get_register(const char *name)
     return 0;
 }
 
-register_argument_t *get_register_by_code(uint8_t code)
+void print_opcode_entries()
 {
     int index = 0;
-    while (registers[index].name != 0)
+    while (opcode_entries[index].name != 0)
     {
-        if (registers[index].code == code)
-        {
-            return &registers[index];
-        }
+        printf("Opcode %s has value 0x%02x\n", opcode_entries[index].name, opcode_entries[index].opcode);
         index++;
     }
-
-    return 0;
 }

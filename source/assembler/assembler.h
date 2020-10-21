@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "symbols.h"
+#include "opcodes.h"
 
 #include <errno.h>
 #include <iostream>
@@ -25,6 +26,8 @@ typedef enum
     ASSEMBLER_VALUE_OOB,
     ASSEMBLER_INVALID_ARGUMENT,
     ASSEMBLER_SYNTAX_ERROR,
+    ASSEMBLER_NO_FREE_ADDRESS_RANGE,
+    ASSEMBLER_UNINITIALIZED_VALUE,
 } assembler_status_t;
 
 typedef struct _assembler_error
@@ -34,24 +37,29 @@ typedef struct _assembler_error
     int line_number;
 } assembler_error_t;
 
-typedef struct _assembler_data
+#ifndef ERROR_BUFFER_SIZE
+#define ERROR_BUFFER_SIZE 1024
+#endif
+
+typedef struct _assembler_data assembler_data_t;
+typedef struct _register_index
 {
-    const char **search_paths;
-    uint8_t *data;
-    size_t data_size;
-    uint8_t *instruction;
-    size_t instruction_size;
-    symbol_table_t *symbol_table;
-    int lineNumber;
-    const char *current_filename;
-    std::vector<char*> files_to_process;
-    std::vector<assembler_error_t> errors;
-    char * error_buffer;
-    int error_buffer_size;
-    int symbol_references_count;
-} assembler_data_t;
+    register_argument_t *index_register;
+    uint8_t is_pre_increment;
+    int8_t increment_amount;
+} register_index_t;
+
+extern assembler_data_t *assembler_data;
+extern char temp_buffer[ERROR_BUFFER_SIZE + 1];
+extern const char *current_filename;
+extern int *lineNumber;
+extern char *error_buffer;
 
 void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data);
+assembler_status_t get_starting_executable_address(assembler_data_t *data, uint16_t *address);
+assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_t *buffer);
+int get_error_buffer_size(assembler_data_t *data);
+const char *get_error_buffer(assembler_data_t *data);
 
 #ifdef __cplusplus
 }

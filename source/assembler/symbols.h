@@ -57,14 +57,23 @@ typedef enum SYMBOL_TABLE_ERROR
     SYMBOL_TABLE_ALLOC_FAILED,
 } symbol_table_error_t;
 
+typedef union
+{
+    uint16_t uword;
+    int16_t sword;
+    uint8_t bytes[2];
+} machine_word_t;
+
 typedef struct _symbol_table symbol_table_t;
 
 symbol_table_error_t create_symbol_table(symbol_table_t **symbol_table);
 symbol_table_error_t dispose_symbol_table(symbol_table_t *symbol_table);
 symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t type, symbol_signedness_t signedness, uint16_t word_value, uint8_t byte_value, uint8_t resolve_references);
-symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, uint8_t *reference_address, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type);
 symbol_resolution_t resolve_symbol(symbol_table_t *symbol_table, const char *name, symbol_type_t *symbol_type, symbol_signedness_t *signedness, uint16_t *word_value, uint8_t *byte_value);
 void output_symbols(FILE *output_file, symbol_table_t *symbol_table);
+
+typedef void (*symbol_resolve_callback_t)(void *context, uint16_t ref_location, symbol_type_t symbol_type, symbol_signedness_t expected_signedness, uint8_t byte_value, machine_word_t word_value);
+symbol_ref_status_t add_symbol_reference(symbol_table_t *symbol_table, const char *name, symbol_resolve_callback_t resolve_callback, void *context, uint16_t ref_location, symbol_signedness_t expected_signedness, symbol_type_t expected_type);
 
 // on enter
 // count = number of strings of at least SYMBOL_MAX_LENGTH passed into 'symbols'

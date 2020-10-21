@@ -22,24 +22,22 @@ extern "C" {
 #define OTHER_INST_BASE         0x40
 #define STACK_INST_BASE         0x00
 
-#define IS_STACK_INST(opcode)   ((opcode & 0xC0) == STACK_INST_BASE)
-#define IS_BRANCH_INST(opcode)  ((opcode & 0b10000) == 0 && (opcode & 0xE0) == FLOW_INST_BASE)
-
 // Only applies to ALU and stack instructions
 #define OPCODE_SIZE_BIT         (0x20)
 
 // Condition code flags
-#define CC_Z                    (1 << 3)
-#define CC_C                    (1 << 2)
-#define CC_N                    (1 << 1)
-#define CC_O                    (1 << 0)
+#define CC_DIV0                 (1 << 5)
+#define CC_UNDERFLOW            (1 << 4)
+#define CC_ZERO                 (1 << 3)
+#define CC_CARRY                (1 << 2)
+#define CC_NEG                  (1 << 1)
+#define CC_OVERFLOW             (1 << 0)
 
 // ALU instructions
 #define OPCODE_ADD                     (ALU_INST_BASE + 0b10000)
 #define OPCODE_SUB                     (ALU_INST_BASE + 0b10001)
 #define OPCODE_MUL                     (ALU_INST_BASE + 0b00000)
-// #define OPCODE_DIV                     (ALU_INST_BASE + 0b00001)
-// #define OPCODE_MULA                    (ALU_INST_BASE + 0b00010) // definitely invalid... need to change when implementing new ISA
+#define OPCODE_DIV                     (ALU_INST_BASE + 0b00001)
 #define OPCODE_INC                     (ALU_INST_BASE + 0b11000)
 #define OPCODE_DEC                     (ALU_INST_BASE + 0b11001)
 #define OPCODE_CMP                     (ALU_INST_BASE + 0b11010)
@@ -49,47 +47,82 @@ extern "C" {
 #define OPCODE_SHR                     (ALU_INST_BASE + 0b00111)
 
 // Stack instructions
-#define OPCODE_PUSHI                   (STACK_INST_BASE + 0b00000)
-#define OPCODE_POP                     (STACK_INST_BASE + 0b01000)
-#define OPCODE_DUP                     (STACK_INST_BASE + 0b00100)
-#define OPCODE_SWAP                    (STACK_INST_BASE + 0b00010)
-#define OPCODE_ROLL                    (STACK_INST_BASE + 0b11111)
-#define OPCODE_PUSH                    (STACK_INST_BASE + 0b10000) // Source 0 indicates register to push
-#define OPCODE_PULL                    (STACK_INST_BASE + 0b01001) // Destination indicates register to pull the value into
-#define OPCODE_PUSH_INDEXED            (STACK_INST_BASE + 0b10010)
-#define OPCODE_PULL_INDEXED            (STACK_INST_BASE + 0b01010)
+#define OP_STACK_MASK                   0b11111
+#define OP_STACK_PUSH                   0b00000
+#define OP_STACK_PULL                   0b10000
+#define OP_STACK_REGISTER_MASK          0b00011
+#define OP_STACK_ONLY                   0b00000
+#define OP_STACK_AND_DP                 0b00001
+#define OP_STACK_AND_X                  0b00010
+#define OP_STACK_REGISTER_INDEXED       0b01000
+#define OP_STACK_OTHER                  0b00100
+#define OP_STACK_TO_STACK               0b00000
+#define OP_STACK_MISC                   0b01000
+#define OP_STACK_S                      0b00010
+#define OP_STACK_R                      0b00001
+#define OP_STACK_COPY                   0b10000
+#define OPCODE_PUSHI                   (STACK_INST_BASE + OP_STACK_PUSH)
+#define OPCODE_PUSHDP                  (STACK_INST_BASE + OP_STACK_PUSH + OP_STACK_AND_DP)
+#define OPCODE_PUSHX                   (STACK_INST_BASE + OP_STACK_PUSH + OP_STACK_AND_X)
+#define OPCODE_PUSH_INDEXED            (STACK_INST_BASE + OP_STACK_PUSH + OP_STACK_REGISTER_INDEXED)
+#define OPCODE_PUSHDP_INDEXED          (OPCODE_PUSH_INDEXED + OP_STACK_AND_DP)
+#define OPCODE_PUSHX_INDEXED           (OPCODE_PUSH_INDEXED + OP_STACK_AND_X)
+#define OPCODE_POP                     (STACK_INST_BASE + OP_STACK_PULL)
+#define OPCODE_PULLDP                  (STACK_INST_BASE + OP_STACK_PULL + OP_STACK_AND_DP)
+#define OPCODE_PULLX                   (STACK_INST_BASE + OP_STACK_PULL + OP_STACK_AND_X + OPCODE_SIZE_BIT)
+#define OPCODE_PULL_INDEXED            (STACK_INST_BASE + OP_STACK_PULL + OP_STACK_REGISTER_INDEXED)
+#define OPCODE_PULLDP_INDEXED          (OPCODE_PULL_INDEXED + OP_STACK_AND_DP)
+#define OPCODE_PULLX_INDEXED           (OPCODE_PULL_INDEXED + OP_STACK_AND_X)
+#define OPCODE_MOVER                   (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_TO_STACK + OP_STACK_R)
+#define OPCODE_MOVES                   (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_TO_STACK + OP_STACK_S)
+#define OPCODE_COPYR                   (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_TO_STACK + OP_STACK_R + OP_STACK_COPY)
+#define OPCODE_COPYS                   (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_TO_STACK + OP_STACK_S + OP_STACK_COPY)
+#define OPCODE_DUP                     (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_MISC + 0b00001)
+#define OPCODE_SWAP                    (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_MISC + 0b00010)
+#define OPCODE_DEPTH                   (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_MISC + 0b00011)
+#define OPCODE_ROLL                    (STACK_INST_BASE + OP_STACK_OTHER + OP_STACK_MISC + 0b10011)
+
+// Register indexed stack operation bits
+// The post-byte for register indexed stack operations has for its
+// most-significant byte a flag indicating if the register should be
+// incremented before the data is fetched/stored, and the rest
+// of the byte is a twos complement amount to apply as the increment
+#define OP_STACK_INCREMENT_PRE          0b10000000
+#define OP_STACK_INCREMENT_NEGATIVE     0b01000000
 
 // Flow control instructions - immediate address/ID
-#define OPCODE_B                       (FLOW_INST_BASE + 0b00000)
-#define OPCODE_BE                      (FLOW_INST_BASE + CC_Z)
-#define OPCODE_BC                      (FLOW_INST_BASE + CC_C)
-#define OPCODE_BN                      (FLOW_INST_BASE + CC_N)
-#define OPCODE_BO                      (FLOW_INST_BASE + CC_O)
-#define OPCODE_JMP                     (FLOW_INST_BASE + 0b10000)
-#define OPCODE_RTS                     (FLOW_INST_BASE + 0b10001)
-#define OPCODE_JSR                     (FLOW_INST_BASE + 0b10010)
-#define OPCODE_SYSCALL                 (FLOW_INST_BASE + 0b11111)
+// TODO: Update to support not-equal, less-than-or-equal, etc
+#define OP_FLOW_UNSIGNED                0b10000
+#define OP_BRANCH_COMPARE_MASK          0b1111
+#define OP_BRANCH_UNCONDITIONAL         0b0000
+#define OP_BRANCH_OVERFLOW              0b0001
+#define OP_BRANCH_LESS_THAN             0b0010
+#define OP_BRANCH_CARRY                 0b0100
+#define OP_BRANCH_GREATER               0b0101
+#define OP_BRANCH_EQUAL                 0b1000
+#define OP_BRANCH_LESS_THAN_EQUAL       0b1010
+#define OP_BRANCH_GREATER_EQUAL         0b1101
+#define OP_BRANCH_DIVIDE_BY_ZERO        0b1111
+#define OPCODE_B                       (FLOW_INST_BASE + OP_BRANCH_UNCONDITIONAL)
+#define OPCODE_BEQ                     (FLOW_INST_BASE + OP_BRANCH_EQUAL)
+#define OPCODE_BLT                     (FLOW_INST_BASE + OP_BRANCH_LESS_THAN)
+#define OPCODE_BLE                     (FLOW_INST_BASE + OP_BRANCH_LESS_THAN_EQUAL)
+#define OPCODE_BGT                     (FLOW_INST_BASE + OP_BRANCH_GREATER)
+#define OPCODE_BGE                     (FLOW_INST_BASE + OP_BRANCH_GREATER_EQUAL)
+#define OPCODE_BCR                     (FLOW_INST_BASE + OP_BRANCH_CARRY)
+#define OPCODE_BOV                     (FLOW_INST_BASE + OP_BRANCH_OVERFLOW)
+#define OPCODE_BDIV0                   (FLOW_INST_BASE + OP_BRANCH_DIVIDE_BY_ZERO)
+#define OPCODE_JMP                     (FLOW_INST_BASE + OP_FLOW_UNSIGNED + 0b0000)
+#define OPCODE_RTS                     (FLOW_INST_BASE + OP_FLOW_UNSIGNED + 0b0001)
+#define OPCODE_JSR                     (FLOW_INST_BASE + OP_FLOW_UNSIGNED + 0b0010)
+#define OPCODE_SYSCALL                 (FLOW_INST_BASE + OP_FLOW_UNSIGNED + 0b1111)
 
 // Other instructions - New arch
 #define OPCODE_SYNC                    (OTHER_INST_BASE + 0b11111)
 
-#define SOURCE_0_MASK           0b11000000
-#define SOURCE_0(BYTE)			((BYTE & SOURCE_0_MASK) >> 6)
-#define TO_SOURCE_0(BYTE)       (BYTE << 6)
-#define SOURCE_1_MASK           0b00110000
-#define SOURCE_1(BYTE)			((BYTE & SOURCE_1_MASK) >> 4)
-#define TO_SOURCE_1(BYTE)       (BYTE << 4)
-#define SOURCE_2_MASK           0b00001100
-#define SOURCE_2(BYTE)			((BYTE & SOURCE_2_MASK) >> 2)
-#define TO_SOURCE_2(BYTE)       (BYTE << 2)
-#define DESTINATION_MASK        0b00000011
-#define DESTINATION(BYTE)		(BYTE & DESTINATION_MASK)
-#define TO_DESTINATION(BYTE)    (BYTE)
-
-#define STACK_OPERAND			0b00
-#define STACK_INDEX				0b01
-#define DIRECT_PAGE				0b10
-#define X_REGISTER				0b11
+#define IS_STACK_INST(opcode)   ((opcode & 0xC0) == STACK_INST_BASE)
+#define IS_INDEXED_INST(opcode) (IS_STACK_INST(opcode) && (opcode & OP_STACK_REGISTER_INDEXED) && !(opcode & OP_STACK_OTHER))
+#define IS_BRANCH_INST(opcode)  ((opcode & OP_FLOW_UNSIGNED) == 0 && (opcode & 0xE0) == FLOW_INST_BASE)
 
 typedef enum _register_access_mode
 {
@@ -100,13 +133,6 @@ typedef enum _register_access_mode
     REGISTER_INDEXED,
 } register_access_mode_t;
 
-typedef union
-{
-    uint16_t uword;
-    int16_t sword;
-    uint8_t bytes[2];
-} machine_word_t;
-
 typedef struct opcode_entry
 {
     const char *name;
@@ -115,8 +141,6 @@ typedef struct opcode_entry
     symbol_type_t argument_type;
     register_access_mode_t access_mode;
     symbol_signedness_t argument_signedness;
-    uint8_t use_specified_operand;
-    uint8_t operands;
 } opcode_entry_t;
 
 typedef struct _register_argument
@@ -127,8 +151,8 @@ typedef struct _register_argument
 
 opcode_entry_t *get_opcode_entry(const char *opcode_name);
 opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode);
-register_argument_t *get_register(const char *name);
-register_argument_t *get_register_by_code(uint8_t code);
+void print_opcode_entries();
+register_argument_t *get_register(const char *register_name);
 
 #ifdef __cplusplus
 }

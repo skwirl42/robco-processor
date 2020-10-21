@@ -59,11 +59,10 @@ typedef struct _emulator
 
     // Registers
     address_t PC;
-    address_t SP;
-    address_t ISP;
     address_t X;
+    uint8_t SP;
+    uint8_t ISP;
     uint8_t CC;
-    uint8_t SI;
     uint8_t DP;
 } emulator;
 
@@ -76,7 +75,8 @@ typedef union
 #define DEBUGGING_BUFFER_COUNT 5
 
 error_t init_emulator(emulator *emulator, arch_t architecture);
-inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER_COUNT]);
+void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER_COUNT]);
+inst_result_t execute_instruction(emulator *emulator);
 uint16_t pull_word(emulator *emulator);
 uint8_t pull_byte(emulator *emulator);
 void push_word(emulator *emulator, uint16_t word);

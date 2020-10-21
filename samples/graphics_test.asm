@@ -1,7 +1,7 @@
 .include "syscall.asm"
 .reserve GRAPHICS_START 38400
+.data GRAPHICS_END 0x00
 .data ERROR_STRING "Failed to set the graphics mode\n"
-.defword GRAPHICS_TEST_AREA 0x9600
 
 start:
 	pushiw GRAPHICS_START
@@ -29,12 +29,14 @@ start:
 	syscall GRAPHICSTART
 	pushi 0
 	cmp
-	be draw_start
+	beq draw_start
 	pushiw ERROR_STRING
 	pullx
-	jsr print_string
+	syscall PRINT
 	b loop
 draw_start:
+	pushiw GRAPHICS_START
+	pullx
 	sync
 	pushiw 0
 	dup
@@ -43,9 +45,9 @@ draw_start:
 
 draw_loop:
 	pushw [dp]
-	pushiw GRAPHICS_TEST_AREA
+	pushiw GRAPHICS_END
 	cmpw
-	be get_up
+	beq get_up
 	pushw [dp]
 	dupw
 	pop
@@ -58,5 +60,3 @@ get_up:
 loop:
 	sync
 	b loop
-
-.include "print_string_include.asm"

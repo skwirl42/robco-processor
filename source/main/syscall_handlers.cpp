@@ -44,19 +44,18 @@ execution_state_t handle_syscall_setch(emulator &emulator, Console &console)
 
 execution_state_t handle_syscall_print(emulator &emulator, Console &console)
 {
-    uint16_t stringSize = pull_word(&emulator);
+    char *mem_string = (char*)(&(emulator.memories.data[emulator.X]));
+    uint16_t stringSize = strnlen(mem_string, DATA_SIZE - emulator.X);
     bool newline = false;
     char *string = new char[stringSize + 1];
-    char currentChar;
-    int x;
-    int bytesLeft = stringSize;
-    for (x = stringSize - 1; x >= 0 && bytesLeft > 0; bytesLeft--)
+    int copiedIndex = 0;
+    for (int x = 0; x < stringSize; x++)
     {
+        auto currentChar = mem_string[x];
         // Discard non-printables
-        currentChar = pull_byte(&emulator);
         if (currentChar >= ' ')
         {
-            string[x--] = currentChar;
+            string[copiedIndex++] = currentChar;
         }
         else if (currentChar == '\n' || currentChar == '\r')
         {
@@ -65,15 +64,7 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
         }
     }
 
-    string[stringSize] = 0;
-
-    if (x >= 0)
-    {
-        for (int i = 0; i < stringSize; i++)
-        {
-            string[i] = string[i + x + 1];
-        }
-    }
+    string[copiedIndex] = 0;
 
     if (newline)
     {

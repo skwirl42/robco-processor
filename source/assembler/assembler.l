@@ -17,6 +17,7 @@ DEFBYTE_DIRECTIVE       \.defbyte
 DEFWORD_DIRECTIVE       \.defword
 DATA_DIRECTIVE          \.data
 RESERVE_DIRECTIVE       \.reserve
+ORG_DIRECTIVE           \.org
 ESCAPE_SEQUENCE         \\["'\\abrnt0]
 WHITESPACE              [ \t]+
 INSTRUCTION             [a-z]{1,7}
@@ -63,6 +64,10 @@ DECREMENT               \-{1,2}
     return RESERVE_DIRECTIVE;
 }
 
+{ORG_DIRECTIVE} {
+    return ORG_DIRECTIVE;
+}
+
 {INCREMENT} {
     yylval.intval = yyleng;
     return INCREMENT;
@@ -77,7 +82,9 @@ DECREMENT               \-{1,2}
     register_argument_t *register_entry = get_register(yytext);
     if (register_entry)
     {
-        yylval.intval = register_entry->code;
+        yylval.index_register.index_register = register_entry;
+        yylval.index_register.is_pre_increment = 0;
+        yylval.index_register.increment_amount = 0;
         return REGISTER_ARGUMENT;
     }
 
@@ -140,7 +147,7 @@ char temp_error_buffer[ERROR_BUFFER_SIZE+1];
 
 void yyerror(const char *err)
 {
-    snprintf(temp_error_buffer, ERROR_BUFFER_SIZE, "Flex error (%s) on line %d of file %s", err, assembler_data->lineNumber, assembler_data->current_filename);
+    snprintf(temp_error_buffer, ERROR_BUFFER_SIZE, "Flex error (%s) on line %d of file %s", err, *lineNumber, current_filename);
     add_error(assembler_data, temp_error_buffer, ASSEMBLER_SYNTAX_ERROR);
 }
 

@@ -12,7 +12,7 @@ _print_string:
 L0_print_string:
     push [x]                ; while (*x != 0)
     cmp
-    be L1_print_string      ; {
+    beq L1_print_string     ; {
     push [x]                ; push_byte(*x);
     pushx                   ; x++;
     incw

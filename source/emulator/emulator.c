@@ -21,14 +21,6 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 
     emulator->architecture = architecture;
 
-    emulator->memories.instruction = malloc(INST_SIZE);
-
-    if (emulator->memories.instruction == 0)
-    {
-        dispose_emulator(emulator);
-        return ALLOC_FAILED;
-    }
-
     emulator->memories.data = malloc(DATA_SIZE);
 
     if (emulator->memories.data == 0)
@@ -53,7 +45,6 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
         return ALLOC_FAILED;
     }
 
-    memset(emulator->memories.instruction, 0, INST_SIZE);
     memset(emulator->memories.data, 0, DATA_SIZE);
     memset(emulator->memories.instruction_stack, 0, INST_STACK_SIZE);
     memset(emulator->memories.user_stack, 0, STACK_SIZE);
@@ -62,11 +53,10 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
     emulator->graphics_mode.enabled = 0;
     emulator->graphics_start = 0;
     emulator->PC = EXECUTE_BEGIN;
-    emulator->SP = STACK_BEGIN;
-    emulator->ISP = INST_STACK_BEGIN;
+    emulator->SP = 0;
+    emulator->ISP = 0;
     emulator->CC = 0;
     emulator->X = 0;
-    emulator->SI = 0;
     emulator->DP = 0;
 
     return NO_ERROR;
@@ -75,8 +65,8 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
 uint16_t fetch_instruction_word(emulator *emulator)
 {
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.instruction[emulator->PC];
-    value.bytes[0] = emulator->memories.instruction[emulator->PC+1];
+    value.bytes[1] = emulator->memories.data[emulator->PC];
+    value.bytes[0] = emulator->memories.data[emulator->PC+1];
     emulator->PC += 2;
     return value.word;
 }
@@ -84,108 +74,113 @@ uint16_t fetch_instruction_word(emulator *emulator)
 int16_t fetch_instruction_word_signed(emulator *emulator)
 {
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.instruction[emulator->PC];
-    value.bytes[0] = emulator->memories.instruction[emulator->PC+1];
+    value.bytes[1] = emulator->memories.data[emulator->PC];
+    value.bytes[0] = emulator->memories.data[emulator->PC+1];
     emulator->PC += 2;
     return *((int16_t*)&value);
 }
 
 uint8_t fetch_instruction_byte(emulator *emulator)
 {
-    uint8_t byte = emulator->memories.instruction[emulator->PC];
+    uint8_t byte = emulator->memories.data[emulator->PC];
     emulator->PC++;
     return byte;
 }
 
+uint8_t peek_instruction_byte(emulator *emulator)
+{
+    return emulator->memories.data[emulator->PC];
+}
+
 int8_t fetch_instruction_byte_signed(emulator *emulator)
 {
-    int8_t byte = ((int8_t*)emulator->memories.instruction)[emulator->PC];
+    int8_t byte = ((int8_t*)emulator->memories.data)[emulator->PC];
     emulator->PC++;
     return byte;
 }
 
 uint16_t pull_word(emulator *emulator)
 {
+    emulator->SP -= 2;
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.user_stack[emulator->SP - STACK_END];
-    value.bytes[0] = emulator->memories.user_stack[emulator->SP+1 - STACK_END];
-    emulator->SP += 2;
+    value.bytes[0] = emulator->memories.user_stack[emulator->SP + 1];
+    value.bytes[1] = emulator->memories.user_stack[emulator->SP];
     return value.word;
 }
 
 int16_t pull_word_signed(emulator *emulator)
 {
+    emulator->SP -= 2;
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.user_stack[emulator->SP - STACK_END];
-    value.bytes[0] = emulator->memories.user_stack[emulator->SP+1 - STACK_END];
-    emulator->SP += 2;
+    value.bytes[0] = emulator->memories.user_stack[emulator->SP + 1];
+    value.bytes[1] = emulator->memories.user_stack[emulator->SP];
     return *((int16_t*)&value);
 }
 
 uint8_t pull_byte(emulator *emulator)
 {
-    uint8_t value = emulator->memories.user_stack[emulator->SP - STACK_END];
-    emulator->SP++;
+    emulator->SP--;
+    uint8_t value = emulator->memories.user_stack[emulator->SP];
     return value;
 }
 
 int8_t pull_byte_signed(emulator *emulator)
 {
-    int8_t value = ((int8_t*)emulator->memories.user_stack)[emulator->SP - STACK_END];
-    emulator->SP++;
+    emulator->SP--;
+    int8_t value = ((int8_t*)emulator->memories.user_stack)[emulator->SP];
     return value;
 }
 
 uint16_t peek_word(emulator *emulator, uint8_t index)
 {
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.user_stack[emulator->SP + index - STACK_END];
-    value.bytes[0] = emulator->memories.user_stack[emulator->SP+1 + index - STACK_END];
+    value.bytes[0] = emulator->memories.user_stack[emulator->SP - index - 1];
+    value.bytes[1] = emulator->memories.user_stack[emulator->SP - index - 2];
     return value.word;
 }
 
 uint8_t peek_byte(emulator *emulator, uint8_t index)
 {
-    uint8_t value = emulator->memories.user_stack[emulator->SP + index - STACK_END];
+    uint8_t value = emulator->memories.user_stack[emulator->SP - index - 1];
     return value;
 }
 
 void push_word(emulator *emulator, uint16_t word)
 {
-    emulator->SP -= 2;
     emulator_word_t emWord;
     emWord.word = word;
-    emulator->memories.user_stack[emulator->SP - STACK_END] = emWord.bytes[1];
-    emulator->memories.user_stack[emulator->SP + 1 - STACK_END] = emWord.bytes[0];
+    emulator->memories.user_stack[emulator->SP + 1] = emWord.bytes[0];
+    emulator->memories.user_stack[emulator->SP] = emWord.bytes[1];
+    emulator->SP += 2;
 }
 
 void push_byte(emulator *emulator, uint8_t byte)
 {
-    emulator->SP--;
-    emulator->memories.user_stack[emulator->SP - STACK_END] = byte;
+    emulator->memories.user_stack[emulator->SP] = byte;
+    emulator->SP++;
 }
 
 void pop_bytes(emulator *emulator, uint16_t byte_count)
 {
-    emulator->SP += byte_count;
+    emulator->SP -= byte_count;
 }
 
 uint16_t pull_return_address(emulator *emulator)
 {
+    emulator->ISP -= 2;
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.instruction_stack[emulator->ISP - INST_STACK_END];
-    value.bytes[0] = emulator->memories.instruction_stack[emulator->ISP+1 - INST_STACK_END];
-    emulator->ISP += 2;
+    value.bytes[0] = emulator->memories.instruction_stack[emulator->ISP + 1];
+    value.bytes[1] = emulator->memories.instruction_stack[emulator->ISP];
     return value.word;
 }
 
 void push_return_address(emulator *emulator, uint16_t address)
 {
-    emulator->ISP -= 2;
     emulator_word_t emWord;
     emWord.word = address;
-    emulator->memories.instruction_stack[emulator->ISP - INST_STACK_END] = emWord.bytes[1];
-    emulator->memories.instruction_stack[emulator->ISP + 1 - INST_STACK_END] = emWord.bytes[0];
+    emulator->memories.instruction_stack[emulator->ISP + 1] = emWord.bytes[0];
+    emulator->memories.instruction_stack[emulator->ISP] = emWord.bytes[1];
+    emulator->ISP += 2;
 }
 
 typedef enum
@@ -203,19 +198,6 @@ typedef struct _execute_result_t
     int16_t relative;
 } execute_result_t;
 
-void set_stack_indexed_word(emulator* emulator, uint16_t word)
-{
-    emulator_word_t emWord;
-    emWord.word = word;
-    emulator->memories.user_stack[emulator->SP + emulator->SI - STACK_END] = emWord.bytes[1];
-    emulator->memories.user_stack[emulator->SP + emulator->SI + 1 - STACK_END] = emWord.bytes[0];
-}
-
-void set_stack_indexed_byte(emulator* emulator, uint8_t byte)
-{
-    emulator->memories.user_stack[emulator->SP + emulator->SI - STACK_END] = byte;
-}
-
 void set_data_indexed_byte(emulator *emulator, uint8_t byte, uint16_t index)
 {
     emulator->memories.data[index] = byte;
@@ -230,8 +212,8 @@ void set_data_indexed_word(emulator* emulator, uint16_t word, uint16_t index)
 {
     emulator_word_t emWord;
     emWord.word = word;
-    emulator->memories.data[index] = emWord.bytes[1];
     emulator->memories.data[index + 1] = emWord.bytes[0];
+    emulator->memories.data[index] = emWord.bytes[1];
 }
 
 // get_stack_indexed_word would be the same as peek_word with an index,
@@ -242,109 +224,9 @@ void set_data_indexed_word(emulator* emulator, uint16_t word, uint16_t index)
 uint16_t get_data_indexed_word(emulator* emulator, uint16_t index)
 {
     emulator_word_t value;
-    value.bytes[1] = emulator->memories.data[index];
     value.bytes[0] = emulator->memories.data[index + 1];
+    value.bytes[1] = emulator->memories.data[index];
     return value.word;
-}
-
-execute_status_t get_byte_for_operand(emulator* emulator, uint8_t operand, uint8_t *result)
-{
-    switch (operand)
-    {
-    case STACK_OPERAND:
-         *result = pull_byte(emulator);
-         return EXEC_NORMAL;
-
-    case STACK_INDEX:
-        *result = emulator->memories.user_stack[emulator->SP + emulator->SI - STACK_END];
-        return EXEC_NORMAL;
-
-    case DIRECT_PAGE:
-        *result = get_data_indexed_byte(emulator, emulator->DP);
-        return EXEC_NORMAL;
-
-    case X_REGISTER:
-        *result = get_data_indexed_byte(emulator, emulator->X);
-        return EXEC_NORMAL;
-
-    default:
-        return EXEC_ILLEGAL_INSTRUCTION;
-    }
-}
-
-execute_status_t set_byte_for_operand(emulator* emulator, uint8_t operand, uint8_t value)
-{
-    switch (operand)
-    {
-    case STACK_OPERAND:
-        push_byte(emulator, value);
-        return EXEC_NORMAL;
-
-    case STACK_INDEX:
-        emulator->memories.user_stack[emulator->SP + emulator->SI - STACK_END] = value;
-        return EXEC_NORMAL;
-
-    case DIRECT_PAGE:
-        set_data_indexed_byte(emulator, value, emulator->DP);
-        return EXEC_NORMAL;
-
-    case X_REGISTER:
-        set_data_indexed_byte(emulator, value, emulator->X);
-        return EXEC_NORMAL;
-
-    default:
-        return EXEC_ILLEGAL_INSTRUCTION;
-    }
-}
-
-execute_status_t get_word_for_operand(emulator* emulator, uint8_t operand, uint16_t* result)
-{
-    switch (operand)
-    {
-    case STACK_OPERAND:
-        *result = pull_word(emulator);
-        return EXEC_NORMAL;
-
-    case STACK_INDEX:
-        *result = peek_word(emulator, emulator->SI);
-        return EXEC_NORMAL;
-
-    case DIRECT_PAGE:
-        *result = get_data_indexed_word(emulator, emulator->DP);
-        return EXEC_NORMAL;
-
-    case X_REGISTER:
-        *result = get_data_indexed_word(emulator, emulator->X);
-        return EXEC_NORMAL;
-
-    default:
-        return EXEC_ILLEGAL_INSTRUCTION;
-    }
-}
-
-execute_status_t set_word_for_operand(emulator* emulator, uint8_t operand, uint16_t value)
-{
-    switch (operand)
-    {
-    case STACK_OPERAND:
-        push_word(emulator, value);
-        return EXEC_NORMAL;
-
-    case STACK_INDEX:
-        set_stack_indexed_word(emulator, value);
-        return EXEC_NORMAL;
-
-    case DIRECT_PAGE:
-        set_data_indexed_word(emulator, value, emulator->DP);
-        return EXEC_NORMAL;
-
-    case X_REGISTER:
-        set_data_indexed_word(emulator, value, emulator->X);
-        return EXEC_NORMAL;
-
-    default:
-        return EXEC_ILLEGAL_INSTRUCTION;
-    }
 }
 
 execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
@@ -354,11 +236,6 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
 
     uint8_t wide = opcode & OPCODE_SIZE_BIT;
     uint8_t baseopcode = opcode & ~OPCODE_SIZE_BIT;
-    uint8_t sources = fetch_instruction_byte(emulator);
-    uint8_t source0 = SOURCE_0(sources);
-    uint8_t source1 = SOURCE_1(sources);
-    uint8_t source2 = SOURCE_2(sources);
-    uint8_t destination = DESTINATION(sources);
 
     emulator->CC = 0;
 
@@ -368,44 +245,22 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
     {
         if (wide)
         {
-            int16_t operand;
-            execute_status_t get_result = get_word_for_operand(emulator, destination, (uint16_t*)&operand);
-            if (get_result != EXEC_ILLEGAL_INSTRUCTION)
-            {
-                int16_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
-                result.status = set_word_for_operand(emulator, destination, *((uint16_t*)&op_result));
-            }
-            else
-            {
-                result.status = get_result;
-            }
+            int16_t operand = pull_word_signed(emulator);
+            int16_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
+            push_word(emulator, op_result);
         }
         else
         {
-            int8_t operand;
-            execute_status_t get_result = get_byte_for_operand(emulator, destination, (uint8_t*)&operand);
-            if (get_result != EXEC_ILLEGAL_INSTRUCTION)
-            {
-                int8_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
-                result.status = set_byte_for_operand(emulator, destination, *((uint8_t*)&op_result));
-            }
-            else
-            {
-                result.status = get_result;
-            }
+            int8_t operand = pull_byte_signed(emulator);
+            int8_t op_result = (baseopcode == OPCODE_INC) ? (operand + 1) : (operand - 1);
+            push_byte(emulator, op_result);
         }
      }
     else if (wide)
     {
-        int16_t operandB = 0;
-        int16_t operandA = 0;
+        int16_t operandB = pull_word_signed(emulator);
+        int16_t operandA = pull_word_signed(emulator);
         int16_t op_result = 0;
-
-        result.status = get_word_for_operand(emulator, source1, (uint16_t*)&operandB);
-        if (result.status != EXEC_ILLEGAL_INSTRUCTION)
-        {
-            result.status = get_word_for_operand(emulator, source0, (uint16_t*)&operandA);
-        }
 
         if (result.status != EXEC_ILLEGAL_INSTRUCTION)
         {
@@ -423,14 +278,22 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 op_result = operandA * operandB;
                 break;
 
+            case OPCODE_DIV:
+                op_result = operandA / operandB;
+                if (operandB == 0)
+                {
+                    emulator->CC |= CC_DIV0;
+                }
+                break;
+
             case OPCODE_CMP:
                 if (operandA == operandB)
                 {
-                    emulator->CC |= CC_Z;
+                    emulator->CC |= CC_ZERO;
                 }
                 else
                 {
-                    emulator->CC &= ~CC_Z;
+                    emulator->CC &= ~CC_ZERO;
                 }
                 break;
 
@@ -446,12 +309,16 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 op_result = operandA << operandB;
                 if (operandA & 0x8000)
                 {
-                    emulator->CC |= CC_C;
+                    emulator->CC |= CC_CARRY;
                 }
                 break;
 
             case OPCODE_SHR:
                 op_result = operandA >> operandB;
+                if (operandA & 1)
+                {
+                    emulator->CC |= CC_UNDERFLOW;
+                }
                 break;
 
             default:
@@ -463,104 +330,162 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
         if (result.status != EXEC_ILLEGAL_INSTRUCTION && baseopcode != OPCODE_CMP)
         {
             uint16_t uword = *((uint16_t*)&op_result);
-            result.status = set_word_for_operand(emulator, destination, uword);
+            push_word(emulator, uword);
             if (uword == 0)
             {
-                emulator->CC |= CC_Z;
+                emulator->CC |= CC_ZERO;
             }
             else if (uword & 0x8000)
             {
-                emulator->CC |= CC_N;
+                emulator->CC |= CC_NEG;
             }
         }
     }
     else
     {
-        int8_t operandB = 0;
-        int8_t operandA = 0;
+        int8_t operandB = pull_byte_signed(emulator);
+        int8_t operandA = pull_byte_signed(emulator);
         int8_t op_result = 0;
 
-        result.status = get_byte_for_operand(emulator, source1, (uint8_t*)&operandB);
-        if (result.status != EXEC_ILLEGAL_INSTRUCTION)
+        switch (baseopcode)
         {
-            result.status = get_byte_for_operand(emulator, source0, (uint8_t*)&operandA);
-        }
+        case OPCODE_ADD:
+            op_result = operandA + operandB;
+            break;
 
-        if (result.status != EXEC_ILLEGAL_INSTRUCTION)
-        {
-            switch (baseopcode)
+        case OPCODE_SUB:
+            op_result = operandA - operandB;
+            break;
+
+        case OPCODE_MUL:
+            op_result = operandA * operandB;
+            break;
+
+        case OPCODE_CMP:
+            if (operandA == operandB)
             {
-            case OPCODE_ADD:
-                op_result = operandA + operandB;
-                break;
-
-            case OPCODE_SUB:
-                op_result = operandA - operandB;
-                break;
-
-            case OPCODE_MUL:
-                op_result = operandA * operandB;
-                break;
-
-            case OPCODE_CMP:
-                if (operandA == operandB)
-                {
-                    emulator->CC |= CC_Z;
-                }
-                else
-                {
-                    emulator->CC &= ~CC_Z;
-                }
-                break;
-
-            case OPCODE_OR:
-                op_result = operandA | operandB;
-                break;
-
-            case OPCODE_AND:
-                op_result = operandA & operandB;
-                break;
-
-            case OPCODE_SHL:
-                op_result = operandA << operandB;
-                if (operandA & 0x80)
-                {
-                    emulator->CC |= CC_C;
-                }
-                else
-                {
-                    emulator->CC &= ~CC_C;
-                }
-                break;
-
-            case OPCODE_SHR:
-                op_result = operandA >> operandB;
-                break;
-
-            default:
-                result.status = EXEC_ILLEGAL_INSTRUCTION;
-                break;
+                emulator->CC |= CC_ZERO;
             }
+            else
+            {
+                emulator->CC &= ~CC_ZERO;
+            }
+            break;
+
+        case OPCODE_OR:
+            op_result = operandA | operandB;
+            break;
+
+        case OPCODE_AND:
+            op_result = operandA & operandB;
+            break;
+
+        case OPCODE_SHL:
+            op_result = operandA << operandB;
+            if (operandA & 0x80)
+            {
+                emulator->CC |= CC_CARRY;
+            }
+            else
+            {
+                emulator->CC &= ~CC_CARRY;
+            }
+            break;
+
+        case OPCODE_SHR:
+            op_result = operandA >> operandB;
+            break;
+
+        default:
+            result.status = EXEC_ILLEGAL_INSTRUCTION;
+            break;
         }
 
         if (result.status != EXEC_ILLEGAL_INSTRUCTION && baseopcode != OPCODE_CMP)
         {
             uint8_t ubyte = *((uint8_t*)&op_result);
-            result.status = set_byte_for_operand(emulator, destination, ubyte);
+            push_byte(emulator, ubyte);
             if (ubyte == 0)
             {
-                emulator->CC |= CC_Z;
-                emulator->CC &= ~CC_Z;
+                emulator->CC |= CC_ZERO;
+                emulator->CC &= ~CC_NEG;
             }
             else if (ubyte & 0x80)
             {
-                emulator->CC &= ~CC_Z;
-                emulator->CC |= CC_N;
+                emulator->CC &= ~CC_ZERO;
+                emulator->CC |= CC_NEG;
             }
         }
     }
 
     return result;
+}
+
+void execute_dup(emulator *emulator, uint8_t is_wide)
+{
+    if (is_wide)
+    {
+        uint16_t word = peek_word(emulator, 0);
+        push_word(emulator, word);
+    }
+    else
+    {
+        uint8_t byte = peek_byte(emulator, 0);
+        push_byte(emulator, byte);
+    }
+}
+
+void execute_swap(emulator *emulator, uint8_t is_wide)
+{
+    if (is_wide)
+    {
+        uint16_t word1 = pull_word(emulator);
+        uint16_t word2 = pull_word(emulator);
+        push_word(emulator, word1);
+        push_word(emulator, word2);
+    }
+    else
+    {
+        uint8_t byte1 = pull_byte(emulator);
+        uint8_t byte2 = pull_byte(emulator);
+        push_byte(emulator, byte1);
+        push_byte(emulator, byte2);
+    }
+}
+
+execute_status_t execute_roll(emulator *emulator, uint8_t is_wide)
+{
+    uint8_t count = pull_byte(emulator);
+    uint8_t byte_count = is_wide ? count * 2 : count;
+    if (byte_count > emulator->SP)
+    {
+        return EXEC_ILLEGAL_INSTRUCTION;
+    }
+
+    uint8_t *rolled_address = &emulator->memories.user_stack[emulator->SP - byte_count];
+    if (is_wide)
+    {
+        uint16_t *word_rolled_address = (uint16_t*)rolled_address;
+        machine_word_t rolled_word;
+        rolled_word.uword = *(word_rolled_address);
+        for (uint8_t place = 0; place < count - 1; place++)
+        {
+            word_rolled_address[place] = word_rolled_address[place+1];
+        }
+        emulator->memories.user_stack[emulator->SP - 1] = rolled_word.bytes[0];
+        emulator->memories.user_stack[emulator->SP - 2] = rolled_word.bytes[1];
+    }
+    else
+    {
+        uint8_t rolled_byte = *rolled_address;
+        for (uint8_t place = 0; place < count - 1; place++)
+        {
+            rolled_address[place] = rolled_address[place+1];
+        }
+        emulator->memories.user_stack[emulator->SP - 1] = rolled_byte;
+    }
+
+    return EXEC_NORMAL;
 }
 
 execute_result_t execute_stack_instruction(emulator *emulator, uint8_t opcode)
@@ -568,268 +493,229 @@ execute_result_t execute_stack_instruction(emulator *emulator, uint8_t opcode)
     execute_result_t result;
     result.status = EXEC_NORMAL;
 
-    uint8_t wide = opcode & OPCODE_SIZE_BIT;
+    uint8_t is_wide = opcode & OPCODE_SIZE_BIT;
+    uint8_t is_other = opcode & OP_STACK_OTHER;
     uint8_t baseopcode = opcode & ~OPCODE_SIZE_BIT;
-    uint8_t sources = 0;
 
-    // PUSHI has its value set by the two bytes following the opcode.
-    // Anything else uses the second byte as sources
-    if (baseopcode != OPCODE_PUSHI)
+    if (is_other)
     {
-        sources = fetch_instruction_byte(emulator);
-    }
-
-    if (baseopcode == OPCODE_PULL)
-    {
-        uint8_t destination = DESTINATION(sources);
-        if (wide && destination == X_REGISTER)
+        uint8_t is_misc = opcode & OP_STACK_MISC;
+        if (is_misc)
         {
-            emulator->X = pull_word(emulator);
-        }
-        else if (!wide && (destination == STACK_INDEX || destination == DIRECT_PAGE))
-        {
-            switch (destination)
+            switch (baseopcode)
             {
-            case STACK_INDEX:
-                emulator->SI = pull_byte(emulator);
+            case OPCODE_DUP:
+                execute_dup(emulator, is_wide);
                 break;
 
-            case DIRECT_PAGE:
-                emulator->DP = pull_byte(emulator);
+            case OPCODE_SWAP:
+                execute_swap(emulator, is_wide);
+                break;
+
+            case OPCODE_ROLL:
+                result.status = execute_roll(emulator, is_wide);
+                break;
+
+            case OPCODE_DEPTH:
+                push_byte(emulator, emulator->SP);
+                break;
+
+            default:
+                result.status = EXEC_ILLEGAL_INSTRUCTION;
                 break;
             }
         }
         else
         {
-            result.status = EXEC_ILLEGAL_INSTRUCTION;
-        }
-    }
-    else if (baseopcode == OPCODE_PUSH)
-    {
-        uint8_t source = SOURCE_0(sources);
-        if (wide && source == X_REGISTER)
-        {
-            push_word(emulator, emulator->X);
-        }
-        else if (!wide && (source == STACK_INDEX || source == DIRECT_PAGE))
-        {
-            switch (source)
+            // TODO: This needs an implementation
+            uint8_t is_copy = opcode & OP_STACK_COPY;
+            uint8_t register_argument = opcode & OP_STACK_REGISTER_MASK;
+            switch (register_argument)
             {
-            case STACK_INDEX:
-                push_byte(emulator, emulator->SI);
+            case OP_STACK_S:
                 break;
 
-            case DIRECT_PAGE:
-                push_byte(emulator, emulator->DP);
+            case OP_STACK_R:
+                break;
+
+            default:
+                result.status = EXEC_ILLEGAL_INSTRUCTION;
                 break;
             }
-        }
-        else
-        {
-            result.status = EXEC_ILLEGAL_INSTRUCTION;
-        }
-    }
-    else if (baseopcode == OPCODE_PULL_INDEXED)
-    {
-        uint8_t register_id = SOURCE_2(sources);
-        uint8_t increment = SOURCE_0(sources);
-        uint8_t decrement = SOURCE_1(sources);
-        uint16_t index = 0;
-        uint8_t stack_indexed = 0;
-        switch (register_id)
-        {
-        case DIRECT_PAGE:
-            index = emulator->DP;
-            break;
-        
-        case X_REGISTER:
-            index = emulator->X;
-            break;
-        
-        case STACK_INDEX:
-            index = emulator->SI;
-            stack_indexed = 1;
-            break;
-        }
-        // TODO: set_data_indexed_*
-        if (wide)
-        {
-            uint16_t word = pull_word(emulator);
-            stack_indexed ? set_stack_indexed_word(emulator, word) : set_data_indexed_word(emulator, word, index);
-        }
-        else
-        {
-            uint8_t byte = pull_byte(emulator);
-            stack_indexed ? set_stack_indexed_byte(emulator, byte) : set_data_indexed_byte(emulator, byte, index);
-        }
-
-        switch (register_id)
-        {
-        case DIRECT_PAGE:
-            emulator->DP += increment - decrement;
-            break;
-        
-        case X_REGISTER:
-            emulator->X += increment - decrement;
-            break;
-        
-        case STACK_INDEX:
-            emulator->SI += increment - decrement;
-            break;
-        }
-    }
-    else if (baseopcode == OPCODE_PUSH_INDEXED)
-    {
-        uint8_t register_id = SOURCE_2(sources);
-        uint8_t increment = SOURCE_0(sources);
-        uint8_t decrement = SOURCE_1(sources);
-        uint16_t index = 0;
-        uint8_t stack_indexed = 0;
-        switch (register_id)
-        {
-        case DIRECT_PAGE:
-            index = emulator->DP;
-            break;
-        
-        case X_REGISTER:
-            index = emulator->X;
-            break;
-        
-        case STACK_INDEX:
-            index = emulator->SI;
-            stack_indexed = 1;
-            break;
-        }
-        // TODO: get_data_indexed_*
-        if (wide)
-        {
-            uint16_t word = (stack_indexed) ? get_stack_indexed_word(emulator, index) : get_data_indexed_word(emulator, index);
-            push_word(emulator, word);
-        }
-        else
-        {
-            uint8_t byte = (stack_indexed) ? get_stack_indexed_byte(emulator, index) : get_data_indexed_byte(emulator, index);
-            push_byte(emulator, byte);
-        }
-
-        switch (register_id)
-        {
-        case DIRECT_PAGE:
-            emulator->DP += increment - decrement;
-            break;
-        
-        case X_REGISTER:
-            emulator->X += increment - decrement;
-            break;
-        
-        case STACK_INDEX:
-            emulator->SI += increment - decrement;
-            break;
-        }
-    }
-    else if (wide)
-    {
-        uint16_t word0;
-        uint16_t word1;
-        uint8_t byte;
-        uint16_t roll_byte_depth;
-        emulator_word_t roll_word;
-        switch (baseopcode)
-        {
-        case OPCODE_PUSHI:
-            word0 = fetch_instruction_word(emulator);
-            push_word(emulator, word0);
-            break;
-
-        case OPCODE_POP:
-            pop_bytes(emulator, 2);
-            break;
-            
-        case OPCODE_DUP:
-            word0 = peek_word(emulator, 0);
-            push_word(emulator, word0);
-            break;
-            
-        case OPCODE_SWAP:
-            word1 = pull_word(emulator);
-            word0 = pull_word(emulator);
-            push_word(emulator, word1);
-            push_word(emulator, word0);
-            break;
-            
-        case OPCODE_ROLL:
-            byte = pull_byte(emulator);
-            roll_byte_depth = byte * 2;
-            roll_word.bytes[1] = emulator->memories.user_stack[emulator->SP + roll_byte_depth - STACK_END];
-            roll_word.bytes[0] = emulator->memories.user_stack[emulator->SP + roll_byte_depth + 1 - STACK_END];
-            for (int currentByte = roll_byte_depth + 1; currentByte > 1; currentByte--)
-            {
-                emulator->memories.user_stack[emulator->SP + currentByte - STACK_END] = emulator->memories.user_stack[emulator->SP + currentByte - 2 - STACK_END];
-            }
-            emulator->memories.user_stack[emulator->SP - STACK_END] = roll_word.bytes[1];
-            emulator->memories.user_stack[emulator->SP + 1 - STACK_END] = roll_word.bytes[0];
-            break;
-            
-        default:
-            result.status = EXEC_ILLEGAL_INSTRUCTION;
-            break;
         }
     }
     else
     {
-        uint8_t byte0;
-        uint8_t byte1;
-        uint8_t roll_depth;
-        switch (baseopcode)
+        uint8_t register_argument = baseopcode & OP_STACK_REGISTER_MASK;
+        uint8_t is_pull = baseopcode & OP_STACK_PULL;
+        uint8_t is_indexed = IS_INDEXED_INST(baseopcode);
+        if (is_indexed)
         {
-        case OPCODE_PUSHI:
-            byte0 = fetch_instruction_byte(emulator);
-            push_byte(emulator, byte0);
-            break;
+            uint16_t index;
+            uint8_t increment = fetch_instruction_byte(emulator);
+            uint8_t pre_increment = increment & OP_STACK_INCREMENT_PRE;
+            uint8_t decrement = increment & OP_STACK_INCREMENT_NEGATIVE;
+            // Replace the top bit with the negative bit to get a twos complement number
+            // aka mask out the pre-increment bit and sign-extend the remaining byte
+            int8_t increment_signed = ((increment & 0b01111111) | (decrement << 1));
 
-        case OPCODE_POP:
-            pop_bytes(emulator, 1);
-            break;
-            
-        case OPCODE_DUP:
-            byte0 = peek_byte(emulator, 0);
-            push_byte(emulator, byte0);
-            break;
-            
-        case OPCODE_SWAP:
-            byte1 = pull_byte(emulator);
-            byte0 = pull_byte(emulator);
-            push_byte(emulator, byte1);
-            push_byte(emulator, byte0);
-            break;
-            
-        case OPCODE_ROLL:
-            roll_depth = pull_byte(emulator);
-            byte0 = emulator->memories.user_stack[emulator->SP + roll_depth - STACK_END];
-            for (int currentByte = roll_depth; currentByte > 0; currentByte--)
+            switch (register_argument)
             {
-                emulator->memories.user_stack[emulator->SP + currentByte - STACK_END] = emulator->memories.user_stack[emulator->SP + currentByte - 1 - STACK_END];
-            }
-            emulator->memories.user_stack[emulator->SP - STACK_END] = byte0;
-            break;
+            case OP_STACK_AND_DP:
+                if (pre_increment)
+                {
+                    emulator->DP += increment_signed;
+                }
+                index = emulator->DP;
+               break;
             
-        default:
-            result.status = EXEC_ILLEGAL_INSTRUCTION;
-            break;
+            case OP_STACK_AND_X:
+                if (pre_increment)
+                {
+                    emulator->X += increment_signed;
+                }
+                index = emulator->X;
+                break;
+
+            default:
+                result.status = EXEC_ILLEGAL_INSTRUCTION;
+                break;
+            }
+
+            if (result.status != EXEC_ILLEGAL_INSTRUCTION)
+            {
+                if (is_pull)
+                {
+                    if (is_wide)
+                    {
+                        set_data_indexed_word(emulator, pull_word(emulator), index);
+                    }
+                    else
+                    {
+                        set_data_indexed_byte(emulator, pull_byte(emulator), index);
+                    }
+                }
+                else
+                {
+                    if (is_wide)
+                    {
+                        push_word(emulator, get_data_indexed_word(emulator, index));
+                    }
+                    else
+                    {
+                        push_byte(emulator, get_data_indexed_byte(emulator, index));
+                    }
+                }
+
+                if (!pre_increment)
+                {
+                    switch (register_argument)
+                    {
+                    case OP_STACK_AND_DP:
+                        emulator->DP += increment_signed;
+                        break;
+                    
+                    case OP_STACK_AND_X:
+                        emulator->X += increment_signed;
+                        break;
+                    }
+                }
+            }
+        }
+        else if (is_pull)
+        {
+            switch (register_argument)
+            {
+            case OP_STACK_ONLY:
+                pop_bytes(emulator, is_wide ? 2 : 1);
+                break;
+            
+            case OP_STACK_AND_DP:
+                if (is_wide)
+                {
+                    result.status = EXEC_ILLEGAL_INSTRUCTION;
+                }
+                else
+                {
+                    emulator->DP = pull_byte(emulator);
+                }
+                break;
+
+            case OP_STACK_AND_X:
+                if (is_wide)
+                {
+                    emulator->X = pull_word(emulator);
+                }
+                else
+                {
+                    result.status = EXEC_ILLEGAL_INSTRUCTION;
+                }
+                break;
+
+            default:
+                result.status = EXEC_ILLEGAL_INSTRUCTION;
+                break;
+            }
+        }
+        else // !is_indexed && !is_pull, aka push
+        {
+            uint16_t word;
+            uint8_t byte;
+            switch (register_argument)
+            {
+            case OP_STACK_ONLY:
+                if (is_wide)
+                {
+                    word = fetch_instruction_word(emulator);
+                    push_word(emulator, word);
+                }
+                else
+                {
+                    byte = fetch_instruction_byte(emulator);
+                    push_byte(emulator, byte);
+                }
+                break;
+
+            case OP_STACK_AND_DP:
+                if (is_wide)
+                {
+                    result.status = EXEC_ILLEGAL_INSTRUCTION;
+                }
+                else
+                {
+                    push_byte(emulator, emulator->DP);
+                }
+                break;
+
+            case OP_STACK_AND_X:
+                if (is_wide)
+                {
+                    push_word(emulator, emulator->X);
+                }
+                else
+                {
+                    result.status = EXEC_ILLEGAL_INSTRUCTION;
+                }
+                break;
+
+            default:
+                result.status = EXEC_ILLEGAL_INSTRUCTION;
+                break;
+            }
         }
     }
 
     return result;
 }
 
-inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4])
+void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER_COUNT])
 {
     address_t original_pc = emulator->PC;
-    uint8_t opcode = fetch_instruction_byte(emulator);
+    uint8_t opcode = peek_instruction_byte(emulator);
     inst_result_t result = SUCCESS;
     address_t new_pc = original_pc + 2;
-    uint8_t imm_msb = emulator->memories.instruction[original_pc + 1];
-    uint8_t imm_lsb = emulator->memories.instruction[original_pc + 2];
+    uint8_t imm_msb = emulator->memories.data[original_pc + 1];
+    uint8_t imm_lsb = emulator->memories.data[original_pc + 2];
     address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
     address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
     
@@ -843,26 +729,23 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
                 debugging_buffers[i][j] = 0;
             }
         }
-        int length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "Machine state: PC: 0x%04x, SP: 0x%04x, ISP: 0x%04x,",
+        int length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "Machine state: PC: 0x%04x, SP: 0x%02x, ISP: 0x%02x,",
             emulator->PC,
             emulator->SP,
             emulator->ISP
         );
         
-        length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "X: 0x%04x, CC: 0x%02x, SI: 0x%02x, DP: 0x%02x",
+        length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "X: 0x%04x, CC: 0x%02x, DP: 0x%02x",
             emulator->X,
             emulator->CC,
-            emulator->SI,
             emulator->DP
         );
 
         int index = 0;
         index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "Stack: ");
-        int i = emulator->SP;
-        for (int j = 0; i < 0xFFFF && j < 10; j++)
+        for (int i = emulator->SP - 1; i > 0; --i)
         {
-            index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "0x%02x ", emulator->memories.user_stack[i - STACK_END]);
-            i++;
+            index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "0x%02x ", emulator->memories.user_stack[i]);
         }
         debugging_buffers[current_buffer++][index] = 0;
 
@@ -871,43 +754,35 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
         opcode_entry_t *current_opcode_entry = get_opcode_entry_from_opcode(opcode);
         if (current_opcode_entry != 0)
         {
-            if (current_opcode_entry->use_specified_operand)
+            if (IS_INDEXED_INST(opcode))
             {
-                register_argument_t *destarg = get_register_by_code(DESTINATION(imm_msb));
-                register_argument_t *source0 = get_register_by_code(SOURCE_0(imm_msb));
-                if (destarg != 0 && destarg->code != 0)
+                const char *prefix = "";
+                if (imm_msb & OP_STACK_INCREMENT_PRE)
                 {
-                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: %s", current_opcode_entry->name, destarg->name);
+                    prefix = "pre-";
                 }
-                else if (source0 != 0 && source0->code != 0)
+
+                if (imm_msb & OP_STACK_INCREMENT_NEGATIVE)
                 {
-                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: %s", current_opcode_entry->name, source0->name);
+                    imm_msb |= OP_STACK_INCREMENT_PRE;
                 }
                 else
                 {
-                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: 0x%04x", current_opcode_entry->name, imm_msb);
+                    imm_msb &= ~OP_STACK_INCREMENT_PRE;
                 }
                 
+                const char *register_name = "DP";
+                if ((opcode & OP_STACK_REGISTER_MASK) == OP_STACK_AND_X)
+                {
+                    register_name = "X";
+                }
+
+                int8_t increment = *((int8_t*)&imm_msb);
+                length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, %sincrementing register %s by %d", current_opcode_entry->name, prefix, register_name, increment);
             }
             else if (current_opcode_entry->arg_byte_count == 1)
             {
-                if (imm_msb != 0)
-                {
-                    uint8_t dest = DESTINATION(imm_msb);
-                    uint8_t source0 = SOURCE_0(imm_msb);
-                    uint8_t source1 = SOURCE_1(imm_msb);
-                    uint8_t source2 = SOURCE_2(imm_msb);
-                    register_argument_t *destarg = get_register_by_code(dest);
-                    register_argument_t *source0arg = get_register_by_code(source0);
-                    register_argument_t *source1arg = get_register_by_code(source1);
-                    register_argument_t *source2arg = get_register_by_code(source2);
-                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operands: %s, %s, %s, %s", 
-                        current_opcode_entry->name, destarg->name, source0arg->name, source1arg->name, source2arg->name);
-                }
-                else
-                {
-                    length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, operand: 0x%02x", current_opcode_entry->name, imm_msb);
-                }
+                length = snprintf(debugging_buffers[current_buffer], LINE_BUFFER_SIZE, "Opcode: %s, post-byte: 0x%02x", current_opcode_entry->name, imm_msb);
             }
             else if (current_opcode_entry->argument_type == SYMBOL_ADDRESS_INST)
             {
@@ -938,7 +813,19 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
         }
         debugging_buffers[current_buffer][length] = 0;
     }
+}
 
+inst_result_t execute_instruction(emulator *emulator)
+{
+    address_t original_pc = emulator->PC;
+    uint8_t opcode = fetch_instruction_byte(emulator);
+    inst_result_t result = SUCCESS;
+    address_t new_pc = original_pc + 2;
+    uint8_t imm_msb = emulator->memories.data[original_pc + 1];
+    uint8_t imm_lsb = emulator->memories.data[original_pc + 2];
+    address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
+    address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
+ 
     if (opcode & ALU_INST_BASE)
     {
         execute_result_t execresult = execute_alu_instruction(emulator, opcode);
@@ -957,20 +844,42 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
     }
     else
     {
+        uint8_t branch = 0;
         switch (opcode)
         {        
         case OPCODE_B:
-            new_pc = twos_new_pc;
+            branch = 1;
             break;
         
-        case OPCODE_BE:
-        case OPCODE_BC:
-        case OPCODE_BN:
-        case OPCODE_BO:
+        case OPCODE_BEQ:
             new_pc++;
-            if (emulator->CC & opcode)
+            if (emulator->CC & CC_ZERO)
             {
-                new_pc = twos_new_pc;
+                branch = 1;
+            }
+            break;
+
+        case OPCODE_BCR:
+            new_pc++;
+            if (emulator->CC & CC_CARRY)
+            {
+                branch = 1;
+            }
+            break;
+
+        case OPCODE_BLT:
+            new_pc++;
+            if (emulator->CC & CC_NEG)
+            {
+                branch = 1;
+            }
+            break;
+
+        case OPCODE_BOV:
+            new_pc++;
+            if (emulator->CC & CC_OVERFLOW)
+            {
+                branch = 1;
             }
             break;
         
@@ -1002,6 +911,11 @@ inst_result_t execute_instruction(emulator *emulator, char *debugging_buffers[4]
             break;
         }
     
+        if (branch)
+        {
+            new_pc = twos_new_pc;
+        }
+
         emulator->PC = new_pc;
     }
 
@@ -1020,11 +934,6 @@ uint8_t emulator_can_execute(emulator *emulator)
 
 error_t dispose_emulator(emulator *emulator)
 {
-    if (emulator->memories.instruction != 0)
-    {
-        free(emulator->memories.instruction);
-    }
-
     if (emulator->memories.instruction_stack != 0)
     {
         free(emulator->memories.instruction_stack);

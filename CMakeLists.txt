@@ -44,18 +44,6 @@ target_include_directories(robcoterm PRIVATE
     source/assembler
     source/include)
 
-find_package (Boost COMPONENTS wave)
-
-add_executable(compiler
-    source/compiler/compiler_main.cpp
-    source/compiler/compiler.cpp
-    )
-
-target_include_directories(compiler PRIVATE 
-    source/compiler
-    source/include
-    ${Boost_INCLUDE_DIRS})
-
 if (APPLE)
     add_executable(assembler
         source/main/opcode_table.c
@@ -74,9 +62,6 @@ if (APPLE)
     target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(assembler stdc++)
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
-
-    target_link_directories(compiler PUBLIC ${Boost_LIBRARY_DIRS})
-    target_link_libraries(compiler stdc++ ${Boost_LIBRARIES})
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
