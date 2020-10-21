@@ -71,7 +71,7 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    //print_opcode_entries();
+    print_opcode_entries();
 
     const char *paths[] =
     {
@@ -142,6 +142,10 @@ int main (int argc, char **argv)
         }
 
         bool debugging = true;
+        if (debugging)
+        {
+            rcEmulator.current_state = DEBUGGING;
+        }
 
         while (!done)
         {
@@ -174,7 +178,7 @@ int main (int argc, char **argv)
                     emulate = false;
                 }
 
-                if (debugging)
+                if (debugging && rcEmulator.current_state != WAITING)
                 {
                     rcEmulator.current_state = DEBUGGING;
                 }
@@ -206,12 +210,9 @@ int main (int argc, char **argv)
                     if (rcEmulator.current_state == DEBUGGING)
                     {
                         rcEmulator.current_state = RUNNING;
-                        debugging = true;
                     }
-                    else
-                    {
-                        debugging = true;
-                    }
+
+                    debugging = true;
                 }
             }
 
