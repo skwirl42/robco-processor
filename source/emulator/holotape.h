@@ -11,11 +11,20 @@ extern "C" {
 
 #define HOLOTAPE_BLOCK_SIZE         1024
 #define HOLOTAPE_FILE_NAME_MAX      8
+#define HOLOTAPE_MAX_BLOCKS         256
 
 typedef enum _holotape_status
 {
     HOLO_NO_ERROR,
+    
+    HOLO_INVALID_DECK,
+    HOLO_TAPE_NAME_TOO_LONG,
+    HOLO_IO_ERROR,
+
     HOLO_EMPTY,
+    HOLO_NOT_EMPTY,
+
+    HOLO_END_OF_TAPE,
 
     HOLO_NOT_FOUND,
     HOLO_NAME_TOO_LONG,
@@ -49,15 +58,13 @@ void holotape_deck_dispose(holotape_deck_t *deck);
 // Any block read/write functions will read/write from/to the block_buffer of the deck's struct
 holotape_status_t holotape_check(holotape_deck_t *deck);
 holotape_status_t holotape_eject(holotape_deck_t *deck);
+holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filename);
 holotape_status_t holotape_rewind(holotape_deck_t *deck);
+holotape_status_t holotape_seek(holotape_deck_t *deck, uint16_t seek_blocks);
+holotape_status_t holotape_read(holotape_deck_t *deck);
+holotape_status_t holotape_write(holotape_deck_t *deck);
 holotape_status_t holotape_find(holotape_deck_t *deck, const char *holo_filename);
 holotape_status_t holotape_execute(holotape_deck_t *deck);
-holotape_status_t holotape_seek(holotape_deck_t *deck, uint16_t seek_blocks);
-holotape_status_t holotape_read(holotape_deck_t *deck, uint16_t *out_byte_count);
-holotape_status_t holotape_write(holotape_deck_t *deck, uint16_t byte_count);
-holotape_status_t holotape_append(holotape_deck_t *deck, uint8_t *bytes, uint16_t byte_count);
-holotape_status_t holotape_blocks(holotape_deck_t *deck, uint16_t *out_block_count);
-holotape_status_t holotape_blockbytes(holotape_deck_t *deck, uint16_t *out_byte_count);
 
 #ifdef __cplusplus
 }

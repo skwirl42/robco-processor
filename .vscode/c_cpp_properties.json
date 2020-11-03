@@ -18,6 +18,21 @@
             "intelliSenseMode": "clang-x64",
             "compilerArgs": [],
             "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "Win",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${vcpkgRoot}/x86-windows/include",
+                "D:/boost_1_73_0"
+            ],
+            "defines": [
+            ],
+            "windowsSdkVersion": "10.0.17763.0",
+            "compilerPath": "D:/SecondaryProgramFiles/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.27.29110/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64"
         }
     ],
     "version": 4

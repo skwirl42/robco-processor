@@ -1,6 +1,10 @@
 #include "assembler.h"
 #include "opcodes.h"
+#ifdef _MSC_VER
+#include "XGetopt.h"
+#else
 #include <getopt.h>
+#endif
 
 void usage()
 {
@@ -15,18 +19,25 @@ int main(int argc, char **argv)
     char includes_buffer[LINE_BUFFER_SIZE+1];
     includes_buffer[0] = 0;
 
+#ifndef _MSC_VER
     static struct option long_options[] =
     {
         { "help", no_argument, 0, 'H' },
         { "include-dirs", required_argument, 0, 'I' },
         { 0, 0, 0, 0 }
     };
+#endif
+
     int c = 0;
     int option_index = 0;
     bool show_usage = false;
     while (c >= 0)
     {
+#ifdef _MSC_VER
+        c = getopt(argc, argv, "HI:");
+#else
         c = getopt_long(argc, argv, "HI:", long_options, &option_index);
+#endif
         if (c == -1)
         {
             break;

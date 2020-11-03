@@ -25,9 +25,6 @@
 #define			SYSCALL_SEEK            0x0205
 #define			SYSCALL_READ            0x0206
 #define         SYSCALL_WRITE           0x0207
-#define         SYSCALL_BLOCKS          0x0208
-#define         SYSCALL_BLOCKBYTES      0x0209
-#define         SYSCALL_APPEND          0x0210
 
 // Mainframe communication
 #define			SYSCALL_SENDCH          0x0300

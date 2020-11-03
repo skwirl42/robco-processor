@@ -4,6 +4,7 @@
 #include <optional>
 #include "opcodes.h"
 #include "memory.h"
+#include "executable_file.h"
 
 namespace
 {
@@ -33,6 +34,60 @@ char temp_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
 const char *current_filename;
 int *lineNumber;
+
+uint16_t executable_file_size(assembler_data_t *data)
+{
+    uint16_t file_size = sizeof(executable_file_header_t);
+    for (auto segment : data->regions)
+    {
+        if (segment->data_length > 0)
+        {
+            file_size += sizeof(executable_segment_header_t);
+            file_size += segment->data_length;
+        }
+    }
+
+    if (file_size == sizeof(executable_file_header_t))
+    {
+        return 0;
+    }
+
+    return file_size;
+}
+
+assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buffer)
+{
+    uint16_t file_size = executable_file_size(data);
+    std::vector<assembled_region_t*> included_segments;
+    for (auto segment : data->regions)
+    {
+        if (segment->data_length > 0)
+        {
+            included_segments.push_back(segment);
+        }
+    }
+
+    if (file_size == 0 || included_segments.size() == 0)
+    {
+        return ASSEMBLER_NOOUTPUT;
+    }
+
+    uint16_t buffer_index = 0;
+    executable_file_header_t header = { file_size, included_segments.size(), data->execution_start.value() };
+    memcpy(&buffer[buffer_index], &header, sizeof(executable_file_header_t));
+    buffer_index += sizeof(executable_file_header_t);
+
+    for (auto segment : included_segments)
+    {
+        executable_segment_header_t segment_header = { sizeof(executable_segment_header_t) + segment->data_length, segment->executable };
+        memcpy(&buffer[buffer_index], &segment_header, sizeof(executable_segment_header_t));
+        buffer_index += sizeof(executable_segment_header_t);
+        memcpy(&buffer[buffer_index], segment->data, segment->data_length);
+        buffer_index += segment->data_length;
+    }
+
+    return ASSEMBLER_SUCCESS;
+}
 
 assembler_status_t get_starting_executable_address(assembler_data_t *data, uint16_t *address)
 {
