@@ -19,6 +19,7 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 - SDL2_image
 - flex
 - bison
+- boost
 
 ## The Debugger
 While running the emulator clicking in the window with the mouse will pause execution and bring up the debugging screen. It shows the status of the registers, the contents of the stack, the data pointed at by the index registers, and the instruction that last executed. To resume normal execution press F5.
