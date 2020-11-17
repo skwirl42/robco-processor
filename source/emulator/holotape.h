@@ -15,7 +15,7 @@ extern "C" {
 
 typedef enum _holotape_status
 {
-    HOLO_NO_ERROR,
+    HOLO_NO_ERROR = 0,
     
     HOLO_INVALID_DECK,
     HOLO_TAPE_NAME_TOO_LONG,
@@ -32,13 +32,17 @@ typedef enum _holotape_status
 
 typedef struct _holotape_state holotape_state_t;
 
+#define HOLOTAPE_STRUCTURE_BYTE_COUNT   (HOLOTAPE_BLOCK_SIZE - HOLOTAPE_FILE_NAME_MAX - (2 * sizeof(emulator_word_t)))
+
 typedef struct _holotape_block
 {
     emulator_word_t block_bytes;
     emulator_word_t remaining_blocks_in_file;
-    char *filename[HOLOTAPE_FILE_NAME_MAX];
-    uint8_t bytes[HOLOTAPE_BLOCK_SIZE - HOLOTAPE_FILE_NAME_MAX - (2 * sizeof(emulator_word_t))];
+    char filename[HOLOTAPE_FILE_NAME_MAX];
+    uint8_t bytes[HOLOTAPE_STRUCTURE_BYTE_COUNT];
 } holotape_block_t;
+
+#define HOLOTYPE_HEADER_SIZE            (HOLOTAPE_BLOCK_SIZE - HOLOTAPE_STRUCTURE_BYTE_COUNT)
 
 typedef union _holotape_block_buffer
 {
@@ -60,6 +64,7 @@ holotape_status_t holotape_check(holotape_deck_t *deck);
 holotape_status_t holotape_eject(holotape_deck_t *deck);
 holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filename);
 holotape_status_t holotape_rewind(holotape_deck_t *deck);
+holotape_status_t holotape_rewind_block(holotape_deck_t *deck);
 holotape_status_t holotape_seek(holotape_deck_t *deck, uint16_t seek_blocks);
 holotape_status_t holotape_read(holotape_deck_t *deck);
 holotape_status_t holotape_write(holotape_deck_t *deck);

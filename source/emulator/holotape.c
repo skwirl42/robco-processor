@@ -15,7 +15,7 @@ typedef struct _holotape_state
 } holotape_state_t;
 
 static char empty_block_buffer[HOLOTAPE_BLOCK_SIZE];
-static bool initialized = false;
+static uint8_t initialized = 0;
 
 holotape_deck_t *holotape_deck_init()
 {
@@ -106,7 +106,7 @@ holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filena
     if (!initialized)
     {
         memset(empty_block_buffer, 0, sizeof(empty_block_buffer));
-        initialized = true;
+        initialized = 1;
     }
 
     fseek(deck->current_holotape->current_holotape_file, 0, SEEK_END);
@@ -128,7 +128,7 @@ holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filena
         deck->current_holotape->current_size = ftell(deck->current_holotape->current_holotape_file);
     }
 
-    rewind(deck->current_holotape->current_holotape_file);
+    fseek(deck->current_holotape->current_holotape_file, 0, SEEK_SET);
 
     return status;
 }
@@ -151,7 +151,34 @@ holotape_status_t holotape_rewind(holotape_deck_t *deck)
     }
 
     deck->current_holotape->current_block = 0;
-    rewind(deck->current_holotape->current_holotape_file);
+    fseek(deck->current_holotape->current_holotape_file, 0, SEEK_SET);
+
+    return HOLO_NO_ERROR;
+}
+
+holotape_status_t holotape_rewind_block(holotape_deck_t *deck)
+{
+    if (!deck)
+    {
+        return HOLO_INVALID_DECK;
+    }
+
+    if (!deck->current_holotape)
+    {
+        return HOLO_EMPTY;
+    }
+
+    if (!deck->current_holotape->current_holotape_file)
+    {
+        return HOLO_IO_ERROR;
+    }
+
+    if (deck->current_holotape->current_block > 0)
+    {
+        deck->current_holotape->current_block--;
+    }
+
+    fseek(deck->current_holotape->current_holotape_file, deck->current_holotape->current_block * HOLOTAPE_BLOCK_SIZE, SEEK_SET);
 
     return HOLO_NO_ERROR;
 }
@@ -206,6 +233,11 @@ holotape_status_t holotape_read(holotape_deck_t *deck)
     if (!deck->current_holotape->current_holotape_file)
     {
         return HOLO_IO_ERROR;
+    }
+
+    if (deck->current_holotape->current_block >= HOLOTAPE_MAX_BLOCKS)
+    {
+        return HOLO_END_OF_TAPE;
     }
 
     size_t bytes_read = fread(deck->block_buffer.buffer, 1, HOLOTAPE_BLOCK_SIZE, deck->current_holotape->current_holotape_file);
@@ -269,7 +301,6 @@ holotape_status_t holotape_find(holotape_deck_t *deck, const char *holo_filename
         return HOLO_NAME_TOO_LONG;
     }
 
-    bool found = false;
     while (deck->current_holotape->current_block < HOLOTAPE_MAX_BLOCKS)
     {
         holotape_status_t status = holotape_read(deck);

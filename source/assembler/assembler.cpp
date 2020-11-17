@@ -73,7 +73,7 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
     }
 
     uint16_t buffer_index = 0;
-    executable_file_header_t header = { file_size, included_segments.size(), data->execution_start.value() };
+    executable_file_header_t header = { file_size, (uint16_t)included_segments.size(), data->execution_start.value() };
     memcpy(&buffer[buffer_index], &header, sizeof(executable_file_header_t));
     buffer_index += sizeof(executable_file_header_t);
 
