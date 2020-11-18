@@ -100,7 +100,6 @@ void holotape_wrapper::append_file(const char *file_to_append)
         return;
     }
     
-
     strncpy(deck->block_buffer.block_structure.filename, filename_buffer, HOLOTAPE_FILE_NAME_MAX);
 
     auto current_size = std::filesystem::file_size(file_path);
@@ -115,22 +114,36 @@ void holotape_wrapper::append_file(const char *file_to_append)
         int blocks_remaining = block_count - 1;
         while (current_size > 0)
         {
-            size_t write_size = current_size > HOLOTAPE_STRUCTURE_BYTE_COUNT ? HOLOTAPE_STRUCTURE_BYTE_COUNT : current_size;
+            size_t read_size = current_size > HOLOTAPE_STRUCTURE_BYTE_COUNT ? HOLOTAPE_STRUCTURE_BYTE_COUNT : current_size;
             
-            deck->block_buffer.block_structure.block_bytes.word = write_size + HOLOTYPE_HEADER_SIZE;
+            deck->block_buffer.block_structure.block_bytes.word = read_size + HOLOTYPE_HEADER_SIZE;
             deck->block_buffer.block_structure.remaining_blocks_in_file.word = blocks_remaining--;
-            auto size_written = fread(deck->block_buffer.block_structure.bytes, 1, write_size, file);
+            auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, read_size, file);
 
-            current_size -= size_written;
+            if (size_read == read_size)
+            {
+                auto status = holotape_write(deck);
+                if (status != HOLO_NO_ERROR)
+                {
+                    fprintf(stderr, "Failed to write the appended block\n");
+                }
+            }
+            else
+            {
+                fprintf(stderr, "Could not write all bytes to the tape\n");
+            }
+
+            memset(deck->block_buffer.block_structure.bytes, 0, HOLOTAPE_STRUCTURE_BYTE_COUNT);
+            current_size -= size_read;
         }
     }
     else
     {
         deck->block_buffer.block_structure.block_bytes.word = current_size + HOLOTYPE_HEADER_SIZE;
         deck->block_buffer.block_structure.remaining_blocks_in_file.word = 0;
-        auto size_written = fread(deck->block_buffer.block_structure.bytes, 1, current_size, file);
+        auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, current_size, file);
 
-        if (size_written == current_size)
+        if (size_read == current_size)
         {
             auto status = holotape_write(deck);
             if (status != HOLO_NO_ERROR)
@@ -196,18 +209,19 @@ void holotape_wrapper::list()
     holotape_rewind(deck);
 
     char name[HOLOTAPE_FILE_NAME_MAX + 1];
-    char last_name[HOLOTAPE_FILE_NAME_MAX + 1] = "";
+    name[HOLOTAPE_FILE_NAME_MAX] = 0;
     for (int i = 0; i < HOLOTAPE_MAX_BLOCKS; i++)
     {
         auto read_status = holotape_read(deck);
         if (read_status == HOLO_NO_ERROR)
         {
-            strncpy(name, deck->block_buffer.block_structure.filename, HOLOTAPE_FILE_NAME_MAX);
-            if (strncmp(name, last_name, HOLOTAPE_FILE_NAME_MAX) != 0)
+            // Print the name of the last block of the file. If multiple files with the same name are found,
+            // it'll print those all out
+            if (deck->block_buffer.block_structure.remaining_blocks_in_file.word == 0 && deck->block_buffer.block_structure.filename[0] != 0)
             {
-                fprintf(stdout, "\t%s\n", name);
+                strncpy(name, deck->block_buffer.block_structure.filename, HOLOTAPE_FILE_NAME_MAX);
+                fprintf(stdout, "- %s\n", name);
             }
-            strncpy(last_name, name, HOLOTAPE_FILE_NAME_MAX);
         }
         else
         {
