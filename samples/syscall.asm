@@ -19,8 +19,8 @@
 .defword			FIND            0x0203
 .defword			EXECUTE         0x0204
 .defword			SEEK            0x0205
-.defword			LOAD            0x0206
-.defword			LOADX           0x0207
+.defword			READ            0x0206
+.defword            WRITE           0x0207
 
 ; Mainframe communication
 .defword			SENDCH          0x0300

@@ -18,37 +18,7 @@
 #include "assembler.h"
 #include "opcodes.h"
 
-uint8_t testCode[] =
-{
-    // start:
-    0x7f, 0x01, 0x06, // syscall clear
-    // loop:
-    0x00, 0x48, // push H
-    0x00, 0x65, // push e
-    0x00, 0x6C, // push l
-    0x00, 0x6C, // push l
-    0x00, 0x6F, // push o
-    0x00, 0x20, // push ' '
-    0x00, 0x77, // push w
-    0x00, 0x6F, // push o
-    0x00, 0x72, // push r
-    0x00, 0x6C, // push l
-    0x00, 0x64, // push d
-    0x00, 0x21, // push !
-    0x00, 0x0D, // push \r
-    0x00, 0x0A, // push \n
-    0x20, 0x00, 0x0E, // push 14
-    0x7f, 0x01, 0x02, // syscall print
-    0x60, 0xFF, 0xDE  // b loop
-};
-
 const char *blank_line = "                                                            ";
-
-int mod(int a, int b)
-{
-    int r = a % b;
-    return r < 0 ? r + b : r;
-}
 
 void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
 {
@@ -116,7 +86,7 @@ int main (int argc, char **argv)
     {
         auto fontfilename = argv[1];
         // Format of the font file is 16 chars wide, 8 chars tall
-        renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 8, 100);
+        renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 16, 100);
         renderer->Clear();
     }
     else

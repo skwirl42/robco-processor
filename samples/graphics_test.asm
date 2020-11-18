@@ -47,7 +47,7 @@ draw_loop:
 	pushw [dp]
 	pushiw GRAPHICS_END
 	cmpw
-	beq get_up
+	beq loop
 	pushw [dp]
 	dupw
 	pop
@@ -56,7 +56,6 @@ draw_loop:
 	pullw [dp]
 	b draw_loop
 
-get_up:
 loop:
 	sync
 	b loop

@@ -23,8 +23,8 @@
 #define			SYSCALL_FIND            0x0203
 #define			SYSCALL_EXECUTE         0x0204
 #define			SYSCALL_SEEK            0x0205
-#define			SYSCALL_LOAD            0x0206
-#define			SYSCALL_LOADX           0x0207
+#define			SYSCALL_READ            0x0206
+#define         SYSCALL_WRITE           0x0207
 
 // Mainframe communication
 #define			SYSCALL_SENDCH          0x0300

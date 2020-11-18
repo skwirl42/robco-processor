@@ -61,6 +61,11 @@ assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_
 int get_error_buffer_size(assembler_data_t *data);
 const char *get_error_buffer(assembler_data_t *data);
 
+// The buffer provided to prepare_executable_file must be at least big enough
+// to hold the number of bytes returned by executable_file_size
+uint16_t executable_file_size(assembler_data_t *data);
+assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buffer);
+
 #ifdef __cplusplus
 }
 #endif

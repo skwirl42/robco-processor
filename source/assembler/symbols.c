@@ -56,7 +56,7 @@ void output_symbols(FILE *output_file, symbol_table_t *symbol_table)
         current_entry = current_entry->next_entry;
     }
 
-    fprintf(output_file, "\nReferences:\n");
+    fprintf(output_file, "\nForward references:\n");
     symbol_reference_t *current_reference = symbol_table->first_reference;
     while (current_reference != 0)
     {

@@ -2,6 +2,8 @@
 #include "syscall.h"
 #include "opcodes.h"
 #include "graphics.h"
+#include "holotape.h"
+#include "syscall_holotape_handlers.h"
 
 #include <deque>
 
@@ -193,6 +195,17 @@ void handle_current_syscall(emulator &emulator, Console &console)
 
     case SYSCALL_GETCH:
         nextState = handle_syscall_getch(emulator, console);
+        break;
+
+    case SYSCALL_HOLOTAPECHECK:
+    case SYSCALL_HOLOTAPEEJECT:
+    case SYSCALL_REWIND:
+    case SYSCALL_FIND:
+    case SYSCALL_EXECUTE:
+    case SYSCALL_SEEK:
+    case SYSCALL_READ:
+    case SYSCALL_WRITE:
+        handle_holotape_syscall(emulator);
         break;
 
     case SYSCALL_GRAPHICSTART:
