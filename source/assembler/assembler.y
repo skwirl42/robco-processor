@@ -15,7 +15,7 @@ extern int yylex();
 
 %token <opcode> INSTRUCTION
 %token <strval> SYMBOL QUOTED_STRING 
-%token <intval> WORD_LITERAL INTEGER_LITERAL INCREMENT
+%token <intval> WORD_LITERAL INTEGER_LITERAL CHAR_LITERAL INCREMENT
 %token <byteval> BYTE_LITERAL
 %token <bytearray> BYTE_SEQUENCE
 %token <index_register> REGISTER_ARGUMENT
@@ -95,6 +95,7 @@ instruction_line : INSTRUCTION SYMBOL { handle_instruction(assembler_data, $1, $
         | INSTRUCTION BYTE_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION WORD_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION INTEGER_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
+        | INSTRUCTION CHAR_LITERAL { handle_instruction(assembler_data, $1, 0, $2); }
         | INSTRUCTION indexed_register { handle_indexed_instruction(assembler_data, $1, $2); }
         | INSTRUCTION { handle_instruction(assembler_data, $1, 0, 0); }
         ;

@@ -1,11 +1,10 @@
-; Main entry point for the forth repl
+; Main entry point for RobCo BASIC
 .include "syscall.asm"
 
-.data               PROMPT              "ok> "
+.data               PROMPT              "OK\n"
 .reserve            INPUT_BUFFER        256
 
 .defbyte			cr				    0x0D
-.defbyte            space               0x20
 .defword            INPUT_BUFFER_SIZE   256
 
 start:
@@ -31,3 +30,4 @@ print_prompt:
 
 
 .include "get_string_include.asm"
+.include "parse_int_include.asm"

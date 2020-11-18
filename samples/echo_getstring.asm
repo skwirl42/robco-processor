@@ -3,6 +3,7 @@
 .data PROMPT "Please enter some text and then press return:\n"
 .reserve STRING 256
 
+    syscall CLEAR
 loop:
     pushiw PROMPT
     pullx
