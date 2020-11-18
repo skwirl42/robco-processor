@@ -73,15 +73,18 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
     }
 
     uint16_t buffer_index = 0;
+    uint16_t segment_header_size = sizeof(executable_segment_header_t);
     executable_file_header_t header = { file_size, (uint16_t)included_segments.size(), data->execution_start.value() };
+    executable_segment_header_t segment_header;
     memcpy(&buffer[buffer_index], &header, sizeof(executable_file_header_t));
     buffer_index += sizeof(executable_file_header_t);
 
     for (auto segment : included_segments)
     {
-        executable_segment_header_t segment_header = { sizeof(executable_segment_header_t) + segment->data_length, segment->executable };
-        memcpy(&buffer[buffer_index], &segment_header, sizeof(executable_segment_header_t));
-        buffer_index += sizeof(executable_segment_header_t);
+        segment_header.segment_length = segment_header_size + segment->data_length;
+        segment_header.is_code = segment->executable;
+        memcpy(&buffer[buffer_index], &segment_header, segment_header_size);
+        buffer_index += segment_header_size;
         memcpy(&buffer[buffer_index], segment->data, segment->data_length);
         buffer_index += segment->data_length;
     }
