@@ -15,6 +15,7 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 
 ## Requirements:
 - CMake 3.15+
+- C++17 compiler
 - SDL2
 - SDL2_image
 - flex
