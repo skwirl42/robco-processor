@@ -273,7 +273,15 @@ holotape_status_t holotape_write(holotape_deck_t *deck)
         return HOLO_IO_ERROR;
     }
 
-    size_t bytes_written = fwrite(deck->block_buffer.buffer, 1, HOLOTAPE_BLOCK_SIZE, deck->current_holotape->current_holotape_file);
+    // Write out the word-sized fields big-endian
+    size_t bytes_written = 0;
+    holotape_block_t *structure = &deck->block_buffer.block_structure;
+    bytes_written += fwrite(&structure->block_bytes.bytes[1], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_written += fwrite(&structure->block_bytes.bytes[0], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_written += fwrite(&structure->remaining_blocks_in_file.bytes[1], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_written += fwrite(&structure->remaining_blocks_in_file.bytes[0], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_written += fwrite(structure->filename, 1, HOLOTAPE_FILE_NAME_MAX, deck->current_holotape->current_holotape_file);
+    bytes_written += fwrite(structure->bytes, 1, HOLOTAPE_STRUCTURE_BYTE_COUNT, deck->current_holotape->current_holotape_file);
     if (bytes_written != HOLOTAPE_BLOCK_SIZE)
     {
         return HOLO_IO_ERROR;

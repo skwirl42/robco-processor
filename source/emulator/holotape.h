@@ -10,7 +10,7 @@ extern "C" {
 #include "emulator.h"
 
 #define HOLOTAPE_BLOCK_SIZE         1024
-#define HOLOTAPE_FILE_NAME_MAX      8
+#define HOLOTAPE_FILE_NAME_MAX      32
 #define HOLOTAPE_MAX_BLOCKS         256
 
 typedef enum _holotape_status
