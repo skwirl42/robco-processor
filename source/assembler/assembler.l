@@ -12,6 +12,7 @@ BYTE_LITERAL            0x[a-fA-F0-9]{2}
 WORD_LITERAL            0x[a-fA-F0-9]+
 INTEGER_LITERAL         [+\-]?[0-9]+
 BINARY_LITERAL          0b[01]+
+CHAR_LITERAL            '.'
 INCLUDE_DIRECTIVE       \.include
 DEFBYTE_DIRECTIVE       \.defbyte
 DEFWORD_DIRECTIVE       \.defword
@@ -42,6 +43,11 @@ DECREMENT               \-{1,2}
 {INTEGER_LITERAL} {
     sscanf(yytext, "%d", &yylval.intval);
     return INTEGER_LITERAL;
+}
+
+{CHAR_LITERAL} {
+    yylval.intval = yytext[1];
+    return CHAR_LITERAL;
 }
 
 {INCLUDE_DIRECTIVE} {

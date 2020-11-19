@@ -15,8 +15,8 @@ start:
 	;pushi 0x73				; 320x240, 2 bpp, border on - 19,200 bytes
 	;pushi 0x71				; 320x240, 1 bpp, border on - 9,600 bytes
 	;pushi 0x47				; 240x160, 8 bpp, border off - 38,400 bytes
-	;pushi 0x45				; 240x160, 4 bpp, border off - 19,200 bytes
-	pushi 0x43				; 240x160, 2 bpp, border off - 9,600 bytes
+	pushi 0x45				; 240x160, 4 bpp, border off - 19,200 bytes
+	;pushi 0x43				; 240x160, 2 bpp, border off - 9,600 bytes
 	;pushi 0x41				; 240x160, 1 bpp, border off - 4,800 bytes
 	;pushi 0x37				; 192x128, 8 bpp, border on - 24,576 bytes
 	;pushi 0x35				; 192x128, 4 bpp, border on - 12,288 bytes
@@ -33,13 +33,13 @@ start:
 	pushiw ERROR_STRING
 	pullx
 	syscall PRINT
-	b loop
+	b end_loop
 draw_start:
 	pushiw GRAPHICS_START
+	dupw
 	pullx
 	sync
-	pushiw 0
-	dup
+	pushi 0
 	pulldp
 	pullw [dp]
 
@@ -47,7 +47,7 @@ draw_loop:
 	pushw [dp]
 	pushiw GRAPHICS_END
 	cmpw
-	beq loop
+	beq end_loop
 	pushw [dp]
 	dupw
 	pop
@@ -56,6 +56,6 @@ draw_loop:
 	pullw [dp]
 	b draw_loop
 
-loop:
+end_loop:
 	sync
-	b loop
+	b end_loop

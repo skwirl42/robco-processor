@@ -30,7 +30,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/echo_getstring.asm";
+const char* sample_file = "samples/graphics_test.asm";
 
 int main (int argc, char **argv)
 {
@@ -41,7 +41,7 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    //print_opcode_entries();
+    print_opcode_entries();
 
     const char *paths[] =
     {
@@ -112,10 +112,17 @@ int main (int argc, char **argv)
         }
 
         bool debugging = true;
+        if (debugging)
+        {
+            rcEmulator.current_state = DEBUGGING;
+        }
 
         while (!done)
         {
-            get_debug_info(&rcEmulator, debugging_buffers);
+            if (debugging)
+            {
+                get_debug_info(&rcEmulator, debugging_buffers);
+            }
 
             inst_result_t result = SUCCESS;
             if (emulate && emulator_can_execute(&rcEmulator))
@@ -144,7 +151,7 @@ int main (int argc, char **argv)
                     emulate = false;
                 }
 
-                if (debugging)
+                if (debugging && rcEmulator.current_state != WAITING)
                 {
                     rcEmulator.current_state = DEBUGGING;
                 }
@@ -176,12 +183,9 @@ int main (int argc, char **argv)
                     if (rcEmulator.current_state == DEBUGGING)
                     {
                         rcEmulator.current_state = RUNNING;
-                        debugging = true;
                     }
-                    else
-                    {
-                        debugging = true;
-                    }
+
+                    debugging = true;
                 }
             }
 

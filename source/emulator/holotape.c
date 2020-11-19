@@ -1,7 +1,7 @@
 #include "holotape.h"
 
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "opcodes.h"
@@ -91,7 +91,12 @@ holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filena
     deck->current_holotape = (holotape_state_t*)malloc(sizeof(holotape_state_t));
     memset(deck->current_holotape, 0, sizeof(holotape_state_t));
 
-    FILE *tape_file = fopen(tape_filename, "a+");
+    FILE *tape_file = fopen(tape_filename, "r+");
+
+    if (tape_file == 0)
+    {
+        tape_file = fopen(tape_filename, "w+");
+    }
 
     if (!tape_file)
     {

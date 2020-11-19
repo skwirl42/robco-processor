@@ -729,23 +729,50 @@ void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER
                 debugging_buffers[i][j] = 0;
             }
         }
+        const char *state_string = "Unknown exec state";
+        switch (emulator->current_state)
+        {
+        case RUNNING:
+            state_string = "Running";
+            break;
+
+        case FINISHED:
+            state_string = "Finished";
+            break;
+
+        case WAITING:
+            state_string = "Waiting";
+            break;
+
+        case ERROR:
+            state_string = "error";
+            break;
+
+        case DEBUGGING:
+            state_string = "Debugging";
+            break;
+        }
         int length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "Machine state: PC: 0x%04x, SP: 0x%02x, ISP: 0x%02x,",
             emulator->PC,
             emulator->SP,
             emulator->ISP
         );
         
-        length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "X: 0x%04x, CC: 0x%02x, DP: 0x%02x",
+        length = snprintf(debugging_buffers[current_buffer++], LINE_BUFFER_SIZE, "X: 0x%04x, CC: 0x%02x, DP: 0x%02x (%s)",
             emulator->X,
             emulator->CC,
-            emulator->DP
+            emulator->DP,
+            state_string
         );
 
         int index = 0;
         index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "Stack: ");
-        for (int i = emulator->SP - 1; i > 0; --i)
+        if (emulator->SP > 0)
         {
-            index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "0x%02x ", emulator->memories.user_stack[i]);
+            for (int i = emulator->SP - 1; i >= 0; --i)
+            {
+                index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "0x%02x ", emulator->memories.user_stack[i]);
+            }
         }
         debugging_buffers[current_buffer++][index] = 0;
 
@@ -903,6 +930,7 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
         
         case OPCODE_SYNC:
+            new_pc--;
             result = SYNC;
             break;
 
