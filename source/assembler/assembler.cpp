@@ -540,7 +540,7 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
     auto region = find_region_containing(data, ref_location);
     if (region == nullptr)
     {
-        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x", ref_location);
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x)", ref_location);
         add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
         return;
     }
@@ -550,13 +550,24 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
     {
         region->data[ref_index] = byte_value;
     }
+    else if (symbol_type == SYMBOL_ADDRESS_INST && expected_signedness == SIGNEDNESS_SIGNED)
+    {
+        auto address_offset = (int)word_value.uword - ((int)ref_location - 1);
+        if (address_offset > 127 || address_offset < -128)
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", ref_location, word_value.uword);
+            add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+            return;
+        }
+        else
+        {
+            auto signed_byte = (int8_t)address_offset;
+            region->data[ref_index] = *((uint8_t*)&signed_byte);
+            printf("Start loc 0x%04x, target loc 0x%04x, addr offset %d, byte offset 0x%02x\n", ref_location - 1, word_value.uword, address_offset, signed_byte);
+        }
+    }
     else
     {
-        if (expected_signedness == SIGNEDNESS_SIGNED)
-        {
-            // NOTE: This is assuming that the only symbol ref looking for a signed word is a branch instruction
-            word_value.sword -= (int16_t)ref_location - 1;
-        }
         region->data[ref_index] = word_value.bytes[1];
         region->data[ref_index + 1] = word_value.bytes[0];
     }
@@ -735,12 +746,28 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
                 break;
 
             case SYMBOL_ADDRESS_INST:
-                if (opcode->argument_signedness == SIGNEDNESS_SIGNED)
+                if (opcode->argument_signedness == SIGNEDNESS_SIGNED && opcode->arg_byte_count == 1)
                 {
-                    word.sword -= (int16_t)current_instruction_address;
-                    // fprintf(stdout, "Branching by %d, from %zu to %u\n", target, data->instruction_size + 3, word_value);
+                    auto address = get_current_instruction_address(data);
+                    auto address_offset = (int)word_value - address;
+                    if (address_offset > 127 || address_offset < -128)
+                    {
+                        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", address, word_value);
+                        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                        return;
+                    }
+                    else
+                    {
+                        auto signed_byte = (int8_t)address_offset;
+                        auto unsigned_byte = *((uint8_t*)&signed_byte);
+                        apply_machine_instruction(data, opcode->opcode, unsigned_byte);
+                        printf("Start loc 0x%04x, target loc 0x%04x, addr offset %d, byte offset 0x%02x\n", address, word_value, address_offset, signed_byte);
+                    }
                 }
-                apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
+                else
+                {
+                    apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
+                }
                 break;
 
             case SYMBOL_NO_TYPE:

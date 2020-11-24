@@ -12,6 +12,7 @@
 #endif // defined(APPLE)
 #include <stdio.h>
 #include <string.h>
+#include <chrono>
 
 #include "syscall_handlers.h"
 #include "key_conversion.h"
@@ -30,7 +31,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/graphics_test.asm";
+const char* sample_file = "samples/echo_getstring.asm";
 
 int main (int argc, char **argv)
 {
@@ -103,6 +104,7 @@ int main (int argc, char **argv)
         bool emulate = true;
         SDL_Event event;
         int frame = 0;
+        opcode_entry_t* executed_opcode = nullptr;
 
         int debugging_lines_start = console.GetHeight() - DEBUGGING_BUFFER_COUNT;
         char *debugging_buffers[DEBUGGING_BUFFER_COUNT];
@@ -111,7 +113,7 @@ int main (int argc, char **argv)
             debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
         }
 
-        bool debugging = true;
+        bool debugging = false;
         if (debugging)
         {
             rcEmulator.current_state = DEBUGGING;
@@ -129,7 +131,7 @@ int main (int argc, char **argv)
             {
                 const int max_cycles = 100;
                 int current_cycle = 0;
-                while ((result = execute_instruction(&rcEmulator)) == SUCCESS)
+                while ((result = execute_instruction(&rcEmulator, &executed_opcode)) == SUCCESS)
                 {
                     if (current_cycle++ == max_cycles)
                     {

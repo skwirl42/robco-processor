@@ -842,7 +842,7 @@ void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER
     }
 }
 
-inst_result_t execute_instruction(emulator *emulator)
+inst_result_t execute_instruction(emulator *emulator, opcode_entry_t** executed_instruction)
 {
     address_t original_pc = emulator->PC;
     uint8_t opcode = fetch_instruction_byte(emulator);
@@ -850,8 +850,11 @@ inst_result_t execute_instruction(emulator *emulator)
     address_t new_pc = original_pc + 2;
     uint8_t imm_msb = emulator->memories.data[original_pc + 1];
     uint8_t imm_lsb = emulator->memories.data[original_pc + 2];
+    int8_t imm_signed = *((int8_t*)&imm_msb);
     address_t imm_16 = ((uint16_t)imm_msb << 8) | imm_lsb;
-    address_t twos_new_pc = original_pc + (((int16_t)imm_msb << 8) | (int16_t)imm_lsb);
+    address_t twos_new_pc = original_pc + imm_signed;
+
+    *executed_instruction = get_opcode_entry_from_opcode(opcode);
  
     if (opcode & ALU_INST_BASE)
     {
@@ -879,7 +882,6 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
         
         case OPCODE_BEQ:
-            new_pc++;
             if (emulator->CC & CC_ZERO)
             {
                 branch = 1;
@@ -887,7 +889,6 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
 
         case OPCODE_BCR:
-            new_pc++;
             if (emulator->CC & CC_CARRY)
             {
                 branch = 1;
@@ -895,7 +896,6 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
 
         case OPCODE_BLT:
-            new_pc++;
             if (emulator->CC & CC_NEG)
             {
                 branch = 1;
@@ -903,7 +903,6 @@ inst_result_t execute_instruction(emulator *emulator)
             break;
 
         case OPCODE_BOV:
-            new_pc++;
             if (emulator->CC & CC_OVERFLOW)
             {
                 branch = 1;
@@ -941,6 +940,7 @@ inst_result_t execute_instruction(emulator *emulator)
     
         if (branch)
         {
+            printf("Branching to 0x%04x from 0x%04x, by %d\n", twos_new_pc, original_pc, imm_signed);
             new_pc = twos_new_pc;
         }
 

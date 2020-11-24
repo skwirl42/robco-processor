@@ -12,8 +12,11 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef XGETOPT_H
-#define XGETOPT_H
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <tchar.h>
 
@@ -22,4 +25,6 @@ extern TCHAR *optarg;
 
 int getopt(int argc, TCHAR *argv[], TCHAR *optstring);
 
-#endif //XGETOPT_H
+#ifdef __cplusplus
+}
+#endif
