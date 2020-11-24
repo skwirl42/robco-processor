@@ -121,42 +121,11 @@ int main (int argc, char **argv)
 
         while (!done)
         {
+            inst_result_t result = SUCCESS;
+
             if (debugging)
             {
                 get_debug_info(&rcEmulator, debugging_buffers);
-            }
-
-            inst_result_t result = SUCCESS;
-            if (emulate && emulator_can_execute(&rcEmulator))
-            {
-                const int max_cycles = 100;
-                int current_cycle = 0;
-                while ((result = execute_instruction(&rcEmulator, &executed_opcode)) == SUCCESS)
-                {
-                    if (current_cycle++ == max_cycles)
-                    {
-                        break;
-                    }
-
-                    if (debugging)
-                    {
-                        break;
-                    }
-                }
-                if (result == EXECUTE_SYSCALL)
-                {
-                    handle_current_syscall(rcEmulator, console);
-                }
-                else if (result == ILLEGAL_INSTRUCTION)
-                {
-                    fprintf(OUT_FILE, "Emulation failed with an illegal instruction\n");
-                    emulate = false;
-                }
-
-                if (debugging && rcEmulator.current_state != WAITING)
-                {
-                    rcEmulator.current_state = DEBUGGING;
-                }
             }
 
             if (SDL_PollEvent(&event))
@@ -204,21 +173,62 @@ int main (int argc, char **argv)
             {
                 if (rcEmulator.graphics_mode.enabled)
                 {
-                    if (result == SYNC)
-                    {
-                        renderer->Render(&rcEmulator);
-                    }
+                    renderer->Render(&rcEmulator);
                 }
                 else
                 {
                     renderer->Render(&console, frame++);
                 }
             }
+
+            if (emulate && emulator_can_execute(&rcEmulator))
+            {
+                const int max_cycles = 10000;
+                int current_cycle = 0;
+                do
+                {
+                    result = execute_instruction(&rcEmulator, &executed_opcode);
+                    if (executed_opcode->cycles > 0)
+                    {
+                        current_cycle += executed_opcode->cycles;
+                        auto cycle_time = std::chrono::microseconds(executed_opcode->cycles);
+                        auto end_time = cycle_time + std::chrono::high_resolution_clock::now();
+                        while (std::chrono::high_resolution_clock::now() < end_time)
+                        {
+                            // max_cycles microseconds of spinning isn't gonna hurt anything
+                        }
+                    }
+                    else
+                    {
+                        current_cycle++;
+                    }
+
+                    if (debugging)
+                    {
+                        break;
+                    }
+                } while (result == SUCCESS && current_cycle <= max_cycles);
+
+                if (result == EXECUTE_SYSCALL)
+                {
+                    handle_current_syscall(rcEmulator, console);
+                }
+                else if (result == ILLEGAL_INSTRUCTION)
+                {
+                    fprintf(OUT_FILE, "Emulation failed with an illegal instruction\n");
+                    emulate = false;
+                }
+
+                if (debugging && rcEmulator.current_state != WAITING)
+                {
+                    rcEmulator.current_state = DEBUGGING;
+                }
+            }
         }
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
         {
-            delete [] debugging_buffers[i];
+            delete [] (debugging_buffers[i]);
         }
     }
 

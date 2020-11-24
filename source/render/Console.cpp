@@ -112,12 +112,11 @@ void Console::PrintAt(const char *text, int x, int y)
 	int stringLength = std::strlen(text);
 	int finalPosition = position + stringLength;
 
-	if (finalPosition > bufferSize)
+	if (finalPosition >= bufferSize)
 	{
 		// Truncate the string if it'd go past the end of the buffer
-		printf("Truncating string\n");
-		stringLength = bufferSize - stringLength;
-		finalPosition = bufferSize;
+		stringLength = (bufferSize - position) - 1;
+		finalPosition = bufferSize - 1;
 	}
 
 	std::strncpy(&buffer[position], text, stringLength);
