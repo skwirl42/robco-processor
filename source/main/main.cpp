@@ -31,7 +31,7 @@ void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
     }
 }
 
-const char* sample_file = "samples/echo_getstring.asm";
+const char* sample_file = "samples/graphics_test.asm";
 
 int main (int argc, char **argv)
 {

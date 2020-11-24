@@ -58,7 +58,7 @@ int main(int argc, char **argv)
         usage();
     }
 
-    const char **includes;
+    const char **includes = nullptr;
     if (strlen(includes_buffer) > 0)
     {
         int length = strlen(includes_buffer);

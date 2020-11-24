@@ -940,7 +940,6 @@ inst_result_t execute_instruction(emulator *emulator, opcode_entry_t** executed_
     
         if (branch)
         {
-            printf("Branching to 0x%04x from 0x%04x, by %d\n", twos_new_pc, original_pc, imm_signed);
             new_pc = twos_new_pc;
         }
 
