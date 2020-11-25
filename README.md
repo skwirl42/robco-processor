@@ -29,9 +29,18 @@ While running the emulator clicking in the window with the mouse will pause exec
 While the main executable assembles a program before executing it, you can use the "assembler" cmake target to make a standalone version of the assembler. The standalone assembler outputs a text file containing the hexadecimal code and data regions, and a list of symbols defined in the program. This file is not meant to be executed, but rather for debugging and testing purposes.
 
 ## TODO
+### Ease of use
 - [ ] Write a programming guide
-- [x] Better error handling for the assembler
-- [ ] Update the debugger to support showing the next instruction to be executed, instead of the last
-- [ ] Update the debugger to properly show the source arguments for register indexed instructions
-- [ ] Allow for swapping between the debug and regular console while execution remains paused
 - [ ] More better user experience
+- [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameter, etc
+- [ ] Allow for swapping between the debug and regular console while execution remains paused
+## Functionality
+- [ ] Implement support for executing programs from tape
+- [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
+### Refactoring/increased cross-platform parity
+- [ ] Rewrite command line options using boost's Program Options library
+- [ ] Rewrite assembler parsing using boost::spirit
+### Complete
+- [x] Better error handling for the assembler
+- [x] Update the debugger to support showing the next instruction to be executed, instead of the last
+- [x] Update the debugger to properly show the source arguments for register indexed instructions
