@@ -17,11 +17,17 @@ if (MSVC) # Wanted to use WSL, but it was causing issues - GnuWin32
 set(FLEX_EXECUTABLE D:/GnuWin32/bin/flex)
 set(BISON_EXECUTABLE D:/GnuWin32/bin/bison)
 set(BOOST_ROOT D:/boost_1_73_0)
+
+find_package(SDL2 CONFIG REQUIRED)
+find_package(sdl2-image CONFIG REQUIRED)
+
+# Going to need to include specific boost libraries
+#find_package(boost CONFIG REQUIRED)
 endif()
 
-find_package(Boost)
-find_package (BISON)
-find_package (FLEX)
+find_package (BISON REQUIRED)
+find_package (FLEX REQUIRED)
+find_package (Boost REQUIRED COMPONENTS program_options)
 
 BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
 FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
@@ -39,9 +45,9 @@ add_executable(robcoterm
     source/main/opcode_table.c
     source/assembler/assembler.cpp
     source/assembler/symbols.c
+    source/sound/sound_system.cpp
     ${FLEX_AssemblerLex_OUTPUTS}
-    ${BISON_AssemblerYacc_OUTPUTS}
-    )
+    ${BISON_AssemblerYacc_OUTPUTS})
 
 target_include_directories(robcoterm PRIVATE 
     source/main
@@ -78,29 +84,51 @@ target_include_directories(tapemanager PRIVATE
     source/assembler
     ${Boost_INCLUDE_DIRS})
 
+add_executable(sound_test
+    source/sound/sound_test_main.cpp
+    source/sound/sound_system.cpp)
+
+target_include_directories(sound_test PRIVATE
+    source/include
+    ${Boost_INCLUDE_DIRS})
+
+target_link_libraries(sound_test PUBLIC  ${Boost_LIBRARIES})
+
 target_link_directories(robcoterm PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(assembler PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(tapemanager PUBLIC ${Boost_LIBRARY_DIRS})
+target_link_directories(sound_test PUBLIC ${Boost_LIBRARY_DIRS})
 
 if (APPLE)
+    find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
+    find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
+
     target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(assembler stdc++)
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
     target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
-    find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
-    find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
     target_include_directories(robcoterm PUBLIC ${SDL2_IMAGE_INCLUDE_DIR} ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+
+    target_link_directories(sound_test PUBLIC /usr/local/homebrew/lib)
+    target_link_libraries(sound_test stdc++ "-F /Library/Frameworks" "-framework SDL2")
+    target_include_directories(sound_test PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+
     set (CMAKE_CXX_FLAGS "-std=c++17 -DAPPLE")
 endif (APPLE)
 
 if (MSVC)
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
+    target_link_libraries(robcoterm PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
+
     target_include_directories(assembler PUBLIC D:/GnuWin32/include source/xgetopt)
     target_sources(assembler PUBLIC source/xgetopt/XGetopt.c)
+
     target_include_directories(tapemanager PUBLIC D:/GnuWin32/include source/xgetopt)
     target_sources(tapemanager PUBLIC source/xgetopt/XGetopt.c)
+
+    target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main)
 endif ()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
