@@ -161,6 +161,12 @@ void ConsoleSDLRenderer::Cleanup()
         fontBuffer = nullptr;
     }
 
+    if (texture != nullptr)
+    {
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
+
     if (renderer != nullptr)
     {
         SDL_DestroyRenderer(renderer);
@@ -171,12 +177,6 @@ void ConsoleSDLRenderer::Cleanup()
     {
         SDL_DestroyWindow(window);
         window = nullptr;
-    }
-    
-    if (texture != nullptr)
-    {
-        SDL_DestroyTexture(texture);
-        texture = nullptr;
     }
 }
 
