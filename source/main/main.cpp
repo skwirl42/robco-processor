@@ -42,7 +42,7 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    print_opcode_entries();
+    //print_opcode_entries();
 
     const char *paths[] =
     {
@@ -107,7 +107,7 @@ int main (int argc, char **argv)
         opcode_entry_t* executed_opcode = nullptr;
 
         int debugging_lines_start = console.GetHeight() - DEBUGGING_BUFFER_COUNT;
-        char *debugging_buffers[DEBUGGING_BUFFER_COUNT];
+        char *debugging_buffers[DEBUGGING_BUFFER_COUNT]{};
         for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
         {
             debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
@@ -151,16 +151,22 @@ int main (int argc, char **argv)
                 }
                 else if (event.type == SDL_MOUSEBUTTONDOWN)
                 {
-                    if (rcEmulator.current_state == DEBUGGING)
-                    {
-                        rcEmulator.current_state = RUNNING;
-                    }
+                    auto mouse_button_event = event.button;
 
-                    debugging = true;
+                    if (mouse_button_event.button == SDL_BUTTON_LEFT)
+                    {
+                        if (rcEmulator.current_state == DEBUGGING)
+                        {
+                            rcEmulator.current_state = RUNNING;
+                        }
+
+                        debugging = true;
+                    }
                 }
             }
 
-            if (debugging || rcEmulator.current_state == DEBUGGING)
+            bool show_screen_when_debugging = SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(SDL_BUTTON_RIGHT);
+            if (!show_screen_when_debugging && (debugging || rcEmulator.current_state == DEBUGGING))
             {
                 debugConsole.Clear();
                 for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)

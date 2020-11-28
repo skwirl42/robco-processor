@@ -32,7 +32,6 @@ While the main executable assembles a program before executing it, you can use t
 - [ ] Write a programming guide
 - [ ] More better user experience
 - [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameter, etc
-- [ ] Allow for swapping between the debug and regular console while execution remains paused
 ## Functionality
 - [ ] Implement support for executing programs from tape
 - [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
@@ -43,3 +42,4 @@ While the main executable assembles a program before executing it, you can use t
 - [x] Better error handling for the assembler
 - [x] Update the debugger to support showing the next instruction to be executed, instead of the last
 - [x] Update the debugger to properly show the source arguments for register indexed instructions
+- [x] Allow for swapping between the debug and regular console while execution remains paused (hold right mouse button)
