@@ -8,8 +8,7 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
   * Install SDL2 and SLD2_image to /Library/Frameworks in any way you choose
   * flex (latest) and bison (2.7) need to be installed via homebrew: https://brew.sh/
 - Windows with Visual Studio installed
-  * note: you'll need to add SDL2 and SLD2_image using nuget, as cmake's nuget support and VS C++ projects don't get along
-  * this is best accomplished by installing sdl2_image first, as it will pick out the right SDL2 it needs
+  * note: you'll need to add boost, SDL2 and SLD2_image using vcpkg
   * flex and bison should be installed from the GnuWin32 site http://gnuwin32.sourceforge.net/
 - Could probably be easily ported to other platforms/versions, as code is straight C/C++ and SDL2
 
