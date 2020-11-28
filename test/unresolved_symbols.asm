@@ -1,5 +1,5 @@
 ; Without syscall.asm included all syscall lines should report bad symbols
-.data HELLO_WORLD 0x48 0x65 0x6C 0x6C 0x6F 0x20 0x77 0x6F 0x72 0x6C 0x64 0x21 0x0A 0x00
+.data HELLO_WORLD "Hello world!"
 
     syscall CLEAR           ; Clear the screen
     pushi 0                 ; Set DP to point to the first byte of the direct page

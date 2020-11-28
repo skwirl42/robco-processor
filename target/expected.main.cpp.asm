@@ -1,3 +1,5 @@
+; Work on a C compiler is indefinitely shelved
+
 ; This has gotta get labelled something else
 ; gonna need to set some standards
 .data _string "Hello, world!\n"
