@@ -27,6 +27,9 @@ While running the emulator clicking in the window with the mouse will pause exec
 ## The Assembler
 While the main executable assembles a program before executing it, you can use the "assembler" cmake target to make a standalone version of the assembler. The standalone assembler outputs a text file containing the hexadecimal code and data regions, and a list of symbols defined in the program. This file is not meant to be executed, but rather for debugging and testing purposes.
 
+## Mix of languages
+When I started this I thought some pieces should be in C++ and others in C. This was to keep the parts that needed better performance as C, but I'm not sure it's really necessary. I won't be rewriting the parts in C, but I plan to continue any new development in C++.
+
 ## TODO
 ### Ease of use
 - [ ] Write a programming guide
