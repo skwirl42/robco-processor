@@ -86,8 +86,16 @@ int main(int argc, char** argv)
 	auto command_buffer_size = preamble_bytes > bytes_per_command ? preamble_bytes : bytes_per_command;
 	uint8_t* command_buffer = new uint8_t[command_buffer_size]{};
 
+	bool initialized_sdl = false;
 	try
 	{
+		if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0)
+		{
+			throw std::exception(SDL_GetError());
+		}
+
+		initialized_sdl = true;
+
 		sound_system a_sound_system;
 
 		if (!a_sound_system.is_initialized())
@@ -129,6 +137,11 @@ int main(int argc, char** argv)
 		delete[] command_buffer;
 		fclose(command_file);
 
+		if (initialized_sdl)
+		{
+			SDL_Quit();
+		}
+
 		std::cout << "Failed with exception \"" << exception.what() << "\"" << std::endl;
 
 		return -1;
@@ -138,12 +151,22 @@ int main(int argc, char** argv)
 		delete[] command_buffer;
 		fclose(command_file);
 
+		if (initialized_sdl)
+		{
+			SDL_Quit();
+		}
+
 		std::cout << "Failed on an exception" << std::endl;
 		return -1;
 	}
 
 	delete[] command_buffer;
 	fclose(command_file);
+
+	if (initialized_sdl)
+	{
+		SDL_Quit();
+	}
 
 	return 0;
 }

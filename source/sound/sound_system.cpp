@@ -1,6 +1,7 @@
 #include "sound_system.hpp"
 
 #include <functional>
+#include <iostream>
 
 namespace
 {
@@ -12,6 +13,18 @@ namespace
 
 	typedef std::chrono::duration<long, std::ratio<1, DEFAULT_SAMPLE_RATE>> default_sample_duration;
 	typedef std::chrono::duration<long, std::ratio<1, CD_SAMPLE_RATE>> cd_sample_duration;
+
+	float clip(float sample, float max)
+	{
+		if (sample >= 0.0)
+		{
+			return fmin(sample, max);
+		}
+		else
+		{
+			return fmax(sample, -max);
+		}
+	}
 
 	float scale(const float octave, const note note)
 	{
@@ -63,18 +76,24 @@ namespace
 		{
 			amplitude = 0;
 		}
+		else if (isnan(amplitude) || isinf(amplitude))
+		{
+			amplitude = 0;
+		}
 
 		return amplitude;
 	}
 
 	float osc(const float time, voice& voice, int oscillator_id, float custom = 50.0)
 	{
+		// time is in microseconds, we need it in seconds
+		auto seconds = time / 1000000.0f;
 		auto& oscillator = voice.oscillators[oscillator_id];
 		auto octave = voice.octave + oscillator.octave;
 		auto hertz = scale(octave, voice.current_note);
 		auto vel = hertz * 2.0f * PI;
 		auto lfoVel = oscillator.lfo_frequency * 2.0f * PI;
-		float frequency = vel * time + oscillator.lfo_amplitude * hertz * (sin(lfoVel * time));
+		float frequency = vel * seconds + oscillator.lfo_amplitude * hertz * (sin(lfoVel * seconds));
 
 		switch (oscillator.type)
 		{
@@ -105,27 +124,39 @@ namespace
 	}
 }
 
-sound_system::sound_system(buffer_return_mode return_mode, std::optional<std::string> desired_device)
+sound_system::sound_system(std::string device_name, buffer_return_mode return_mode)
 	: voices{},
 	  command_queue(COMMAND_QUEUE_SIZE), buffer_command_return(COMMAND_QUEUE_SIZE), worker_thread(), 
 	  device_spec{}, sample_buffer(nullptr), error(nullptr),
 	  return_mode(return_mode), device_id(0), current_voice(0), initialized(false)
 {
 	std::string device {};
-	if (desired_device.has_value())
-	{
-		device = desired_device.value();
-	}
-	else
 	{
 		auto audio_device_count = SDL_GetNumAudioDevices(0);
 		if (audio_device_count > 0)
 		{
 			// We'll be feeding data to the device using SDL_QueueAudio,
 			// since we need to listen for system commands
-			device = SDL_GetAudioDeviceName(0, 0);
-			SDL_AudioSpec want{ DEFAULT_SAMPLE_RATE, AUDIO_F32, 1, 0, SAMPLES_COUNT, 0, 0, nullptr, nullptr };
+			if (device_name == "")
+			{
+				device = SDL_GetAudioDeviceName(0, 0);
+			}
+			else
+			{
+				device = device_name;
+			}
+
+			std::string other_device{};
+			for (int i = 0; i < SDL_GetNumAudioDevices(0); i++)
+			{
+				other_device = SDL_GetAudioDeviceName(i, 0);
+				std::cout << "There is a device " << other_device << std::endl;
+			}
+
+			SDL_AudioSpec want{ DEFAULT_SAMPLE_RATE, AUDIO_F32, 1, 0, SAMPLES_COUNT, 0, 0, sound_system::sdl_audio_handler, this };
 			
+			std::cout << "Opening device " << device << std::endl;
+
 			device_id = SDL_OpenAudioDevice(device.c_str(), 0, &want, &device_spec, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
 			if (device_id == 0)
 			{
@@ -133,10 +164,17 @@ sound_system::sound_system(buffer_return_mode return_mode, std::optional<std::st
 			}
 			else
 			{
-				initialized = true;
-
+				for (int i = 0; i < system_voices_count; i++)
+				{
+					voices[i].volume = 0;
+					voices[i].current_note = note::none;
+				}
 				sample_buffer_size = (static_cast<size_t>(SDL_AUDIO_BITSIZE(device_spec.format) / 8)) * device_spec.samples;
 				sample_buffer = new float[device_spec.samples];
+
+				memset(voices, 0, sizeof(voices));
+
+				initialized = true;
 			}
 		}
 		else
@@ -190,12 +228,13 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 	for (int i = 0; i < command_byte_count; i++)
 	{
 		auto& voice = voices[get_voice(command_bytes[i])];
-		auto& oscillator = voice.oscillators[0];
 		uint8_t byte;
+		uint8_t id;
 		switch (get_command(command_bytes[i]))
 		{
 		case command_value::set_voice_volume:
 			voice.volume = byte_to_float_fraction(command_bytes[++i]);
+			voice.current_note = note::none;
 			break;
 
 		case command_value::set_voice_envelope:
@@ -209,13 +248,13 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 
 		case command_value::set_voice_oscillator:
 			byte = command_bytes[++i];
-			oscillator = voice.oscillators[get_oscillator(byte)];
-			oscillator.type = get_oscillator_type(byte);
-			oscillator.octave = get_biased_octave(command_bytes[++i]);
-			oscillator.amplitude = byte_to_float_fraction(command_bytes[++i]);
+			id = get_oscillator_id(byte);
+			voice.oscillators[id].type = get_oscillator_type(byte);
+			voice.oscillators[id].octave = get_biased_octave(command_bytes[++i]);
+			voice.oscillators[id].amplitude = byte_to_float_fraction(command_bytes[++i]);
 			byte = command_bytes[++i];
-			oscillator.lfo_amplitude = get_lfo_amplitude(byte);
-			oscillator.lfo_frequency = get_lfo_frequency(byte);
+			voice.oscillators[id].lfo_amplitude = get_lfo_amplitude(byte);
+			voice.oscillators[id].lfo_frequency = get_lfo_frequency(byte);
 			break;
 
 		case command_value::play_note:
@@ -236,6 +275,7 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 
 		case command_value::release_note:
 			voice.time_ended = time_micros;
+			voice.current_note = note::none;
 			break;
 		}
 	}
@@ -243,13 +283,14 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 
 void sound_system::worker_thread_entry()
 {
+	SDL_PauseAudioDevice(device_id, 0);
+	start_time = std::chrono::high_resolution_clock::now();
+	last_frame_time = start_time.min();
 	while (1)
 	{
-		SDL_PauseAudioDevice(device_id, 0);
-		start_time = std::chrono::high_resolution_clock::now();
+		auto frame_time = std::chrono::high_resolution_clock::now();
 		while (command_queue.read_available())
 		{
-			auto frame_time = std::chrono::high_resolution_clock::now();
 
 			// Handle the commands
 			command popped_commands[COMMAND_QUEUE_SIZE]{};
@@ -273,34 +314,105 @@ void sound_system::worker_thread_entry()
 					break;
 				}
 			}
-
-			// Generate a sound buffer's worth of samples
-			for (int i = 0; i < device_spec.samples; i++)
-			{
-				auto current_time_point = std::chrono::time_point_cast<std::chrono::microseconds>(frame_time + i * default_sample_duration(1));
-				auto time_micros = (float)((current_time_point - start_time).count()) / (float)std::micro::den;
-				float mixed_sound = 0;
-				for (int voice = 0; voice < system_voices_count; voice++)
-				{
-					auto& current_voice = voices[voice];
-					float amplitude = envelope(time_micros, current_voice);
-					float sound = 0;
-					for (int oscillator = 0; oscillator < oscillators_per_voice; oscillator++)
-					{
-						sound += current_voice.oscillators[oscillator].amplitude * osc(time_micros, current_voice, oscillator);
-					}
-					mixed_sound += sound * amplitude * current_voice.volume;
-				}
-				sample_buffer[i] = mixed_sound * 0.2f;
-			}
-			SDL_QueueAudio(device_id, sample_buffer, sample_buffer_size);
-
-			auto final_time = frame_time + device_spec.samples * default_sample_duration(1);
-			auto now = std::chrono::high_resolution_clock::now();
-			if (final_time > now)
-			{
-				std::this_thread::sleep_for(final_time - now);
-			}
 		}
+
+		// Generate a sound buffer's worth of samples
+		//memset(sample_buffer, 0, sizeof(sample_buffer));
+		//for (int i = 0; i < device_spec.samples; i++)
+		//{
+		//	auto sample_time_point = i * default_sample_duration(1);
+		//	auto current_time_point = std::chrono::time_point_cast<std::chrono::microseconds>(frame_time + sample_time_point);
+		//	auto time_micros = (float)((current_time_point - start_time).count());
+		//	float mixed_sound = 0;
+		//	for (int voice = 0; voice < system_voices_count; voice++)
+		//	{
+		//		auto& current_voice = voices[voice];
+		//		if (current_voice.volume <= 0.01f || current_voice.current_note == note::none)
+		//		{
+		//			continue;
+		//		}
+
+		//		float amplitude = envelope(time_micros, current_voice);
+		//		if (amplitude <= 0.01f)
+		//		{
+		//			current_voice.current_note = note::none;
+		//			continue;
+		//		}
+
+		//		float sound = 0;
+		//		for (int oscillator_index = 0; oscillator_index < oscillators_per_voice; oscillator_index++)
+		//		{
+		//			sound += current_voice.oscillators[oscillator_index].amplitude * osc(time_micros, current_voice, oscillator_index);
+		//		}
+		//		mixed_sound += sound * amplitude * current_voice.volume;
+		//	}
+		//	sample_buffer[i] = clip(mixed_sound * 0.2f, 1.0f);
+		//}
+
+		//float sum = 0.0f;
+		//float max = -2000;
+		//float min = 2000;
+		//for (int i = 0; i < device_spec.samples; i++)
+		//{
+		//	sum += fabs(sample_buffer[i]);
+		//	max = max > sample_buffer[i] ? max : sample_buffer[i];
+		//	min = min < sample_buffer[i] ? min : sample_buffer[i];
+		//}
+
+		//std::cout << "Sum of samples: " << sum << " max: " << max << " min: " << min << std::endl;
+
+		//SDL_QueueAudio(device_id, sample_buffer, device_spec.samples);
+
+		//auto final_time = frame_time + device_spec.samples * default_sample_duration(1);
+		//std::this_thread::sleep_until(final_time);
 	}
+}
+
+void sound_system::sdl_audio_handler(void* userdata, uint8_t* stream, int len)
+{
+	auto self = reinterpret_cast<sound_system*>(userdata);
+	auto data_size_in_bytes = static_cast<size_t>(SDL_AUDIO_BITSIZE(self->device_spec.format) / 8);
+	auto samples = len / data_size_in_bytes;
+
+	auto frame_time = std::chrono::high_resolution_clock::now();
+	if (self->last_frame_time > self->start_time)
+	{
+		frame_time = self->last_frame_time;
+	}
+
+	float* sample_buffer = reinterpret_cast<float*>(stream);
+	for (int i = 0; i < samples; i++)
+	{
+		sample_buffer[i] = 0;
+		auto sample_time_point = i * default_sample_duration(1);
+		auto current_time_point = frame_time + sample_time_point;
+		auto time_micros = (float)(std::chrono::duration_cast<std::chrono::microseconds>(current_time_point - self->start_time).count());
+		float mixed_sound = 0;
+		for (int voice = 0; voice < system_voices_count; voice++)
+		{
+			auto& current_voice = self->voices[voice];
+			if (current_voice.volume <= 0.01f || current_voice.current_note == note::none)
+			{
+				continue;
+			}
+
+			float amplitude = envelope(time_micros, current_voice);
+			if (amplitude <= 0.01f)
+			{
+				current_voice.current_note = note::none;
+				continue;
+			}
+
+			float sound = 0;
+			for (int oscillator_index = 0; oscillator_index < oscillators_per_voice; oscillator_index++)
+			{
+				sound += current_voice.oscillators[oscillator_index].amplitude * osc(time_micros, current_voice, oscillator_index);
+			}
+			mixed_sound += sound * amplitude * current_voice.volume;
+		}
+		sample_buffer[i] = clip(mixed_sound * 0.2f, 1.0f);
+	}
+
+	auto next_frame_time = frame_time + default_sample_duration(samples);
+	self->last_frame_time = std::chrono::time_point_cast<std::chrono::high_resolution_clock::duration>(next_frame_time);
 }

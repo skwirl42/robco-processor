@@ -37,7 +37,7 @@ class sound_system
 {
 public:
 	// desired_device, if provided, should be a string retrieved from SDL_GetAudioDeviceName
-	sound_system(buffer_return_mode return_mode = buffer_return_mode::never_return, std::optional<std::string> desired_device = nullptr);
+	sound_system(std::string device_name = "", buffer_return_mode return_mode = buffer_return_mode::never_return);
 	~sound_system();
 
 	// begins the worker thread, which processes commands and creates sound samples
@@ -54,6 +54,7 @@ public:
 private:
 	void handle_command_buffer(size_t command_byte_count, uint8_t* command_bytes);
 	void worker_thread_entry();
+	static void sdl_audio_handler(void* userdata, uint8_t * stream, int len);
 
 private:
 	voice voices[system_voices_count];
@@ -62,6 +63,7 @@ private:
 	std::unique_ptr<std::thread> worker_thread;
 	SDL_AudioSpec device_spec;
 	std::chrono::high_resolution_clock::time_point start_time;
+	std::chrono::high_resolution_clock::time_point last_frame_time;
 	float* sample_buffer;
 	size_t sample_buffer_size;
 	const char* error;

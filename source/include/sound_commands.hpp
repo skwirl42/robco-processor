@@ -15,7 +15,7 @@
 // release note - LSbs: voice ID - releases the note being played on a voice
 
 const int oscillators_per_voice = 4;
-const float time_multiplier = 1000;
+const float time_multiplier = 1000000;
 const float lfo_amplitude_multiplier = 0.001f;
 const float octave_fraction = 0.33333333f;
 const float octave_bias = -128;
@@ -56,6 +56,7 @@ enum class note : uint8_t
 	FS,
 	G,
 	GS,
+	none = 0xf,
 };
 
 struct oscillator_settings
@@ -128,7 +129,7 @@ inline float get_shifted_octave(uint8_t byte, uint8_t shift = 0)
 inline float get_biased_octave(uint8_t byte)
 {
 	auto biased = (int)byte + octave_bias;
-	return biased / 16;
+	return (float)biased / 16;
 }
 
 inline note get_note(uint8_t byte)
@@ -136,7 +137,7 @@ inline note get_note(uint8_t byte)
 	return (note)(byte & 0xF);
 }
 
-inline int get_oscillator(uint8_t byte)
+inline int get_oscillator_id(uint8_t byte)
 {
 	return byte >> 4;
 }

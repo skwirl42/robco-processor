@@ -94,10 +94,21 @@ target_include_directories(sound_test PRIVATE
 
 target_link_libraries(sound_test PUBLIC  ${Boost_LIBRARIES})
 
+add_executable(sound_keyboard
+    source/sound/sound_keyboard_main.cpp
+    source/sound/sound_system.cpp)
+
+target_include_directories(sound_keyboard PRIVATE
+    source/include
+    ${Boost_INCLUDE_DIRS})
+
+target_link_libraries(sound_keyboard PUBLIC  ${Boost_LIBRARIES})
+
 target_link_directories(robcoterm PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(assembler PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(tapemanager PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(sound_test PUBLIC ${Boost_LIBRARY_DIRS})
+target_link_directories(sound_keyboard PUBLIC ${Boost_LIBRARY_DIRS})
 
 if (APPLE)
     find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
@@ -115,6 +126,10 @@ if (APPLE)
     target_link_libraries(sound_test stdc++ "-F /Library/Frameworks" "-framework SDL2")
     target_include_directories(sound_test PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
 
+    target_link_directories(sound_keyboard PUBLIC /usr/local/homebrew/lib)
+    target_link_libraries(sound_keyboard stdc++ "-F /Library/Frameworks" "-framework SDL2")
+    target_include_directories(sound_keyboard PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+
     set (CMAKE_CXX_FLAGS "-std=c++17 -DAPPLE")
 endif (APPLE)
 
@@ -129,6 +144,8 @@ if (MSVC)
     target_sources(tapemanager PUBLIC source/xgetopt/XGetopt.c)
 
     target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main)
+
+    target_link_libraries(sound_keyboard PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
 endif ()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
