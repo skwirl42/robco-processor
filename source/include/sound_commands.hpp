@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
 
 // First byte in a command has its 4 MSbs set to the command type,
 // the 4 LSbs specify an ID, if appropriate for the command
@@ -94,6 +95,18 @@ struct voice
 	// Middle A would be current_note = note::A, octave = 5.333.. repeating
 	note current_note;
 	float octave;
+
+	std::string to_string()
+	{
+		std::string output = "";
+
+		output += "Volume=" + std::to_string(volume) + "\n";
+		output += "Time: started=" + std::to_string(time_started) + " ended=" + std::to_string(time_ended) + "\n";
+		output += "Envelope: a=" + std::to_string(attack_time) + " d=" + std::to_string(decay_time)
+			+ " s=" + std::to_string(sustain_amplitude) + " r=" + std::to_string(release_time) + "\n";
+
+		return output;
+	}
 };
 
 inline uint8_t make_command_byte(command_value command, uint8_t ID)
@@ -114,6 +127,11 @@ inline int get_voice(uint8_t byte)
 inline float byte_to_float_fraction(uint8_t byte)
 {
 	return (float)byte / 255;
+}
+
+inline float byte_to_float_time(uint8_t byte)
+{
+	return byte_to_float_fraction(byte);
 }
 
 inline float byte_to_float_time_micros(uint8_t byte)

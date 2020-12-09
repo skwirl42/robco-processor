@@ -5,6 +5,7 @@
 #include <thread>
 #include <optional>
 #include <chrono>
+#include <mutex>
 
 #include <SDL.h>
 
@@ -48,6 +49,8 @@ public:
 	const bool can_reclaim_buffer() const { return buffer_command_return.read_available(); }
 	bool reclaim_buffer(command& command);
 
+	const std::string& get_device_name() const { return device; }
+
 	const bool is_initialized() const { return initialized; }
 	const char* get_error() const { return error; }
 
@@ -58,17 +61,18 @@ private:
 
 private:
 	voice voices[system_voices_count];
+	std::mutex voices_mutex;
 	boost::lockfree::spsc_queue<command> command_queue;
 	boost::lockfree::spsc_queue<command> buffer_command_return;
 	std::unique_ptr<std::thread> worker_thread;
 	SDL_AudioSpec device_spec;
 	std::chrono::high_resolution_clock::time_point start_time;
 	std::chrono::high_resolution_clock::time_point last_frame_time;
+	std::string device;
 	float* sample_buffer;
 	size_t sample_buffer_size;
 	const char* error;
 	buffer_return_mode return_mode;
 	SDL_AudioDeviceID device_id;
-	int current_voice;
 	bool initialized;
 };

@@ -32,10 +32,11 @@ namespace
 		return 8 * pow(1.059463f, note_at_octave);
 	}
 
-	float envelope(const float time, voice& voice)
+	float envelope(const float time_micros, voice& voice)
 	{
 		float amplitude = 0;
 		float release_amplitude = 0;
+		float time = time_micros / 1000000.0f;
 
 		if (voice.time_started > voice.time_ended)
 		{
@@ -127,60 +128,42 @@ namespace
 sound_system::sound_system(std::string device_name, buffer_return_mode return_mode)
 	: voices{},
 	  command_queue(COMMAND_QUEUE_SIZE), buffer_command_return(COMMAND_QUEUE_SIZE), worker_thread(), 
-	  device_spec{}, sample_buffer(nullptr), error(nullptr),
-	  return_mode(return_mode), device_id(0), current_voice(0), initialized(false)
+	  device_spec{}, device(device_name), sample_buffer(nullptr), error(nullptr),
+	  return_mode(return_mode), device_id(0), initialized(false)
 {
-	std::string device {};
+	auto audio_device_count = SDL_GetNumAudioDevices(0);
+	if (audio_device_count > 0)
 	{
-		auto audio_device_count = SDL_GetNumAudioDevices(0);
-		if (audio_device_count > 0)
+		if (device == "")
 		{
-			// We'll be feeding data to the device using SDL_QueueAudio,
-			// since we need to listen for system commands
-			if (device_name == "")
-			{
-				device = SDL_GetAudioDeviceName(0, 0);
-			}
-			else
-			{
-				device = device_name;
-			}
+			device = SDL_GetAudioDeviceName(0, 0);
+		}
 
-			std::string other_device{};
-			for (int i = 0; i < SDL_GetNumAudioDevices(0); i++)
-			{
-				other_device = SDL_GetAudioDeviceName(i, 0);
-				std::cout << "There is a device " << other_device << std::endl;
-			}
-
-			SDL_AudioSpec want{ DEFAULT_SAMPLE_RATE, AUDIO_F32, 1, 0, SAMPLES_COUNT, 0, 0, sound_system::sdl_audio_handler, this };
+		SDL_AudioSpec want{ DEFAULT_SAMPLE_RATE, AUDIO_F32, 1, 0, SAMPLES_COUNT, 0, 0, sound_system::sdl_audio_handler, this };
 			
-			std::cout << "Opening device " << device << std::endl;
-
-			device_id = SDL_OpenAudioDevice(device.c_str(), 0, &want, &device_spec, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
-			if (device_id == 0)
-			{
-				error = SDL_GetError();
-			}
-			else
-			{
-				for (int i = 0; i < system_voices_count; i++)
-				{
-					voices[i].volume = 0;
-					voices[i].current_note = note::none;
-				}
-				sample_buffer_size = (static_cast<size_t>(SDL_AUDIO_BITSIZE(device_spec.format) / 8)) * device_spec.samples;
-				sample_buffer = new float[device_spec.samples];
-
-				memset(voices, 0, sizeof(voices));
-
-				initialized = true;
-			}
+		device_id = SDL_OpenAudioDevice(device.c_str(), 0, &want, &device_spec, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
+		if (device_id == 0)
+		{
+			error = SDL_GetError();
 		}
 		else
 		{
-			error = "Couldn't find any non-capture audio devices";
+			for (int i = 0; i < system_voices_count; i++)
+			{
+				voices[i].volume = 0;
+				voices[i].current_note = note::none;
+			}
+			sample_buffer_size = (static_cast<size_t>(SDL_AUDIO_BITSIZE(device_spec.format) / 8)) * device_spec.samples;
+			sample_buffer = new float[device_spec.samples];
+
+			memset(voices, 0, sizeof(voices));
+
+			initialized = true;
 		}
+	}
+	else
+	{
+		error = "Couldn't find any non-capture audio devices";
 	}
 }
 
@@ -223,8 +206,11 @@ bool sound_system::reclaim_buffer(command& command)
 
 void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* command_bytes)
 {
+	voices_mutex.lock();
+
 	auto now = std::chrono::high_resolution_clock::now();
-	auto time_micros = (float)((now - start_time).count()) / (float)std::micro::den;
+	auto time_micros = (float)(std::chrono::duration_cast<std::chrono::microseconds>(now - start_time).count());
+	float time = time_micros / 1000000.0f;
 	for (int i = 0; i < command_byte_count; i++)
 	{
 		auto& voice = voices[get_voice(command_bytes[i])];
@@ -238,12 +224,13 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 			break;
 
 		case command_value::set_voice_envelope:
-			voice.attack_time = byte_to_float_time_micros(command_bytes[++i]);
-			voice.decay_time = byte_to_float_time_micros(command_bytes[++i]);
+			voice.attack_time = byte_to_float_time(command_bytes[++i]);
+			voice.decay_time = byte_to_float_time(command_bytes[++i]);
 			voice.sustain_amplitude = byte_to_float_fraction(command_bytes[++i]);
-			voice.release_time = byte_to_float_time_micros(command_bytes[++i]);
+			voice.release_time = byte_to_float_time(command_bytes[++i]);
 			voice.start_amplitude = byte_to_float_fraction(command_bytes[++i]);
-			voice.max_life = byte_to_float_time_micros(command_bytes[++i]);
+			voice.max_life = byte_to_float_fraction(command_bytes[++i]);
+			std::cout << voice.to_string();
 			break;
 
 		case command_value::set_voice_oscillator:
@@ -261,24 +248,28 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 			byte = command_bytes[++i];
 			voice.current_note = get_note(byte);
 			voice.octave = get_shifted_octave(byte, 4);
-			voice.time_started = time_micros;
-			voice.time_started = time_micros + voice.max_life;
+			voice.time_started = time;
+			voice.time_started = time + voice.max_life;
+			std::cout << voice.to_string();
 			break;
 
 		case command_value::hold_note:
 			byte = command_bytes[++i];
 			voice.current_note = get_note(byte);
 			voice.octave = get_shifted_octave(byte, 4);
-			voice.time_started = time_micros;
+			voice.time_started = time;
 			voice.time_ended = 0;
+			std::cout << voice.to_string();
 			break;
 
 		case command_value::release_note:
-			voice.time_ended = time_micros;
-			voice.current_note = note::none;
+			voice.time_ended = time;
+			std::cout << voice.to_string();
 			break;
 		}
 	}
+
+	voices_mutex.unlock();
 }
 
 void sound_system::worker_thread_entry()
@@ -288,10 +279,10 @@ void sound_system::worker_thread_entry()
 	last_frame_time = start_time.min();
 	while (1)
 	{
-		auto frame_time = std::chrono::high_resolution_clock::now();
+		std::this_thread::sleep_for(std::chrono::milliseconds(3));
+
 		while (command_queue.read_available())
 		{
-
 			// Handle the commands
 			command popped_commands[COMMAND_QUEUE_SIZE]{};
 			auto count = command_queue.pop(popped_commands, COMMAND_QUEUE_SIZE);
@@ -315,56 +306,6 @@ void sound_system::worker_thread_entry()
 				}
 			}
 		}
-
-		// Generate a sound buffer's worth of samples
-		//memset(sample_buffer, 0, sizeof(sample_buffer));
-		//for (int i = 0; i < device_spec.samples; i++)
-		//{
-		//	auto sample_time_point = i * default_sample_duration(1);
-		//	auto current_time_point = std::chrono::time_point_cast<std::chrono::microseconds>(frame_time + sample_time_point);
-		//	auto time_micros = (float)((current_time_point - start_time).count());
-		//	float mixed_sound = 0;
-		//	for (int voice = 0; voice < system_voices_count; voice++)
-		//	{
-		//		auto& current_voice = voices[voice];
-		//		if (current_voice.volume <= 0.01f || current_voice.current_note == note::none)
-		//		{
-		//			continue;
-		//		}
-
-		//		float amplitude = envelope(time_micros, current_voice);
-		//		if (amplitude <= 0.01f)
-		//		{
-		//			current_voice.current_note = note::none;
-		//			continue;
-		//		}
-
-		//		float sound = 0;
-		//		for (int oscillator_index = 0; oscillator_index < oscillators_per_voice; oscillator_index++)
-		//		{
-		//			sound += current_voice.oscillators[oscillator_index].amplitude * osc(time_micros, current_voice, oscillator_index);
-		//		}
-		//		mixed_sound += sound * amplitude * current_voice.volume;
-		//	}
-		//	sample_buffer[i] = clip(mixed_sound * 0.2f, 1.0f);
-		//}
-
-		//float sum = 0.0f;
-		//float max = -2000;
-		//float min = 2000;
-		//for (int i = 0; i < device_spec.samples; i++)
-		//{
-		//	sum += fabs(sample_buffer[i]);
-		//	max = max > sample_buffer[i] ? max : sample_buffer[i];
-		//	min = min < sample_buffer[i] ? min : sample_buffer[i];
-		//}
-
-		//std::cout << "Sum of samples: " << sum << " max: " << max << " min: " << min << std::endl;
-
-		//SDL_QueueAudio(device_id, sample_buffer, device_spec.samples);
-
-		//auto final_time = frame_time + device_spec.samples * default_sample_duration(1);
-		//std::this_thread::sleep_until(final_time);
 	}
 }
 
@@ -379,6 +320,8 @@ void sound_system::sdl_audio_handler(void* userdata, uint8_t* stream, int len)
 	{
 		frame_time = self->last_frame_time;
 	}
+
+	self->voices_mutex.lock();
 
 	float* sample_buffer = reinterpret_cast<float*>(stream);
 	for (int i = 0; i < samples; i++)
@@ -412,6 +355,8 @@ void sound_system::sdl_audio_handler(void* userdata, uint8_t* stream, int len)
 		}
 		sample_buffer[i] = clip(mixed_sound * 0.2f, 1.0f);
 	}
+
+	self->voices_mutex.unlock();
 
 	auto next_frame_time = frame_time + default_sample_duration(samples);
 	self->last_frame_time = std::chrono::time_point_cast<std::chrono::high_resolution_clock::duration>(next_frame_time);

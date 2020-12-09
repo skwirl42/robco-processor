@@ -16,6 +16,70 @@ namespace
 	// 60000 ms per minute, divided by BPM, divided by eighth notes (assuming 4/4 time)
 	const float DEFAULT_MILLISECONDS_PER_COMMAND_SET = 60000.0f / 90.0f / 2.0f;
 
+	uint8_t harmonica_initialize_commands[] =
+	{
+		make_command_byte(command_value::set_voice_envelope, 0),
+		0, // attack
+		255, // decay
+		200, // sustain volume
+		25, // release time
+		220, // start volume,
+		255, // max life
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		0 + (uint8_t)oscillator_type::square, // oscillator 0, square wave
+		128, // octave relative to main note
+		255, // oscillator amplitude
+		(5 << 4) + 15, // 5Hz, 0.001 amplitude
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		(1 << 4) + (uint8_t)oscillator_type::saw, // oscillator 1, saw wave
+		129, // bias is -128, so this is +1 (relative octive)
+		128, // oscillator amplitude
+		(5 << 4) + 15, // 5Hz, 0.001 amplitude
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		(2 << 4) + (uint8_t)oscillator_type::noise, // oscillator 2, noise
+		130, // bias is -128, so this is +2 (relative octive)
+		13, // oscillator amplitude
+		0, // no LFO
+
+		make_command_byte(command_value::set_voice_volume, 0),
+		255, // full volume
+	};
+
+	uint8_t bell_initialize_commands[] =
+	{
+		make_command_byte(command_value::set_voice_envelope, 0),
+		3, // attack
+		128, // decay
+		204, // sustain volume
+		255, // release time
+		255, // start volume,
+		255, // max life
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		0 + (uint8_t)oscillator_type::square, // oscillator 0
+		128, // octave relative to main note
+		255, // oscillator amplitude
+		(5 << 4) + 15, // 5Hz, 0.001 amplitude
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		(1 << 4) + (uint8_t)oscillator_type::sine, // oscillator 1
+		129,
+		128, // oscillator amplitude
+		0,
+
+		make_command_byte(command_value::set_voice_oscillator, 0),
+		(2 << 4) + (uint8_t)oscillator_type::sine, // oscillator 2
+		130,
+		64, // oscillator amplitude
+		0, // no LFO
+
+		make_command_byte(command_value::set_voice_volume, 0),
+		255, // full volume
+	};
+
 	std::pair<SDL_KeyCode, note> keyboard_keys[] =
 	{
 		{ SDLK_z, note::A },
@@ -24,6 +88,11 @@ namespace
 		{ SDLK_c, note::C },
 		{ SDLK_f, note::CS },
 		{ SDLK_v, note::D },
+		{ SDLK_g, note::DS },
+		{ SDLK_b, note::E },
+		{ SDLK_n, note::F },
+		{ SDLK_j, note::FS },
+		{ SDLK_m, note::G },
 		{ (SDL_KeyCode)0, note::A },
 	};
 }
@@ -61,6 +130,22 @@ int main(int argc, char** argv)
 	bool initialized_sdl = false;
 	SDL_Window* window = nullptr;
 	const char* bad_exception_text = nullptr;
+
+	auto teardown = [&]()
+	{
+		delete[] command_buffer;
+
+		if (window != nullptr)
+		{
+			SDL_DestroyWindow(window);
+		}
+
+		if (initialized_sdl)
+		{
+			SDL_Quit();
+		}
+	};
+
 	try
 	{
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0)
@@ -113,46 +198,16 @@ int main(int argc, char** argv)
 			throw std::bad_exception();
 		}
 
+		std::cout << "Opened device " << a_sound_system->get_device_name() << std::endl;
+
 		a_sound_system->start_worker_thread();
 
 		command current_command{};
 		current_command.command_buffer = command_buffer;
 		current_command.type = command_type::buffer;
 
-		uint8_t initialize_commands[] =
-		{
-			make_command_byte(command_value::set_voice_envelope, 0),
-			100, // attack
-			10, // decay
-			200, // sustain volume
-			200, // release time
-			220, // start volume,
-			255, // max life
-
-			make_command_byte(command_value::set_voice_oscillator, 0),
-			0 + (uint8_t)oscillator_type::square, // oscillator 0, square wave
-			128, // octave relative to main note
-			255, // oscillator amplitude
-			(5 << 4) + 15, // 5Hz, 0.001 amplitude
-
-			make_command_byte(command_value::set_voice_oscillator, 0),
-			(1 << 4) + (uint8_t)oscillator_type::saw, // oscillator 1, saw wave
-			129, // bias is -128, so this is +1 (relative octive)
-			128, // oscillator amplitude
-			(5 << 4) + 15, // 5Hz, 0.001 amplitude
-
-			make_command_byte(command_value::set_voice_oscillator, 0),
-			(2 << 4) + (uint8_t)oscillator_type::noise, // oscillator 2, noise
-			130, // bias is -128, so this is +2 (relative octive)
-			13, // oscillator amplitude
-			0, // no LFO
-
-			make_command_byte(command_value::set_voice_volume, 0),
-			255, // full volume
-		};
-
-		current_command.command_buffer = initialize_commands;
-		current_command.command_count = sizeof(initialize_commands);
+		current_command.command_buffer = bell_initialize_commands;
+		current_command.command_count = sizeof(bell_initialize_commands);
 		a_sound_system->process_command(current_command);
 
 		current_command.command_buffer = command_buffer;
@@ -191,77 +246,32 @@ int main(int argc, char** argv)
 					current_command.command_count = 1;
 					a_sound_system->process_command(current_command);
 					break;
-
-				case SDL_MOUSEBUTTONDOWN:
-					std::cout << "mouse boop" << std::endl;
-					break;
 				}
 			}
 		}
 	}
 	catch (const std::bad_exception& exception)
 	{
-		delete[] command_buffer;
-
-		if (window != nullptr)
-		{
-			SDL_DestroyWindow(window);
-		}
-
-		if (initialized_sdl)
-		{
-			SDL_Quit();
-		}
-
-		std::cout << "Failed with exception \"" << exception.what() << "\"" << std::endl;
+		teardown();
+		std::cout << "Failed with exception \"" << bad_exception_text << "\"" << std::endl;
 		return -1;
 	}
 	catch (const std::exception& exception)
 	{
-		delete[] command_buffer;
+		// Not a bad exception, probably just an early exit
+		teardown();
 
-		if (window != nullptr)
-		{
-			SDL_DestroyWindow(window);
-		}
-
-		if (initialized_sdl)
-		{
-			SDL_Quit();
-		}
-
-		// Not a bad exception
 		return 0;
 	}
 	catch (...)
 	{
-		delete[] command_buffer;
-
-		if (window != nullptr)
-		{
-			SDL_DestroyWindow(window);
-		}
-
-		if (initialized_sdl)
-		{
-			SDL_Quit();
-		}
+		teardown();
 
 		std::cout << "Failed on an exception" << std::endl;
 		return -1;
 	}
 
-	delete[] command_buffer;
-
-	if (window != nullptr)
-	{
-		SDL_DestroyWindow(window);
-	}
-
-	if (initialized_sdl)
-	{
-		SDL_Quit();
-	}
+	teardown();
 
 	return 0;
 }
