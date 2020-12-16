@@ -13,7 +13,7 @@ set(BISON_ROOT /usr/local/homebrew/opt/bison@2.7)
 set(BISON_EXECUTABLE /usr/local/homebrew/opt/bison@2.7/bin/bison)
 endif ()
 
-if (MSVC) # Wanted to use WSL, but it was causing issues - GnuWin32
+if (MSVC) # Wanted to use WSL, but it was causing issues - so GnuWin32
 set(FLEX_EXECUTABLE D:/GnuWin32/bin/flex)
 set(BISON_EXECUTABLE D:/GnuWin32/bin/bison)
 set(BOOST_ROOT D:/boost_1_73_0)
@@ -55,7 +55,10 @@ target_include_directories(robcoterm PRIVATE
     source/emulator
     source/assembler
     source/include
+    source/sound
     ${Boost_INCLUDE_DIRS})
+
+target_link_libraries(robcoterm PUBLIC ${Boost_LIBRARIES})
 
 add_executable(assembler
     source/main/opcode_table.c

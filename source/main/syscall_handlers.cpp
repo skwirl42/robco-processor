@@ -4,6 +4,7 @@
 #include "graphics.h"
 #include "holotape.h"
 #include "syscall_holotape_handlers.h"
+#include "sound_system.hpp"
 
 #include <deque>
 
@@ -159,7 +160,23 @@ execution_state_t handle_syscall_graphicend(emulator& emulator, Console& console
     return RUNNING;
 }
 
-void handle_current_syscall(emulator &emulator, Console &console)
+execution_state_t handle_syscall_soundcmd(emulator& emulator, Console& console, sound_system* synthesizer)
+{
+    uint16_t command_byte_count = pull_word(&emulator);
+
+    command current_command =
+    {
+        command_type::buffer,
+        command_byte_count,
+        &emulator.memories.data[emulator.X]
+    };
+
+    synthesizer->process_command(current_command);
+
+    return RUNNING;
+}
+
+void handle_current_syscall(emulator &emulator, Console &console, sound_system* synthesizer)
 {
     // printf("Handling syscall 0x%04x\n", emulator.current_syscall);
     execution_state_t nextState = RUNNING;
@@ -216,8 +233,19 @@ void handle_current_syscall(emulator &emulator, Console &console)
         nextState = handle_syscall_graphicend(emulator, console);
         break;
 
+    case SYSCALL_SOUNDCMD:
+        nextState = handle_syscall_soundcmd(emulator, console, synthesizer);
+        break;
+
+    case SYSCALL_SOUNDACK:
+    case SYSCALL_SOUNDNACK:
+        // TODO
+        nextState = RUNNING;
+        break;
+
     case SYSCALL_EXIT:
         nextState = FINISHED;
+        break;
 
     default:
         fprintf(stderr, "Unimplemented syscall (0x%04x)\n", emulator.current_syscall);

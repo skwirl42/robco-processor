@@ -31,3 +31,8 @@
 ; Graphics display
 .defword			GRAPHICSTART    0x0400
 .defword			GRAPHICEND      0x0401
+
+; Audio
+.defword			SOUNDACK		0x0500
+.defword			SOUNDNACK		0x0501
+.defword			SOUNDCMD		0x0502

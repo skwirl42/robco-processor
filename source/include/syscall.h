@@ -38,4 +38,9 @@
 #define			SYSCALL_GRAPHICSTART    0x0400
 #define			SYSCALL_GRAPHICEND      0x0401
 
+// Audio
+#define			SYSCALL_SOUNDACK		0x0500
+#define			SYSCALL_SOUNDNACK		0x0501
+#define			SYSCALL_SOUNDCMD		0x0502
+
 #endif // __SYSCALL_H__

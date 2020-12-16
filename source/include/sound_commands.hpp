@@ -16,7 +16,6 @@
 // release note - LSbs: voice ID - releases the note being played on a voice
 
 const int oscillators_per_voice = 4;
-const float time_multiplier = 1000000;
 const float lfo_amplitude_multiplier = 0.001f;
 const float octave_fraction = 0.33333333f;
 const float octave_bias = -128;
@@ -132,11 +131,6 @@ inline float byte_to_float_fraction(uint8_t byte)
 inline float byte_to_float_time(uint8_t byte)
 {
 	return byte_to_float_fraction(byte);
-}
-
-inline float byte_to_float_time_micros(uint8_t byte)
-{
-	return byte_to_float_fraction(byte) * time_multiplier;
 }
 
 inline float get_shifted_octave(uint8_t byte, uint8_t shift = 0)
