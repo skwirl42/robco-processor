@@ -2,15 +2,14 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <iostream>
 #include <filesystem>
+#include <boost/program_options.hpp>
 
-#ifdef _MSC_VER
-#include "XGetopt.h"
-#else
-#include <getopt.h>
-#endif
+namespace po = boost::program_options;
 
 #include "holotape_wrapper.hpp"
+#include "exceptions.hpp"
 
 enum class TapeCommand
 {
@@ -33,123 +32,141 @@ namespace
     };
 }
 
-void usage()
+void usage(char** argv, po::options_description& options)
 {
-    fprintf(stdout, "I'd love to tell you how to use this, but even I don't know yet\n");
+    std::filesystem::path command_path{ argv[0] };
+    std::cout << "Usage: " << command_path.filename().string() << " [options]" << std::endl;
+    std::cout << options << std::endl;
 }
 
 int main(int argc, char **argv)
 {
-    char tape_name[TAPE_NAME_LENGTH + 1];
-    int c = 0;
-    int option_index = 0;
-    bool show_usage = false;
-    TapeCommand command = TapeCommand::None;
+    std::filesystem::path extract_directory;
+    std::vector<std::string> paths;
+    po::options_description cli_options("Allowed options");
+    cli_options.add_options()
+        ("help,?", "output the help message")
+        ("command,K", po::value<std::string>()->required(), "command to execute")
+        ("tape,T", po::value<std::string>()->required(), "tape to manage")
+        ("file,F", po::value<std::vector<std::string>>(&paths), "files to append")
+        ("outdir,O", po::value<std::filesystem::path>(&extract_directory), "directory to extract tape contents to")
+        ;
 
-    tape_name[0] = 0;
-
-    while (c >= 0)
+    try
     {
-        c = getopt(argc, argv, "HC:T:");
-        if (c == -1)
+        po::variables_map variables;
+        po::store(po::command_line_parser(argc, argv).options(cli_options).run(), variables);
+        po::notify(variables);
+
+        if (variables.count("help") > 0)
         {
+            usage(argv, cli_options);
+            return 0;
+        }
+
+        TapeCommand command = TapeCommand::None;
+
+        if (variables.count("command") == 0)
+        {
+            fprintf(stderr, "A command must be specified\n");
+            usage(argv, cli_options);
+            return -1;
+        }
+
+        if (variables.count("tape") == 0)
+        {
+            fprintf(stderr, "A tape file must be specified\n");
+            usage(argv, cli_options);
+            return -1;
+        }
+
+        auto command_location = commands.find(variables["command"].as<std::string>());
+        if (command_location != commands.end())
+        {
+            command = (*command_location).second;
+        }
+        else
+        {
+            command = TapeCommand::Error;
+        }
+
+        if (command == TapeCommand::Error || command == TapeCommand::None)
+        {
+            fprintf(stderr, "Invalid or missing command\n");
+            usage(argv, cli_options);
+            return -1;
+        }
+
+        holotape_wrapper wrapper{ variables["tape"].as<std::string>().c_str() };
+
+        switch (command)
+        {
+        case TapeCommand::Append:
+            if (paths.empty())
+            {
+                fprintf(stderr, "No files specified to append\n");
+                usage(argv, cli_options);
+                return -1;
+            }
+
+            for (auto& filename : paths)
+            {
+                wrapper.append_file(filename.c_str());
+            }
             break;
-        }
 
-        if (c == 'T')
-        {
-            // Tape filename
-            strncpy(tape_name, optarg, TAPE_NAME_LENGTH);
-        }
-        else if (c == 'C')
-        {
-            // Command
-            auto command_location = commands.find(optarg);
-            if (command_location != commands.end())
+        case TapeCommand::Erase:
+            wrapper.erase();
+            break;
+
+        case TapeCommand::Extract:
+            if (variables.count("outdir") != 1)
             {
-                command = (*command_location).second;
+                fprintf(stderr, "You must specify a directory to extract the files from the tape into\n");
+                usage(argv, cli_options);
+                return -1;
             }
-            else
+            if (!std::filesystem::is_directory(extract_directory))
             {
-                command = TapeCommand::Error;
+                fprintf(stderr, "Please specify a valid directory to extract into\n");
+                usage(argv, cli_options);
+                return -1;
             }
-        }
-        else if (c == 'H')
-        {
-            show_usage = true;
+            wrapper.extract(extract_directory.string().c_str());
+            break;
+
+        case TapeCommand::List:
+            wrapper.list();
+            break;
+
+        default:
+            fprintf(stderr, "Unknown or missing command\n");
+            usage(argv, cli_options);
+            return -1;
         }
     }
-
-    if (show_usage || strlen(tape_name) == 0)
+    catch (boost::wrapexcept<po::required_option>& exception)
     {
-        usage();
-        return 0;
-    }
-
-    if (command == TapeCommand::Error || command == TapeCommand::None)
-    {
-        fprintf(stderr, "Invalid or missing command\n");
-        usage();
+        std::cerr << "Missing required option " << exception.get_option_name() << std::endl;
+        usage(argv, cli_options);
         return -1;
     }
-
-    std::vector<std::string> paths;
-    if (optind < argc)
+    catch (basic_error& error_exception)
     {
-        // Collect any filenames
-        for (int i = optind; i < argc; i++)
+        std::string const* message = boost::get_error_info<error_message>(error_exception);
+        if (message != nullptr)
         {
-            paths.push_back(std::string(argv[i]));
+            std::cerr << "Error message: " << message << std::endl;
         }
+        else
+        {
+            std::cerr << "Exception missing error message" << std::endl;
+        }
+        return -1;
     }
-
-    holotape_wrapper wrapper{ tape_name };
-    std::filesystem::path extract_directory;
-
-    switch (command)
+    catch (...)
     {
-    case TapeCommand::Append:
-        if (paths.empty())
-        {
-            fprintf(stderr, "No files specified to append\n");
-            usage();
-            return -1;
-        }
-
-        for (auto filename : paths)
-        {
-            wrapper.append_file(filename.c_str());
-        }
-        break;
-
-    case TapeCommand::Erase:
-        wrapper.erase();
-        break;
-
-    case TapeCommand::Extract:
-        if (paths.size() != 1)
-        {
-            fprintf(stderr, "You must specify a directory to extract the files from the tape into\n");
-            usage();
-            return -1;
-        }
-        extract_directory = *paths.begin();
-        if (!std::filesystem::is_directory(extract_directory))
-        {
-            fprintf(stderr, "Please specify a valid directory to extract into\n");
-            usage();
-            return -1;
-        }
-        wrapper.extract((*paths.begin()).c_str());
-        break;
-
-    case TapeCommand::List:
-        wrapper.list();
-        break;
-
-    default:
-        fprintf(stderr, "Unknown or missing command\n");
-        usage();
+        std::cerr << "Unknown exception" << std::endl;
         return -1;
     }
 

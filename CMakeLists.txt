@@ -74,10 +74,14 @@ target_include_directories(assembler PRIVATE
     source/include
     ${Boost_INCLUDE_DIRS})
 
+target_link_libraries(assembler PUBLIC ${Boost_LIBRARIES})
+
 add_executable(tapemanager
     source/tapemanager/tapemanager_main.cpp
     source/tapemanager/holotape_wrapper.cpp
     source/emulator/holotape.c)
+
+target_link_libraries(tapemanager PUBLIC ${Boost_LIBRARIES})
 
 target_include_directories(tapemanager PRIVATE 
     source/main
@@ -140,11 +144,9 @@ if (MSVC)
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
     target_link_libraries(robcoterm PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
 
-    target_include_directories(assembler PUBLIC D:/GnuWin32/include source/xgetopt)
-    target_sources(assembler PUBLIC source/xgetopt/XGetopt.c)
+    target_include_directories(assembler PUBLIC D:/GnuWin32/include)
 
-    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include source/xgetopt)
-    target_sources(tapemanager PUBLIC source/xgetopt/XGetopt.c)
+    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include)
 
     target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main)
 

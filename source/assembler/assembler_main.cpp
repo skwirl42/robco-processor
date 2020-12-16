@@ -1,99 +1,63 @@
 #include "assembler.h"
 #include "opcodes.h"
-#ifdef _MSC_VER
-#include "XGetopt.h"
-#else
-#include <getopt.h>
-#endif
 
-void usage()
+#include <filesystem>
+#include <boost/program_options.hpp>
+
+namespace po = boost::program_options;
+
+void usage(char** argv, po::options_description& options)
 {
-    printf("Usage:\n");
-    printf("assembler [--include-dirs <dir1>[;<dir2>[;<dir3>] ..] <input file> [<output file>]\n");
-    printf("\t--include-dirs: a semi-colon delimited list of directories where include files can be found\n");
-    printf("\t<output file>: a file to write the assembled program into. Defaults to \"assembled.txt\"\n");
+    std::filesystem::path command_path{ argv[0] };
+    std::cout << "Usage: " << command_path.filename().string() << " [options]" << std::endl;
+    std::cout << options << std::endl;
 }
 
 int main(int argc, char **argv)
 {
-    char includes_buffer[LINE_BUFFER_SIZE+1];
-    includes_buffer[0] = 0;
+    std::string font_name{};
+    po::options_description cli_options("Allowed options");
+    cli_options.add_options()
+        ("help,?", "output the help message")
+        ("include,I", po::value< std::vector < std::string>>(), "directories to include when assembling source")
+        ("source,S", po::value<std::string>()->required(), "assembly source file to run")
+        ("output-file,O", po::value<std::string>(), "a file into which assembled data is saved")
+        ;
 
-#ifndef _MSC_VER
-    static struct option long_options[] =
+    po::variables_map variables;
+    po::store(po::command_line_parser(argc, argv).options(cli_options).run(), variables);
+    po::notify(variables);
+
+    if (variables.count("help") > 0)
     {
-        { "help", no_argument, 0, 'H' },
-        { "include-dirs", required_argument, 0, 'I' },
-        { 0, 0, 0, 0 }
-    };
-#endif
-
-    int c = 0;
-    int option_index = 0;
-    bool show_usage = false;
-    while (c >= 0)
-    {
-#ifdef _MSC_VER
-        c = getopt(argc, argv, "HI:");
-#else
-        c = getopt_long(argc, argv, "HI:", long_options, &option_index);
-#endif
-        if (c == -1)
-        {
-            break;
-        }
-
-        if (c == 'I')
-        {
-            strncpy(includes_buffer, optarg, LINE_BUFFER_SIZE);
-        }
-        else if (c == 'H')
-        {
-            show_usage = true;
-        }
-    }
-
-    if (show_usage)
-    {
-        usage();
+        usage(argv, cli_options);
+        return 1;
     }
 
     const char **includes = nullptr;
-    if (strlen(includes_buffer) > 0)
+    if (variables.count("include") > 0)
     {
-        int length = strlen(includes_buffer);
-        int dir_count = 1;
-        for (int i = 0; i < length; i++)
+        includes = new const char* [variables.count("include") + 1];
+
+        for (int i = 0; i < variables.count("include"); i++)
         {
-            if (includes_buffer[i] == ';')
-            {
-                includes_buffer[i] = 0;
-                dir_count++;
-            }
+            includes[i] = variables["include"].as<std::vector<std::string>>()[i].c_str();
         }
-        includes = new const char*[dir_count + 1];
-        includes[dir_count] = 0;
-        int current_index = 0;
-        for (int i = 0; i < dir_count; i++)
-        {
-            includes[i] = &includes_buffer[current_index];
-            while (current_index < length && includes_buffer[current_index] != 0)
-            {
-                current_index++;
-            }
-        }
+
+        includes[variables.count("include")] = 0;
     }
 
-    if (optind < argc)
+    if (variables.count("source") > 0)
     {
         assembler_data_t *assembled_data;
-        const char *output_file = nullptr;
-        if (optind + 1 < argc)
+        const char* output_file = nullptr;
+        
+        if (variables.count("output-file") > 0)
         {
-            output_file = argv[optind+1];
+            variables["output-file"].as<std::string>().c_str();
         }
 
-        assemble(argv[optind], includes, output_file, &assembled_data);
+        assemble(variables["source"].as<std::string>().c_str(), includes, output_file, &assembled_data);
         if (get_error_buffer_size(assembler_data) > 0)
         {
             printf("%s\n", error_buffer);
@@ -104,9 +68,11 @@ int main(int argc, char **argv)
             printf("Program assembled successfully\n");
         }
     }
-    else if (!show_usage)
+    else
     {
-        usage();
+        printf("A source file must be specified\n");
+        usage(argv, cli_options);
+        return -1;
     }
     
     return 0;
