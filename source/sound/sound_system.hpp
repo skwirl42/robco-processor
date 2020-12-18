@@ -7,7 +7,11 @@
 #include <chrono>
 #include <mutex>
 
+#if defined(APPLE)
+#include <SDL2/SDL.h>
+#else
 #include <SDL.h>
+#endif
 
 #include <boost/lockfree/spsc_queue.hpp>
 

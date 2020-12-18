@@ -9,7 +9,7 @@ namespace
 	const int SAMPLES_COUNT = 512;
 	const int DEFAULT_SAMPLE_RATE = 48000;
 	const int CD_SAMPLE_RATE = 44100;
-	const float PI = std::acos(-1);
+	const float PI = acos(-1);
 
 	typedef std::chrono::duration<long, std::ratio<1, DEFAULT_SAMPLE_RATE>> default_sample_duration;
 	typedef std::chrono::duration<long, std::ratio<1, CD_SAMPLE_RATE>> cd_sample_duration;
@@ -250,7 +250,6 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 			voice.octave = get_shifted_octave(byte, 4);
 			voice.time_started = time;
 			voice.time_started = time + voice.max_life;
-			std::cout << voice.to_string();
 			break;
 
 		case command_value::hold_note:
@@ -259,12 +258,13 @@ void sound_system::handle_command_buffer(size_t command_byte_count, uint8_t* com
 			voice.octave = get_shifted_octave(byte, 4);
 			voice.time_started = time;
 			voice.time_ended = 0;
-			std::cout << voice.to_string();
 			break;
 
 		case command_value::release_note:
 			voice.time_ended = time;
-			std::cout << voice.to_string();
+			break;
+
+		default:
 			break;
 		}
 	}

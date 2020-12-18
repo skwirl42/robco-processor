@@ -110,7 +110,7 @@ struct voice
 
 inline uint8_t make_command_byte(command_value command, uint8_t ID)
 {
-	return (uint8_t)command << 4 + ID;
+	return ((uint8_t)command << 4) + ID;
 }
 
 inline command_value get_command(uint8_t byte)

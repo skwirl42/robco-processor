@@ -58,8 +58,6 @@ target_include_directories(robcoterm PRIVATE
     source/sound
     ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(robcoterm PUBLIC ${Boost_LIBRARIES})
-
 add_executable(assembler
     source/main/opcode_table.c
     source/assembler/assembler.cpp
@@ -74,14 +72,10 @@ target_include_directories(assembler PRIVATE
     source/include
     ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(assembler PUBLIC ${Boost_LIBRARIES})
-
 add_executable(tapemanager
     source/tapemanager/tapemanager_main.cpp
     source/tapemanager/holotape_wrapper.cpp
     source/emulator/holotape.c)
-
-target_link_libraries(tapemanager PUBLIC ${Boost_LIBRARIES})
 
 target_include_directories(tapemanager PRIVATE 
     source/main
@@ -99,8 +93,6 @@ target_include_directories(sound_test PRIVATE
     source/include
     ${Boost_INCLUDE_DIRS})
 
-target_link_libraries(sound_test PUBLIC  ${Boost_LIBRARIES})
-
 add_executable(sound_keyboard
     source/sound/sound_keyboard_main.cpp
     source/sound/sound_system.cpp)
@@ -108,8 +100,6 @@ add_executable(sound_keyboard
 target_include_directories(sound_keyboard PRIVATE
     source/include
     ${Boost_INCLUDE_DIRS})
-
-target_link_libraries(sound_keyboard PUBLIC  ${Boost_LIBRARIES})
 
 target_link_directories(robcoterm PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(assembler PUBLIC ${Boost_LIBRARY_DIRS})
@@ -122,19 +112,21 @@ if (APPLE)
     find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
 
     target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(assembler stdc++)
+    target_link_libraries(assembler stdc++ ${Boost_LIBRARIES})
     target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
 
     target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image")
+    target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image" ${Boost_LIBRARIES})
     target_include_directories(robcoterm PUBLIC ${SDL2_IMAGE_INCLUDE_DIR} ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
 
+    target_link_libraries(tapemanager stdc++ ${Boost_LIBRARIES})
+
     target_link_directories(sound_test PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(sound_test stdc++ "-F /Library/Frameworks" "-framework SDL2")
+    target_link_libraries(sound_test stdc++ "-F /Library/Frameworks" "-framework SDL2" ${Boost_LIBRARIES})
     target_include_directories(sound_test PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
 
     target_link_directories(sound_keyboard PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(sound_keyboard stdc++ "-F /Library/Frameworks" "-framework SDL2")
+    target_link_libraries(sound_keyboard stdc++ "-F /Library/Frameworks" "-framework SDL2" ${Boost_LIBRARIES})
     target_include_directories(sound_keyboard PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
 
     set (CMAKE_CXX_FLAGS "-std=c++17 -DAPPLE")
@@ -142,15 +134,15 @@ endif (APPLE)
 
 if (MSVC)
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
-    target_link_libraries(robcoterm PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
+    target_link_libraries(robcoterm PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image ${Boost_LIBRARIES})
 
-    target_include_directories(assembler PUBLIC D:/GnuWin32/include)
+    target_include_directories(assembler PUBLIC D:/GnuWin32/include ${Boost_LIBRARIES})
 
-    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include)
+    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include ${Boost_LIBRARIES})
 
-    target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main)
+    target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main ${Boost_LIBRARIES})
 
-    target_link_libraries(sound_keyboard PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image)
+    target_link_libraries(sound_keyboard PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image ${Boost_LIBRARIES})
 endif ()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

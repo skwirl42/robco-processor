@@ -2,9 +2,15 @@
 #include <filesystem>
 #include <tuple>
 #include <boost/program_options.hpp>
+
+#if defined(APPLE)
+#include <SDL2/SDL.h>
+#else
 #include <SDL.h>
+#endif
 
 #include "sound_system.hpp"
+#include "exceptions.hpp"
 
 namespace po = boost::program_options;
 
@@ -129,7 +135,6 @@ int main(int argc, char** argv)
 
 	bool initialized_sdl = false;
 	SDL_Window* window = nullptr;
-	const char* bad_exception_text = nullptr;
 
 	auto teardown = [&]()
 	{
@@ -151,8 +156,7 @@ int main(int argc, char** argv)
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0)
 		{
 			snprintf(error_string, 256, "SDL error: %s", SDL_GetError());
-			bad_exception_text = error_string;
-			throw std::bad_exception();
+			throw basic_error() << error_message(error_string);
 		}
 
 		if (variables.count("list") > 0)
@@ -166,15 +170,14 @@ int main(int argc, char** argv)
 				std::cout << "Device " << i << ": \"" << device_name << "\"" << std::endl;
 			}
 
-			throw std::exception("Printed device list");
+			throw basic_error() << error_message("Printed device list");
 		}
 
 		window = SDL_CreateWindow("keys", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 		if (window == nullptr)
 		{
 			snprintf(error_string, 256, "SDL error: %s", SDL_GetError());
-			bad_exception_text = error_string;
-			throw std::bad_exception();
+			throw basic_error() << error_message(error_string);
 		}
 
 		initialized_sdl = true;
@@ -194,8 +197,7 @@ int main(int argc, char** argv)
 		if (!a_sound_system->is_initialized())
 		{
 			snprintf(error_string, 256, "Sound system error: %s", a_sound_system->get_error());
-			bad_exception_text = error_string;
-			throw std::bad_exception();
+			throw basic_error() << error_message(error_string);
 		}
 
 		std::cout << "Opened device " << a_sound_system->get_device_name() << std::endl;
@@ -250,10 +252,18 @@ int main(int argc, char** argv)
 			}
 		}
 	}
-	catch (const std::bad_exception& exception)
+	catch (const basic_error& exception)
 	{
 		teardown();
-		std::cout << "Failed with exception \"" << bad_exception_text << "\"" << std::endl;
+		std::string const* error_text = boost::get_error_info<error_message>(exception);
+		if (error_text == nullptr)
+		{
+			std::cerr << "Failed with unknown exception" << std::endl;
+		}
+		else
+		{
+			std::cout << "Failed with exception \"" << error_text << "\"" << std::endl;
+		}
 		return -1;
 	}
 	catch (const std::exception& exception)

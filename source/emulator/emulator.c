@@ -769,7 +769,7 @@ void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER
         index += snprintf(&debugging_buffers[current_buffer][index], LINE_BUFFER_SIZE, "Stack: ");
         if (emulator->SP > 0)
         {
-            auto remaining = LINE_BUFFER_SIZE - index;
+            size_t remaining = LINE_BUFFER_SIZE - index;
             for (int i = emulator->SP - 1; i >= 0 && remaining > 8; --i)
             {
                 index += snprintf(&debugging_buffers[current_buffer][index], remaining, "0x%02x ", emulator->memories.user_stack[i]);
