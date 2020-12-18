@@ -194,7 +194,7 @@ void holotape_wrapper::extract(const char *target_directory)
     fprintf(stdout, "Extracting the contents of holotape %s:\n", filename);
     holotape_rewind(deck);
 
-
+    // TODO: Duplicate file names may exist - must handle that
 }
 
 void holotape_wrapper::list()

@@ -72,16 +72,7 @@ int main (int argc, char **argv)
         return -1;
     }
 
-    //print_opcode_entries();
-
-    const char** paths = new const char* [variables.count("include") + 1];
-
-    for (int i = 0; i < variables.count("include"); i++)
-    {
-        paths[i] = variables["include"].as<std::vector<std::string>>()[i].c_str();
-    }
-
-    paths[variables.count("include")] = 0;
+    // print_opcode_entries();
 
     if (variables.count("source") != 1)
     {

@@ -14,6 +14,11 @@ extern "C" {
 //   - uint8_t segment_data[segment_header.segment_length - sizeof(executable_segment_header_t)]
 // Total size: main_header.total_length
 
+// TODO: Use emulator_word_t for word length fields so that
+// they can be saved in big endian
+//
+// OR, do they need to be? 
+
 typedef struct _executable_segment_header
 {
     uint16_t segment_length;
