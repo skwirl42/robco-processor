@@ -72,11 +72,13 @@ typedef union
     uint8_t bytes[2];
 } emulator_word_t;
 
+typedef struct opcode_entry opcode_entry_t;
+
 #define DEBUGGING_BUFFER_COUNT 5
 
 error_t init_emulator(emulator *emulator, arch_t architecture);
 void get_debug_info(emulator *emulator, char *debugging_buffers[DEBUGGING_BUFFER_COUNT]);
-inst_result_t execute_instruction(emulator *emulator);
+inst_result_t execute_instruction(emulator *emulator, opcode_entry_t **executed_instruction);
 uint16_t pull_word(emulator *emulator);
 uint8_t pull_byte(emulator *emulator);
 void push_word(emulator *emulator, uint16_t word);

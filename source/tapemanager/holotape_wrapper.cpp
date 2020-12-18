@@ -210,6 +210,7 @@ void holotape_wrapper::list()
 
     char name[HOLOTAPE_FILE_NAME_MAX + 1];
     name[HOLOTAPE_FILE_NAME_MAX] = 0;
+    int file_count = 0;
     for (int i = 0; i < HOLOTAPE_MAX_BLOCKS; i++)
     {
         auto read_status = holotape_read(deck);
@@ -221,6 +222,7 @@ void holotape_wrapper::list()
             {
                 strncpy(name, deck->block_buffer.block_structure.filename, HOLOTAPE_FILE_NAME_MAX);
                 fprintf(stdout, "- %s\n", name);
+                file_count++;
             }
         }
         else
@@ -228,5 +230,10 @@ void holotape_wrapper::list()
             fprintf(stderr, "Read failed when listing the contents of holotape %s\n", filename);
             return;
         }
+    }
+
+    if (file_count == 0)
+    {
+        fprintf(stdout, "\nNo files on holotape\n");
     }
 }

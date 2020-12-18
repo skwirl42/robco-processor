@@ -161,6 +161,12 @@ void ConsoleSDLRenderer::Cleanup()
         fontBuffer = nullptr;
     }
 
+    if (texture != nullptr)
+    {
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
+
     if (renderer != nullptr)
     {
         SDL_DestroyRenderer(renderer);
@@ -171,12 +177,6 @@ void ConsoleSDLRenderer::Cleanup()
     {
         SDL_DestroyWindow(window);
         window = nullptr;
-    }
-    
-    if (texture != nullptr)
-    {
-        SDL_DestroyTexture(texture);
-        texture = nullptr;
     }
 }
 
@@ -215,10 +215,11 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
         auto pixelPitch = pitch / 4;
         console->Visit([&](int x, int y, char character, CharacterAttribute attribute)
         {
+            uint8_t unsigned_char = *((uint8_t*)&character);
             auto xFBStart = x * charPixelsWide;
             auto yFBStart = y * charPixelsHigh * pixelPitch;
-            auto charXStart = (character % fontCharsWide) * charPixelsWide;
-            auto charYStart = (character / fontCharsWide) * charPixelsHigh;
+            auto charXStart = (unsigned_char % fontCharsWide) * charPixelsWide;
+            auto charYStart = (unsigned_char / fontCharsWide) * charPixelsHigh;
             auto isCursor = (x == cursorX) && (y == cursorY);
 
             for (uint16_t charLine = 0; charLine < charPixelsHigh; charLine++)

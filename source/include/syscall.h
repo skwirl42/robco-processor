@@ -5,6 +5,7 @@
 #define         SYSCALL_NONE            0x0000
 #define			SYSCALL_EXIT			0x0001
 #define			SYSCALL_GETERROR		0x0011
+#define         SYSCALL_GETTIME         0x0012
 
 // Text display
 #define			SYSCALL_GETCH			0x0100
@@ -15,6 +16,7 @@
 #define			SYSCALL_SETATTRC		0x0105
 #define			SYSCALL_CLEAR			0x0106
 #define         SYSCALL_GETCURSOR       0x0107
+#define         SYSCALL_GETKEYS         0x0108
 
 // Holotape access
 #define			SYSCALL_HOLOTAPECHECK   0x0200
@@ -35,5 +37,10 @@
 // Graphics display
 #define			SYSCALL_GRAPHICSTART    0x0400
 #define			SYSCALL_GRAPHICEND      0x0401
+
+// Audio
+#define			SYSCALL_SOUNDACK		0x0500
+#define			SYSCALL_SOUNDNACK		0x0501
+#define			SYSCALL_SOUNDCMD		0x0502
 
 #endif // __SYSCALL_H__

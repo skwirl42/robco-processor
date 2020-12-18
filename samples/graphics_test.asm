@@ -14,8 +14,8 @@ start:
 	;pushi 0x65				; 320x240, 4 bpp, border off - 38,400 bytes
 	;pushi 0x73				; 320x240, 2 bpp, border on - 19,200 bytes
 	;pushi 0x71				; 320x240, 1 bpp, border on - 9,600 bytes
-	;pushi 0x47				; 240x160, 8 bpp, border off - 38,400 bytes
-	pushi 0x45				; 240x160, 4 bpp, border off - 19,200 bytes
+	pushi 0x47				; 240x160, 8 bpp, border off - 38,400 bytes
+	;pushi 0x45				; 240x160, 4 bpp, border off - 19,200 bytes
 	;pushi 0x43				; 240x160, 2 bpp, border off - 9,600 bytes
 	;pushi 0x41				; 240x160, 1 bpp, border off - 4,800 bytes
 	;pushi 0x37				; 192x128, 8 bpp, border on - 24,576 bytes
@@ -51,6 +51,8 @@ draw_loop:
 	pushw [dp]
 	dupw
 	pop
+	pushi 0xAA
+	add
 	pull [x+]
 	incw
 	pullw [dp]

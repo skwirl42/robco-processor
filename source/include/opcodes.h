@@ -137,6 +137,10 @@ typedef struct opcode_entry
 {
     const char *name;
     uint8_t opcode;
+    // How many cycles the instruction needs to execute
+    // Negative values mean the cycles need to be calculated at runtime
+    // 0 means that the emulator has ceded control through a sync or syscall
+    int cycles;
     int arg_byte_count;
     symbol_type_t argument_type;
     register_access_mode_t access_mode;

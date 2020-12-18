@@ -540,7 +540,7 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
     auto region = find_region_containing(data, ref_location);
     if (region == nullptr)
     {
-        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x", ref_location);
+        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x)", ref_location);
         add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
         return;
     }
@@ -550,13 +550,24 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
     {
         region->data[ref_index] = byte_value;
     }
+    else if (symbol_type == SYMBOL_ADDRESS_INST && expected_signedness == SIGNEDNESS_SIGNED)
+    {
+        auto address_offset = (int)word_value.uword - ((int)ref_location - 1);
+        if (address_offset > 127 || address_offset < -128)
+        {
+            snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", ref_location, word_value.uword);
+            add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+            return;
+        }
+        else
+        {
+            auto signed_byte = (int8_t)address_offset;
+            auto unsigned_byte = *((uint8_t*)&signed_byte);
+            region->data[ref_index] = unsigned_byte;
+        }
+    }
     else
     {
-        if (expected_signedness == SIGNEDNESS_SIGNED)
-        {
-            // NOTE: This is assuming that the only symbol ref looking for a signed word is a branch instruction
-            word_value.sword -= (int16_t)ref_location - 1;
-        }
         region->data[ref_index] = word_value.bytes[1];
         region->data[ref_index + 1] = word_value.bytes[0];
     }
@@ -636,7 +647,7 @@ void handle_org_directive(assembler_data_t *data, uint16_t address)
     }
 }
 
-void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, std::optional<uint8_t> byte0 = std::nullopt, std::optional<uint8_t> byte1 = std::nullopt)
+void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, opcode_entry_t* opcode_entry = nullptr, std::optional<uint8_t> byte0 = std::nullopt, std::optional<uint8_t> byte1 = std::nullopt)
 {
     auto address = get_current_instruction_address(data);
     if (!data->execution_start.has_value())
@@ -649,17 +660,25 @@ void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, std::opti
 
     data->current_region->data[offset++] = opcode;
 
+    int byte_count = 0;
     if (byte0.has_value())
     {
         data->current_region->data[offset++] = byte0.value();
+        byte_count++;
     }
 
     if (byte1.has_value())
     {
         data->current_region->data[offset++] = byte1.value();
+        byte_count++;
     }
 
     data->current_region->current_instruction_offset = offset;
+
+    if (opcode_entry != nullptr)
+    {
+        //printf("Assembling %s at 0x%04x with %d argument bytes\n", opcode_entry->name, address, byte_count);
+    }
 }
 
 void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
@@ -727,20 +746,34 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
             {
             case SYMBOL_WORD:
             case SYMBOL_ADDRESS_DATA:
-                apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
+                apply_machine_instruction(data, opcode->opcode, opcode, word.bytes[1], word.bytes[0]);
                 break;
 
             case SYMBOL_BYTE:
-                apply_machine_instruction(data, opcode->opcode, byte_value);
+                apply_machine_instruction(data, opcode->opcode, opcode, byte_value);
                 break;
 
             case SYMBOL_ADDRESS_INST:
-                if (opcode->argument_signedness == SIGNEDNESS_SIGNED)
+                if (opcode->argument_signedness == SIGNEDNESS_SIGNED && opcode->arg_byte_count == 1)
                 {
-                    word.sword -= (int16_t)current_instruction_address;
-                    // fprintf(stdout, "Branching by %d, from %zu to %u\n", target, data->instruction_size + 3, word_value);
+                    auto address_offset = (int)word_value - current_instruction_address;
+                    if (address_offset > 127 || address_offset < -128)
+                    {
+                        snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", current_instruction_address, word_value);
+                        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                        return;
+                    }
+                    else
+                    {
+                        auto signed_byte = (int8_t)address_offset;
+                        auto unsigned_byte = *((uint8_t*)&signed_byte);
+                        apply_machine_instruction(data, opcode->opcode, opcode, unsigned_byte);
+                    }
                 }
-                apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
+                else
+                {
+                    apply_machine_instruction(data, opcode->opcode, opcode, word.bytes[1], word.bytes[0]);
+                }
                 break;
 
             case SYMBOL_NO_TYPE:
@@ -751,8 +784,20 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
         }
         else if (opcode->argument_type == SYMBOL_ADDRESS_INST)
         {
-            // The two following bytes will be resolved later
-            apply_machine_instruction(data, opcode->opcode, 0, 0);
+            // The following byte(s) will be resolved later
+            if (opcode->arg_byte_count == 1)
+            {
+                apply_machine_instruction(data, opcode->opcode, opcode, 0);
+            }
+            else if (opcode->arg_byte_count == 2)
+            {
+                apply_machine_instruction(data, opcode->opcode, opcode, 0, 0);
+            }
+            else
+            {
+                snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error handling opcode %s, which references %s", opcode->name, symbol_arg);
+                add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+            }
         }
     }
     else if (opcode->argument_type == SYMBOL_NO_TYPE)
@@ -760,15 +805,15 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
         // There may be register specifications in the literal arg
         if (opcode->arg_byte_count == 0)
         {
-            apply_machine_instruction(data, opcode->opcode);
+            apply_machine_instruction(data, opcode->opcode, opcode);
         }
         else if (opcode->arg_byte_count == 1)
         {
-            apply_machine_instruction(data, opcode->opcode, (uint8_t)literal_arg);
+            apply_machine_instruction(data, opcode->opcode, opcode, (uint8_t)literal_arg);
         }
         else if (opcode->arg_byte_count > 1)
         {
-            apply_machine_instruction(data, opcode->opcode, 0, (uint8_t)literal_arg);
+            apply_machine_instruction(data, opcode->opcode, opcode, 0, (uint8_t)literal_arg);
         }
     }
     else
@@ -792,7 +837,7 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
             machine_word_t word;
             word.uword = literal;
 
-            apply_machine_instruction(data, opcode->opcode, word.bytes[1], word.bytes[0]);
+            apply_machine_instruction(data, opcode->opcode, opcode, word.bytes[1], word.bytes[0]);
         }
         else
         {
@@ -801,7 +846,7 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
                 literal_arg += 256;
             }
 
-            apply_machine_instruction(data, opcode->opcode, (uint8_t)literal_arg);
+            apply_machine_instruction(data, opcode->opcode, opcode, (uint8_t)literal_arg);
         }
     }
 }
@@ -822,7 +867,7 @@ void handle_indexed_instruction(assembler_data_t *data, opcode_entry_t *opcode, 
         increment_byte &= ~OP_STACK_INCREMENT_PRE;
     }
 
-    apply_machine_instruction(data, opcode_value, increment_byte);
+    apply_machine_instruction(data, opcode_value, opcode, increment_byte);
 }
 
 void add_error(assembler_data_t *data, const char *error_string, assembler_status_t status)

@@ -8,13 +8,13 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
   * Install SDL2 and SLD2_image to /Library/Frameworks in any way you choose
   * flex (latest) and bison (2.7) need to be installed via homebrew: https://brew.sh/
 - Windows with Visual Studio installed
-  * note: you'll need to add SDL2 and SLD2_image using nuget, as cmake's nuget support and VS C++ projects don't get along
-  * this is best accomplished by installing sdl2_image first, as it will pick out the right SDL2 it needs
+  * note: you'll need to add boost, SDL2 and SLD2_image using vcpkg
   * flex and bison should be installed from the GnuWin32 site http://gnuwin32.sourceforge.net/
 - Could probably be easily ported to other platforms/versions, as code is straight C/C++ and SDL2
 
 ## Requirements:
 - CMake 3.15+
+- C++17 compiler
 - SDL2
 - SDL2_image
 - flex
@@ -27,10 +27,22 @@ While running the emulator clicking in the window with the mouse will pause exec
 ## The Assembler
 While the main executable assembles a program before executing it, you can use the "assembler" cmake target to make a standalone version of the assembler. The standalone assembler outputs a text file containing the hexadecimal code and data regions, and a list of symbols defined in the program. This file is not meant to be executed, but rather for debugging and testing purposes.
 
+## Mix of languages
+When I started this I thought some pieces should be in C++ and others in C. This was to keep the parts that needed better performance as C, but I'm not sure it's really necessary. I won't be rewriting the parts in C, but I plan to continue any new development in C++.
+
 ## TODO
+### Ease of use
 - [ ] Write a programming guide
-- [x] Better error handling for the assembler
-- [ ] Update the debugger to support showing the next instruction to be executed, instead of the last
-- [ ] Update the debugger to properly show the source arguments for register indexed instructions
-- [ ] Allow for swapping between the debug and regular console while execution remains paused
 - [ ] More better user experience
+- [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameter, etc
+## Functionality
+- [ ] Implement support for executing programs from tape
+- [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
+### Refactoring/increased cross-platform parity
+- [x] Rewrite command line options using boost's Program Options library
+- [ ] Rewrite assembler parsing using boost::spirit
+### Complete
+- [x] Better error handling for the assembler
+- [x] Update the debugger to support showing the next instruction to be executed, instead of the last
+- [x] Update the debugger to properly show the source arguments for register indexed instructions
+- [x] Allow for swapping between the debug and regular console while execution remains paused (hold right mouse button)
