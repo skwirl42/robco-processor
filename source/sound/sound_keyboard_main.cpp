@@ -135,10 +135,16 @@ int main(int argc, char** argv)
 
 	bool initialized_sdl = false;
 	SDL_Window* window = nullptr;
+	sound_system* sound_system_ptr = nullptr;
 
 	auto teardown = [&]()
 	{
 		delete[] command_buffer;
+
+		if (sound_system_ptr != nullptr)
+		{
+			delete sound_system_ptr;
+		}
 
 		if (window != nullptr)
 		{
@@ -182,7 +188,6 @@ int main(int argc, char** argv)
 
 		initialized_sdl = true;
 
-		sound_system* sound_system_ptr = nullptr;
 		if (variables.count("device") == 1)
 		{
 			sound_system_ptr = new sound_system(variables["device"].as<std::string>());

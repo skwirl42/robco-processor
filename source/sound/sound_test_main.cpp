@@ -1,9 +1,15 @@
 #include <iostream>
 #include <filesystem>
 #include <boost/program_options.hpp>
+
+#if defined(APPLE)
+#include <SDL2/SDL.h>
+#else
 #include <SDL.h>
+#endif
 
 #include "sound_system.hpp"
+#include "exceptions.hpp"
 
 namespace po = boost::program_options;
 
@@ -34,6 +40,8 @@ int main(int argc, char** argv)
 		("preamble,P", po::value<size_t>(&preamble_bytes), "the number of command bytes to process before beginning to time command sets")
 		("bytes,B", po::value<size_t>(&bytes_per_command)->default_value(DEFAULT_BYTES_PER_SOUND_COMMAND_SET), "the number of bytes to read per sound command set to the sound system")
 		("time,T", po::value<float>(&millis_per_command)->default_value(DEFAULT_MILLISECONDS_PER_COMMAND_SET), "the number of milliseconds to wait per sound command set")
+		("list,L", "list audio devices")
+		("device,D", po::value<std::string>(), "the audio device to use")
 		;
 
 	po::options_description options;
@@ -87,32 +95,70 @@ int main(int argc, char** argv)
 	uint8_t* command_buffer = new uint8_t[command_buffer_size]{};
 
 	bool initialized_sdl = false;
+	sound_system* a_sound_system = nullptr;
+
+	auto teardown = [&]()
+	{
+		delete[] command_buffer;
+
+		if (a_sound_system != nullptr)
+		{
+			delete a_sound_system;
+		}
+
+		if (initialized_sdl)
+		{
+			SDL_Quit();
+		}
+	};
+
 	try
 	{
 		if (SDL_Init(SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0)
 		{
-			throw std::exception(SDL_GetError());
+			throw basic_error() << error_message(SDL_GetError());
 		}
 
 		initialized_sdl = true;
 
-		sound_system a_sound_system;
-
-		if (!a_sound_system.is_initialized())
+		if (variables.count("list") > 0)
 		{
-			throw std::exception(a_sound_system.get_error());
+			auto device_count = SDL_GetNumAudioDevices(0);
+			std::cout << "Listing " << device_count << " audio devices:" << std::endl;
+			const char* device_name;
+			for (int i = 0; i < device_count; i++)
+			{
+				device_name = SDL_GetAudioDeviceName(i, 0);
+				std::cout << "Device " << i << ": \"" << device_name << "\"" << std::endl;
+			}
+
+			throw flow_exit() << error_message("Printed device list");
 		}
 
-		a_sound_system.start_worker_thread();
+		if (variables.count("device") == 1)
+		{
+			a_sound_system = new sound_system(variables["device"].as<std::string>());
+		}
+		else
+		{
+			a_sound_system = new sound_system();
+		}
+
+		if (!a_sound_system->is_initialized())
+		{
+			throw basic_error() << error_message(a_sound_system->get_error());
+		}
+
+		a_sound_system->start_worker_thread();
 		if (variables.count(std::string("preamble")) > 0)
 		{
 			if (fread(command_buffer, 1, preamble_bytes, command_file) != preamble_bytes)
 			{
-				throw std::exception("Failed to read the preamble");
+				throw basic_error() << error_message("Failed to read the preamble");
 			}
 
 			command preamble_command{command_type::buffer, preamble_bytes, command_buffer};
-			a_sound_system.process_command(preamble_command);
+			a_sound_system->process_command(preamble_command);
 		}
 
 		command current_command;
@@ -124,49 +170,58 @@ int main(int argc, char** argv)
 			if (size_read > 0)
 			{
 				current_command = { command_type::buffer, size_read, command_buffer };
-				a_sound_system.process_command(current_command);
+				a_sound_system->process_command(current_command);
 			}
 			else
 			{
-				throw std::exception("Failed to read from command file");
+				throw basic_error() << error_message("Failed to read from command file");
 			}
 		}
 	}
-	catch (const std::exception& exception)
+	catch (const flow_exit& exit_message)
 	{
-		delete[] command_buffer;
-		fclose(command_file);
+		teardown();
 
-		if (initialized_sdl)
+		std::string const* exit_text = boost::get_error_info<error_message>(exit_message);
+		if (exit_text != nullptr)
 		{
-			SDL_Quit();
+			std::cout << exit_text << std::endl;
 		}
 
-		std::cout << "Failed with exception \"" << exception.what() << "\"" << std::endl;
+		return 0;
+	}
+	catch (const basic_error& exception)
+	{
+		teardown();
+
+		std::string const* error_text = boost::get_error_info<error_message>(exception);
+		if (error_text == nullptr)
+		{
+			std::cerr << "Failed with unknown exception" << std::endl;
+		}
+		else
+		{
+			std::cout << "Failed with exception \"" << error_text << "\"" << std::endl;
+		}
 
 		return -1;
 	}
+	catch (const std::exception& exception)
+	{
+		// Not a bad exception, probably just an early exit
+		teardown();
+
+		return 0;
+	}
 	catch (...)
 	{
-		delete[] command_buffer;
-		fclose(command_file);
-
-		if (initialized_sdl)
-		{
-			SDL_Quit();
-		}
+		teardown();
 
 		std::cout << "Failed on an exception" << std::endl;
 		return -1;
 	}
 
-	delete[] command_buffer;
-	fclose(command_file);
-
-	if (initialized_sdl)
-	{
-		SDL_Quit();
-	}
+	teardown();
 
 	return 0;
 }
