@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <optional>
+#include <filesystem>
 #include "opcodes.h"
 #include "memory.h"
 #include "executable_file.h"
@@ -27,6 +28,7 @@ typedef struct _assembler_data
     uint16_t current_org_address;
     std::optional<uint16_t> execution_start;
     bool current_org_address_valid;
+    std::string output_filename;
 } assembler_data_t;
 
 char *error_buffer = new char[ERROR_BUFFER_SIZE + 1];
@@ -43,7 +45,14 @@ uint16_t executable_file_size(assembler_data_t *data)
         if (segment->data_length > 0)
         {
             file_size += sizeof(executable_segment_header_t);
-            file_size += segment->data_length;
+            if (segment->executable)
+            {
+                file_size += segment->current_instruction_offset;
+            }
+            else
+            {
+                file_size += segment->data_length;
+            }
         }
     }
 
@@ -81,12 +90,14 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
 
     for (auto segment : included_segments)
     {
-        segment_header.segment_length = segment_header_size + segment->data_length;
+        auto data_length = segment->executable ? segment->current_instruction_offset : segment->data_length;
+        segment_header.segment_length = segment_header_size + data_length;
         segment_header.is_code = segment->executable;
+        segment_header.segment_location = segment->start_location;
         memcpy(&buffer[buffer_index], &segment_header, segment_header_size);
         buffer_index += segment_header_size;
-        memcpy(&buffer[buffer_index], segment->data, segment->data_length);
-        buffer_index += segment->data_length;
+        memcpy(&buffer[buffer_index], segment->data, data_length);
+        buffer_index += data_length;
     }
 
     return ASSEMBLER_SUCCESS;
@@ -112,6 +123,11 @@ int get_error_buffer_size(assembler_data_t *data)
 const char *get_error_buffer(assembler_data_t *data)
 {
     return data->error_buffer;
+}
+
+const char *get_output_filename(assembler_data_t *data)
+{
+    return data->output_filename.c_str();
 }
 
 bool region_contains_address(assembled_region_t *region, uint16_t address)
@@ -194,6 +210,7 @@ assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, boo
             new_region = new assembled_region_t { (uint16_t)base_address, 0, size };
             new_region->data = nullptr;
             new_region->data_length = 0;
+            new_region->length = size;
 
             if (allocate_memory)
             {
@@ -216,6 +233,7 @@ assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, boo
             new_region = new assembled_region_t { (uint16_t)new_address, 0, size };
             new_region->data = nullptr;
             new_region->data_length = 0;
+            new_region->length = size;
 
             if (allocate_memory)
             {
@@ -903,7 +921,7 @@ assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_
 }
 
 assembler_data_t data;
-void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data)
+void assemble(const char *filename, const char **search_paths, const char *output_file, OutputFileType outFileType, assembler_data_t **assembled_data)
 {
     data.search_paths = search_paths;
     data.lineNumber = 0;
@@ -963,71 +981,110 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
         return;
     }
 
-    if (output_file == nullptr)
+    if (outFileType != None && outFileType != Error)
     {
-        output_file = "assembled.txt";
-    }
-    
-    FILE *assembled_output = fopen(output_file, "w+");
-    if (assembled_output != 0)
-    {
-        fprintf(assembled_output, "Execution start: 0x%04x\n", data.execution_start.value());
-
-        fprintf(assembled_output, "Code:\n");
-        int i = 0;
-        auto output_line = [assembled_output, &i](assembled_region_t *region, int data_length)
+        std::string output_filename{};
+        if (output_file == nullptr)
         {
-            fprintf(assembled_output, "0x%04x: ", region->start_location + i);
-            for (int j = 0; j < 4 && i < region->data_length; j++)
+            std::filesystem::path infilepath(filename);
+            switch (outFileType)
             {
-                fprintf(assembled_output, "0x%02x ", region->data[i++]);
-            }
-            fprintf(assembled_output, "\n");
-        };
+            case Binary:
+                output_filename = infilepath.stem().string() + ".rcexe";
+                break;
 
-        for (auto region : data.regions)
-        {
-            if (region->executable)
-            {
-                for (i = 0; i < region->data_length && i < region->current_instruction_offset;)
-                {
-                    output_line(region, region->data_length);
-                }
+            case Summary:
+            default:
+                output_filename = infilepath.stem().string() + ".txt";
+                break;
             }
         }
-
-        const int max_data_print = 512;
-        fprintf(assembled_output, "\nData:\n");
-        for (auto region : data.regions)
+        else
         {
-            if (!region->executable)
-            {
-                auto data_length = region->data_length < max_data_print ? region->data_length : max_data_print;
-                if (region->data == nullptr || region->data_length == 0)
+            output_filename = output_file;
+        }
+        
+        FILE *assembled_output = fopen(output_filename.c_str(), "w+");
+        if (assembled_output != 0)
+        {
+            if (outFileType == Summary)
+            {    
+                fprintf(assembled_output, "Execution start: 0x%04x\n", data.execution_start.value());
+
+                fprintf(assembled_output, "Code:\n");
+                int i = 0;
+                auto output_line = [assembled_output, &i](assembled_region_t *region, int data_length)
                 {
-                    fprintf(assembled_output, "0x%04x: reserved %d bytes\n", region->start_location, region->length);
+                    fprintf(assembled_output, "0x%04x: ", region->start_location + i);
+                    for (int j = 0; j < 4 && i < region->data_length; j++)
+                    {
+                        fprintf(assembled_output, "0x%02x ", region->data[i++]);
+                    }
+                    fprintf(assembled_output, "\n");
+                };
+
+                for (auto region : data.regions)
+                {
+                    if (region->executable)
+                    {
+                        for (i = 0; i < region->data_length && i < region->current_instruction_offset;)
+                        {
+                            output_line(region, region->data_length);
+                        }
+                    }
+                }
+
+                const int max_data_print = 512;
+                fprintf(assembled_output, "\nData:\n");
+                for (auto region : data.regions)
+                {
+                    if (!region->executable)
+                    {
+                        auto data_length = region->data_length < max_data_print ? region->data_length : max_data_print;
+                        if (region->data == nullptr || region->data_length == 0)
+                        {
+                            fprintf(assembled_output, "0x%04x: reserved %d bytes\n", region->start_location, region->length);
+                        }
+                        else
+                        {
+                            for (i = 0; i < data_length;)
+                            {
+                                output_line(region, data_length);
+                            }
+
+                            if (data_length != region->data_length)
+                            {
+                                fprintf(assembled_output, " ... \n");
+                            }
+                        }
+                    }
+                }
+
+                fprintf(assembled_output, "\nSymbols:\n");
+                output_symbols(assembled_output, data.symbol_table);
+            }
+            else if (outFileType == Binary)
+            {
+                auto file_size = executable_file_size(&data);
+                std::unique_ptr<uint8_t[]> file_buffer(new uint8_t[file_size]);
+                auto result = prepare_executable_file(&data, file_buffer.get());
+                if (result == ASSEMBLER_SUCCESS)
+                {
+                    fwrite(file_buffer.get(), 1, file_size, assembled_output);
                 }
                 else
                 {
-                    for (i = 0; i < data_length;)
-                    {
-                        output_line(region, data_length);
-                    }
-
-                    if (data_length != region->data_length)
-                    {
-                        fprintf(assembled_output, " ... \n");
-                    }
+                    fprintf(stderr, "Couldn't output assembled data to file %s\n", output_filename.c_str());
                 }
             }
-        }
 
-        fprintf(assembled_output, "\nSymbols:\n");
-        output_symbols(assembled_output, data.symbol_table);
-    }
-    else
-    {
-        fprintf(stderr, "Couldn't open assembler output file %s (errno: %d)\n", output_file, errno);
+            fclose(assembled_output);
+            data.output_filename = output_filename;
+        }
+        else
+        {
+            fprintf(stderr, "Couldn't open assembler output file %s (errno: %d)\n", output_filename.c_str(), errno);
+        }
     }
 
     if (data.symbol_table != 0)

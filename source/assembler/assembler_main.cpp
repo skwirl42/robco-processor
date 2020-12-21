@@ -3,8 +3,32 @@
 
 #include <filesystem>
 #include <boost/program_options.hpp>
+#include <boost/algorithm/string/case_conv.hpp>
 
 namespace po = boost::program_options;
+
+std::istream& operator>>(std::istream& in, OutputFileType& fileType)
+{
+    std::string token;
+    in >> token;
+
+    boost::to_lower(token);
+
+    if (token == "binary" || token == "b")
+    {
+        fileType = OutputFileType::Binary;
+    }
+    else if (token == "summary" || token == "s")
+    {
+        fileType = OutputFileType::Summary;
+    }
+    else
+    {
+        fileType = OutputFileType::Error;
+    }
+    
+    return in;
+}
 
 void usage(char** argv, po::options_description& options)
 {
@@ -17,11 +41,13 @@ int main(int argc, char **argv)
 {
     std::string font_name{};
     po::options_description cli_options("Allowed options");
+    OutputFileType outFileType = Binary;
     cli_options.add_options()
         ("help,?", "output the help message")
         ("include,I", po::value< std::vector < std::string>>(), "directories to include when assembling source")
         ("source,S", po::value<std::string>()->required(), "assembly source file to run")
         ("output-file,O", po::value<std::string>(), "a file into which assembled data is saved")
+        ("type,T", po::value<OutputFileType>(&outFileType)->default_value(Binary), "what type of file to output (binary or summary)")
         ;
 
     po::variables_map variables;
@@ -57,7 +83,7 @@ int main(int argc, char **argv)
             variables["output-file"].as<std::string>().c_str();
         }
 
-        assemble(variables["source"].as<std::string>().c_str(), includes, output_file, &assembled_data);
+        assemble(variables["source"].as<std::string>().c_str(), includes, output_file, outFileType, &assembled_data);
         if (get_error_buffer_size(assembler_data) > 0)
         {
             printf("%s\n", error_buffer);
@@ -65,7 +91,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            printf("Program assembled successfully\n");
+            printf("Program assembled successfully into %s\n", get_output_filename(assembled_data));
         }
     }
     else

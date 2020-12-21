@@ -93,7 +93,7 @@ int main (int argc, char **argv)
     const char* sample_file = variables["source"].as<std::string>().c_str();
 
     assembler_data_t *assembled_data;
-    assemble(sample_file, paths, nullptr, &assembled_data);
+    assemble(sample_file, paths, nullptr, None, &assembled_data);
 
     delete[] paths;
 

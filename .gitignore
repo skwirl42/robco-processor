@@ -35,3 +35,6 @@ test.holo
 *.exe
 *.out
 *.app
+graphics_test.holo
+graphics_test.rcexe
+graphics_test.txt

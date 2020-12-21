@@ -45,6 +45,11 @@ error_t init_emulator(emulator *emulator, arch_t architecture)
         return ALLOC_FAILED;
     }
 
+    return reset_emulator(emulator);
+}
+
+error_t reset_emulator(emulator *emulator)
+{
     memset(emulator->memories.data, 0, DATA_SIZE);
     memset(emulator->memories.instruction_stack, 0, INST_STACK_SIZE);
     memset(emulator->memories.user_stack, 0, STACK_SIZE);

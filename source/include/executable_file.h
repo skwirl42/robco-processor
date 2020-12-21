@@ -19,8 +19,26 @@ extern "C" {
 //
 // OR, do they need to be? 
 
+typedef enum _holo_execute_status
+{
+    HOLO_EXEC_NO_ERROR,
+    HOLO_EXEC_INVALID_DECK,
+    HOLO_EXEC_FORMAT_ERROR,
+    HOLO_EXEC_IO_ERROR,
+
+    HOLO_EXEC_DECK_EMPTY,
+    HOLO_EXEC_NO_EXECUTABLE,
+
+    HOLO_EXEC_UNEXPECTED_END_OF_TAPE,
+
+    HOLO_EXEC_NOT_FOUND,
+    HOLO_EXEC_TOO_MUCH_DATA,
+    HOLO_EXEC_UNEXPECTED_END_OF_FILE,
+} holo_execute_status_t;
+
 typedef struct _executable_segment_header
 {
+    uint16_t segment_location;
     uint16_t segment_length;
     uint8_t is_code;
 } executable_segment_header_t;

@@ -42,7 +42,7 @@ typedef struct _holotape_block
     uint8_t bytes[HOLOTAPE_STRUCTURE_BYTE_COUNT];
 } holotape_block_t;
 
-#define HOLOTYPE_HEADER_SIZE            (HOLOTAPE_BLOCK_SIZE - HOLOTAPE_STRUCTURE_BYTE_COUNT)
+#define HOLOTAPE_HEADER_SIZE            (HOLOTAPE_BLOCK_SIZE - HOLOTAPE_STRUCTURE_BYTE_COUNT)
 
 typedef union _holotape_block_buffer
 {

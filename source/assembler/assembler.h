@@ -30,6 +30,14 @@ typedef enum
     ASSEMBLER_UNINITIALIZED_VALUE,
 } assembler_status_t;
 
+typedef enum _OutputFileType
+{
+    Error,
+    None,
+    Binary,
+    Summary,
+} OutputFileType;
+
 typedef struct _assembler_error
 {
     assembler_status_t status;
@@ -55,11 +63,12 @@ extern const char *current_filename;
 extern int *lineNumber;
 extern char *error_buffer;
 
-void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_data_t **assembled_data);
+void assemble(const char *filename, const char **search_paths, const char *output_file, OutputFileType outFileType, assembler_data_t **assembled_data);
 assembler_status_t get_starting_executable_address(assembler_data_t *data, uint16_t *address);
 assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_t *buffer);
 int get_error_buffer_size(assembler_data_t *data);
 const char *get_error_buffer(assembler_data_t *data);
+const char *get_output_filename(assembler_data_t *data);
 
 // The buffer provided to prepare_executable_file must be at least big enough
 // to hold the number of bytes returned by executable_file_size

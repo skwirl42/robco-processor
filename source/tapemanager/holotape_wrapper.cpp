@@ -116,7 +116,7 @@ void holotape_wrapper::append_file(const char *file_to_append)
         {
             size_t read_size = current_size > HOLOTAPE_STRUCTURE_BYTE_COUNT ? HOLOTAPE_STRUCTURE_BYTE_COUNT : current_size;
             
-            deck->block_buffer.block_structure.block_bytes.word = read_size + HOLOTYPE_HEADER_SIZE;
+            deck->block_buffer.block_structure.block_bytes.word = read_size + HOLOTAPE_HEADER_SIZE;
             deck->block_buffer.block_structure.remaining_blocks_in_file.word = blocks_remaining--;
             auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, read_size, file);
 
@@ -139,7 +139,7 @@ void holotape_wrapper::append_file(const char *file_to_append)
     }
     else
     {
-        deck->block_buffer.block_structure.block_bytes.word = current_size + HOLOTYPE_HEADER_SIZE;
+        deck->block_buffer.block_structure.block_bytes.word = current_size + HOLOTAPE_HEADER_SIZE;
         deck->block_buffer.block_structure.remaining_blocks_in_file.word = 0;
         auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, current_size, file);
 
