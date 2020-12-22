@@ -36,7 +36,7 @@ When I started this I thought some pieces should be in C++ and others in C. This
 - [ ] More better user experience
 - [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameter, etc
 ## Functionality
-- [ ] Implement support for executing programs from tape
+- [x] Implement support for executing programs from tape
 - [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
   - implementation done, needs extensive testing
 ### Refactoring/increased cross-platform parity
