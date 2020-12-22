@@ -1,6 +1,40 @@
-#pragma once
+﻿#pragma once
 
 #include <functional>
+
+// Notes on pseudo-graphics characters:
+// The characters for a single-line box are:
+// 0xDA 0xC4 0xBF
+// 0xB2 0x20 0xB2
+// 0xC0 0xC4 0xD9
+//
+// Unicode:
+// ┌─┐
+// │ │
+// └─┘
+//
+// 0xB2 is the vertical box drawing character, 0xC4 the horizontal one
+//
+// Double-line box:
+// 0xC9 0xCD 0xBB
+// 0xBA 0x20 0xBA
+// 0xC8 0xCD 0xBC
+//
+// Unicode:
+// ╔═╗
+// ║ ║
+// ╚═╝
+// 
+// Characters 0xE0-0xEF contain 2x2 grids of pseudo-pixels per character.
+// The lower 4 bits define which of the 2x2 pseudo-pixels are active,
+// where the top left's index is 0, going right-to-left, top-to-bottom.
+//
+// The Unicode versions of some of these range from U+2596 to U+259F,
+// whereas 0xE0 is blank, and the half-block versions are scattered between
+// U+2580 and U+2590, although the two sets do not line up visually.
+// ' ' '▘' '▝' '▀' '▖' '▌' '▞' '▛' '▗' '▚' '▐' '▜' '▄' '▙' '▟' '█'
+// 
+// This is assuming the font being used contains these characters
 
 enum class CharacterAttribute : unsigned int
 {
