@@ -33,16 +33,17 @@ When I started this I thought some pieces should be in C++ and others in C. This
 ## TODO
 ### Ease of use
 - [ ] Write a programming guide
+- [ ] Implement a higher level language (probably BASIC, at first)
 - [ ] More better user experience
-- [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameter, etc
+- [ ] Add a configuration screen for inserting/ejecting holotapes, setting emulator parameters, etc
 ## Functionality
-- [x] Implement support for executing programs from tape
 - [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
   - implementation done, needs extensive testing
 ### Refactoring/increased cross-platform parity
-- [x] Rewrite command line options using boost's Program Options library
 - [ ] Rewrite assembler parsing using boost::spirit
 ### Complete
+- [x] Implement support for executing programs from tape
+- [x] Rewrite command line options using boost's Program Options library
 - [x] Better error handling for the assembler
 - [x] Update the debugger to support showing the next instruction to be executed, instead of the last
 - [x] Update the debugger to properly show the source arguments for register indexed instructions
