@@ -6,6 +6,7 @@
 #include "holotape.h"
 #include "syscall.h"
 #include "executable_file.h"
+#include "exceptions.hpp"
 
 namespace
 {
@@ -46,6 +47,7 @@ void handle_holotape_execute(emulator &emulator)
         return;
     }
 
+    // TODO: This is all FUBAR
     std::unique_ptr<uint8_t[]> executable_file(new uint8_t[header.total_length]);
     auto remaining_length = header.total_length;
     memcpy(executable_file.get(), current_deck->block_buffer.block_structure.bytes, current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE);
@@ -77,9 +79,13 @@ void handle_holotape_execute(emulator &emulator)
     auto current_file_position = sizeof(executable_file_header_t);
     while (current_file_position < header.total_length)
     {
+        if ((current_file_position + current_segment_header.segment_length) > DATA_SIZE)
+        {
+            throw basic_error() << error_message("A segment went past the end of memory");
+        }
+        auto data_length = current_segment_header.segment_length - sizeof(executable_segment_header_t);
         memcpy(&current_segment_header, &(executable_file.get()[current_file_position]), sizeof(executable_segment_header_t));
         current_file_position += sizeof(executable_segment_header_t);
-        auto data_length = current_segment_header.segment_length - sizeof(executable_segment_header_t);
         memcpy(&(prepared_memory.get()[current_segment_header.segment_location]), &(executable_file.get()[current_file_position]), data_length);
         current_file_position += data_length;
     }
@@ -158,6 +164,20 @@ void handle_holotape_syscall(emulator &emulator)
     case SYSCALL_WRITE:
         handle_holotape_write(emulator);
         break;
+    }
+}
+
+void insert_holotape(const char *holotape_file)
+{
+    if (current_deck == nullptr)
+    {
+        current_deck = holotape_deck_init();
+    }
+
+    auto result = holotape_insert(current_deck, holotape_file);
+    if (result != HOLO_NO_ERROR)
+    {
+        throw basic_error() << error_message("Couldn't insert the holotape");
     }
 }
 

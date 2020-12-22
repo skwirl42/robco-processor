@@ -185,7 +185,7 @@ int main(int argc, char** argv)
 		std::string const* exit_text = boost::get_error_info<error_message>(exit_message);
 		if (exit_text != nullptr)
 		{
-			std::cout << exit_text << std::endl;
+			std::cout << *exit_text << std::endl;
 		}
 
 		return 0;
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			std::cout << "Failed with exception \"" << error_text << "\"" << std::endl;
+			std::cout << "Failed with exception \"" << *error_text << "\"" << std::endl;
 		}
 
 		return -1;

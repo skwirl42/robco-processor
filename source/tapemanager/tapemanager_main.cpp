@@ -156,7 +156,7 @@ int main(int argc, char **argv)
         std::string const* message = boost::get_error_info<error_message>(error_exception);
         if (message != nullptr)
         {
-            std::cerr << "Error message: " << message << std::endl;
+            std::cerr << "Error message: " << *message << std::endl;
         }
         else
         {

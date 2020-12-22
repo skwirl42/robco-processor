@@ -267,7 +267,7 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			std::cout << "Failed with exception \"" << error_text << "\"" << std::endl;
+			std::cout << "Failed with exception \"" << *error_text << "\"" << std::endl;
 		}
 		return -1;
 	}
