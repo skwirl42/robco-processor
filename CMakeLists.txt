@@ -136,9 +136,11 @@ if (MSVC)
     target_include_directories(robcoterm PUBLIC D:/GnuWin32/include)
     target_link_libraries(robcoterm PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image ${Boost_LIBRARIES})
 
-    target_include_directories(assembler PUBLIC D:/GnuWin32/include ${Boost_LIBRARIES})
+    target_include_directories(assembler PUBLIC D:/GnuWin32/include)
+    target_link_libraries(assembler PRIVATE ${Boost_LIBRARIES})
 
-    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include ${Boost_LIBRARIES})
+    target_include_directories(tapemanager PUBLIC D:/GnuWin32/include)
+    target_link_libraries(tapemanager PRIVATE ${Boost_LIBRARIES})
 
     target_link_libraries(sound_test PRIVATE SDL2::SDL2 SDL2::SDL2main ${Boost_LIBRARIES})
 

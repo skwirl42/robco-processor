@@ -36,12 +36,17 @@ typedef enum _holo_execute_status
     HOLO_EXEC_UNEXPECTED_END_OF_FILE,
 } holo_execute_status_t;
 
+// NOTE: is_code might get expanded to 2 bytes for alignment reasons
+// Ensure that fields are ordered largest to smallest.
+// Hopefully no more padding than that would be added
 typedef struct _executable_segment_header
 {
     uint16_t segment_location;
     uint16_t segment_length;
     uint8_t is_code;
 } executable_segment_header_t;
+
+#define EXEC_SEGMENT_HEADER_RAW_SIZE (sizeof(uint16_t) * 2 + sizeof(uint8_t))
 
 typedef struct _executable_file_header
 {

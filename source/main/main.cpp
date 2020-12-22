@@ -433,16 +433,16 @@ int main (int argc, char **argv)
         teardown();
         return -1;
     }
-    catch(const std::logic_error& e)
+    catch (po::required_option& exception)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Option " << exception.get_option_name() << " is required" << std::endl;
         usage(argv, cli_options);
         teardown();
         return -1;
     }
-    catch (po::required_option& exception)
+    catch(const std::logic_error& e)
     {
-        std::cerr << "Option " << exception.get_option_name() << " is required" << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;
         usage(argv, cli_options);
         teardown();
         return -1;

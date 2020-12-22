@@ -42,17 +42,10 @@ uint16_t executable_file_size(assembler_data_t *data)
     uint16_t file_size = sizeof(executable_file_header_t);
     for (auto segment : data->regions)
     {
-        if (segment->data_length > 0)
+        auto data_length = segment->executable ? segment->current_instruction_offset : segment->data_length;
+        if (data_length > 0)
         {
-            file_size += sizeof(executable_segment_header_t);
-            if (segment->executable)
-            {
-                file_size += segment->current_instruction_offset;
-            }
-            else
-            {
-                file_size += segment->data_length;
-            }
+            file_size += EXEC_SEGMENT_HEADER_RAW_SIZE + data_length;
         }
     }
 
@@ -70,7 +63,8 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
     std::vector<assembled_region_t*> included_segments;
     for (auto segment : data->regions)
     {
-        if (segment->data_length > 0)
+        auto data_length = segment->executable ? segment->current_instruction_offset : segment->data_length;
+        if (data_length > 0)
         {
             included_segments.push_back(segment);
         }
@@ -82,23 +76,31 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
     }
 
     uint16_t buffer_index = 0;
-    uint16_t segment_header_size = sizeof(executable_segment_header_t);
+    uint16_t segment_header_size = EXEC_SEGMENT_HEADER_RAW_SIZE;
     executable_file_header_t header = { file_size, (uint16_t)included_segments.size(), data->execution_start.value() };
-    executable_segment_header_t segment_header;
+    executable_segment_header_t segment_header{};
     memcpy(&buffer[buffer_index], &header, sizeof(executable_file_header_t));
     buffer_index += sizeof(executable_file_header_t);
 
     for (auto segment : included_segments)
     {
         auto data_length = segment->executable ? segment->current_instruction_offset : segment->data_length;
+        segment_header.segment_location = segment->start_location;
         segment_header.segment_length = segment_header_size + data_length;
         segment_header.is_code = segment->executable;
-        segment_header.segment_location = segment->start_location;
         memcpy(&buffer[buffer_index], &segment_header, segment_header_size);
         buffer_index += segment_header_size;
         memcpy(&buffer[buffer_index], segment->data, data_length);
         buffer_index += data_length;
     }
+
+    printf("\n");
+    for (int i = 0; i < buffer_index; i++)
+    {
+        printf("0x%02x ", (int)buffer[i]);
+    }
+
+    printf("\n");
 
     return ASSEMBLER_SUCCESS;
 }
@@ -1004,7 +1006,12 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
             output_filename = output_file;
         }
         
-        FILE *assembled_output = fopen(output_filename.c_str(), "w+");
+        FILE* assembled_output = 0;
+#if defined(_MSC_VER)
+        assembled_output = fopen(output_filename.c_str(), "wb+");
+#else
+        assembled_output = fopen(output_filename.c_str(), "w+");
+#endif
         if (assembled_output != 0)
         {
             if (outFileType == Summary)

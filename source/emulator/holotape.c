@@ -19,7 +19,13 @@ static uint8_t initialized = 0;
 
 holotape_deck_t *holotape_deck_init()
 {
-    holotape_deck_t *new_deck = (holotape_deck_t*)malloc(sizeof(holotape_deck_t));
+    holotape_deck_t *new_deck = malloc(sizeof(holotape_deck_t));
+
+    if (new_deck == 0)
+    {
+        return 0;
+    }
+
     new_deck->current_holotape = 0;
     memset(new_deck->block_buffer.buffer, 0, sizeof(new_deck->block_buffer.buffer));
     return new_deck;
@@ -88,14 +94,29 @@ holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filena
         return HOLO_TAPE_NAME_TOO_LONG;
     }
 
-    deck->current_holotape = (holotape_state_t*)malloc(sizeof(holotape_state_t));
-    memset(deck->current_holotape, 0, sizeof(holotape_state_t));
+    deck->current_holotape = malloc(sizeof(holotape_state_t));
 
-    FILE *tape_file = fopen(tape_filename, "r+");
+    if (deck->current_holotape == 0)
+    {
+        return HOLO_OUT_OF_MEMORY;
+    }
+
+    memset(deck->current_holotape->holotape_filename, 0, sizeof(deck->current_holotape->holotape_filename));
+
+    FILE* tape_file = 0;
+#if defined(_MSC_VER)
+    tape_file = fopen(tape_filename, "rb+");
+#else
+    tape_file = fopen(tape_filename, "r+");
+#endif
 
     if (tape_file == 0)
     {
+#if defined(_MSC_VER)
+        tape_file = fopen(tape_filename, "wb+");
+#else
         tape_file = fopen(tape_filename, "w+");
+#endif
     }
 
     if (!tape_file)
@@ -205,7 +226,7 @@ holotape_status_t holotape_seek(holotape_deck_t *deck, uint16_t seek_blocks)
         return HOLO_IO_ERROR;
     }
 
-    size_t seek_to_blocks = deck->current_holotape->current_block + seek_blocks;
+    size_t seek_to_blocks = (size_t)deck->current_holotape->current_block + seek_blocks;
     size_t total_blocks_after = seek_to_blocks + 1;
     if (deck->current_holotape->current_size < (total_blocks_after * HOLOTAPE_BLOCK_SIZE))
     {
@@ -245,7 +266,14 @@ holotape_status_t holotape_read(holotape_deck_t *deck)
         return HOLO_END_OF_TAPE;
     }
 
-    size_t bytes_read = fread(deck->block_buffer.buffer, 1, HOLOTAPE_BLOCK_SIZE, deck->current_holotape->current_holotape_file);
+    size_t bytes_read = 0;
+    holotape_block_t* structure = &deck->block_buffer.block_structure;
+    bytes_read += fread(&structure->block_bytes.bytes[1], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_read += fread(&structure->block_bytes.bytes[0], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_read += fread(&structure->remaining_blocks_in_file.bytes[1], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_read += fread(&structure->remaining_blocks_in_file.bytes[0], 1, 1, deck->current_holotape->current_holotape_file);
+    bytes_read += fread(structure->filename, 1, HOLOTAPE_FILE_NAME_MAX, deck->current_holotape->current_holotape_file);
+    bytes_read += fread(structure->bytes, 1, HOLOTAPE_STRUCTURE_BYTE_COUNT, deck->current_holotape->current_holotape_file);
     if (bytes_read != HOLOTAPE_BLOCK_SIZE)
     {
         return HOLO_IO_ERROR;

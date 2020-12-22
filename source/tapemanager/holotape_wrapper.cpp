@@ -46,7 +46,7 @@ void holotape_wrapper::append_file(const char *file_to_append)
     }
 
     auto filename = file_path.filename();
-    auto filename_string = filename.native();
+    auto filename_string = filename.string();
     char filename_buffer[HOLOTAPE_FILE_NAME_MAX + 1];
     strncpy(filename_buffer, (const char *)filename_string.c_str(), HOLOTAPE_FILE_NAME_MAX);
     for (int i = filename_string.size(); i <= HOLOTAPE_FILE_NAME_MAX; i++)
@@ -59,7 +59,12 @@ void holotape_wrapper::append_file(const char *file_to_append)
         fprintf(stderr, "Appended file name has been truncated to %s\n", filename_buffer);
     }
 
-    FILE *file = fopen(file_to_append, "r");
+    FILE* file = 0;
+#if defined(_MSC_VER)
+    file = fopen(file_to_append, "rb");
+#else
+    file = fopen(file_to_append, "r");
+#endif
     if (file == 0)
     {
         fprintf(stderr, "Failed to open \"%s\" for appending\n", file_to_append);
@@ -100,7 +105,7 @@ void holotape_wrapper::append_file(const char *file_to_append)
         return;
     }
     
-    strncpy(deck->block_buffer.block_structure.filename, filename_buffer, HOLOTAPE_FILE_NAME_MAX);
+    memcpy(deck->block_buffer.block_structure.filename, filename_buffer, HOLOTAPE_FILE_NAME_MAX);
 
     auto current_size = std::filesystem::file_size(file_path);
     if (current_size > HOLOTAPE_STRUCTURE_BYTE_COUNT)
@@ -130,7 +135,7 @@ void holotape_wrapper::append_file(const char *file_to_append)
             }
             else
             {
-                fprintf(stderr, "Could not write all bytes to the tape\n");
+                fprintf(stderr, "Could not read all bytes from a file (%s) to be appended\n", filename_string.c_str());
             }
 
             memset(deck->block_buffer.block_structure.bytes, 0, HOLOTAPE_STRUCTURE_BYTE_COUNT);
@@ -153,7 +158,11 @@ void holotape_wrapper::append_file(const char *file_to_append)
         }
         else
         {
-            fprintf(stderr, "Could not write all bytes to the tape\n");
+            if (feof(file))
+            {
+                fprintf(stderr, "Unexpected EOF\n");
+            }
+            fprintf(stderr, "Could not read all bytes from a file (%s) to be appended\n", filename_string.c_str());
         }
     }
 

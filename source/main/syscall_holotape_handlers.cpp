@@ -50,8 +50,18 @@ void handle_holotape_execute(emulator &emulator)
     // TODO: This is all FUBAR
     std::unique_ptr<uint8_t[]> executable_file(new uint8_t[header.total_length]);
     auto remaining_length = header.total_length;
-    memcpy(executable_file.get(), current_deck->block_buffer.block_structure.bytes, current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE);
-    remaining_length -= (current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE);
+    auto bytes_size = current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE;
+    memcpy(executable_file.get(), current_deck->block_buffer.block_structure.bytes, bytes_size);
+    if (bytes_size > remaining_length)
+    {
+        // It's possible that the file size of an executable is greater than the actual executable data
+        // Is it the EOF from the original host OS file?
+        remaining_length = 0;
+    }
+    else
+    {
+        remaining_length -= bytes_size;
+    }
 
     while (remaining_length > 0)
     {
@@ -62,13 +72,16 @@ void handle_holotape_execute(emulator &emulator)
         }
 
         auto size_to_read = current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE;
-        if (size_to_read > remaining_length)
+        if (size_to_read < remaining_length)
         {
             push_byte(&emulator, HOLO_EXEC_UNEXPECTED_END_OF_FILE);
             return;
         }
 
+        size_to_read = size_to_read > remaining_length ? remaining_length : size_to_read;
+
         memcpy(&(executable_file.get()[remaining_length]), current_deck->block_buffer.block_structure.bytes, size_to_read);
+
         remaining_length -= size_to_read;
     }
 
@@ -79,13 +92,17 @@ void handle_holotape_execute(emulator &emulator)
     auto current_file_position = sizeof(executable_file_header_t);
     while (current_file_position < header.total_length)
     {
+        // Grab the header
+        memcpy(&current_segment_header, &(executable_file.get()[current_file_position]), EXEC_SEGMENT_HEADER_RAW_SIZE);
         if ((current_file_position + current_segment_header.segment_length) > DATA_SIZE)
         {
             throw basic_error() << error_message("A segment went past the end of memory");
         }
-        auto data_length = current_segment_header.segment_length - sizeof(executable_segment_header_t);
-        memcpy(&current_segment_header, &(executable_file.get()[current_file_position]), sizeof(executable_segment_header_t));
-        current_file_position += sizeof(executable_segment_header_t);
+
+        current_file_position += EXEC_SEGMENT_HEADER_RAW_SIZE;
+
+        // How much do we have left to copy?
+        auto data_length = current_segment_header.segment_length - EXEC_SEGMENT_HEADER_RAW_SIZE;
         memcpy(&(prepared_memory.get()[current_segment_header.segment_location]), &(executable_file.get()[current_file_position]), data_length);
         current_file_position += data_length;
     }

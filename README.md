@@ -38,6 +38,7 @@ When I started this I thought some pieces should be in C++ and others in C. This
 ## Functionality
 - [ ] Implement support for executing programs from tape
 - [ ] Implement audio system using https://github.com/OneLoneCoder/synth ported to SDL, or something similar
+  - implementation done, needs extensive testing
 ### Refactoring/increased cross-platform parity
 - [x] Rewrite command line options using boost's Program Options library
 - [ ] Rewrite assembler parsing using boost::spirit

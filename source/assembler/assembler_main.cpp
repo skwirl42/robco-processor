@@ -80,7 +80,7 @@ int main(int argc, char **argv)
         
         if (variables.count("output-file") > 0)
         {
-            variables["output-file"].as<std::string>().c_str();
+            output_file = variables["output-file"].as<std::string>().c_str();
         }
 
         assemble(variables["source"].as<std::string>().c_str(), includes, output_file, outFileType, &assembled_data);

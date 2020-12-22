@@ -28,6 +28,8 @@ typedef enum _holotape_status
 
     HOLO_NOT_FOUND,
     HOLO_NAME_TOO_LONG,
+
+    HOLO_OUT_OF_MEMORY,
 } holotape_status_t;
 
 typedef struct _holotape_state holotape_state_t;
