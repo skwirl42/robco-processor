@@ -66,20 +66,6 @@ int main(int argc, char **argv)
 
         TapeCommand command = TapeCommand::None;
 
-        if (variables.count("command") == 0)
-        {
-            fprintf(stderr, "A command must be specified\n");
-            usage(argv, cli_options);
-            return -1;
-        }
-
-        if (variables.count("tape") == 0)
-        {
-            fprintf(stderr, "A tape file must be specified\n");
-            usage(argv, cli_options);
-            return -1;
-        }
-
         auto command_location = commands.find(variables["command"].as<std::string>());
         if (command_location != commands.end())
         {
@@ -92,7 +78,7 @@ int main(int argc, char **argv)
 
         if (command == TapeCommand::Error || command == TapeCommand::None)
         {
-            fprintf(stderr, "Invalid or missing command\n");
+            std::cerr << "Invalid or missing command" << std::endl;
             usage(argv, cli_options);
             return -1;
         }
@@ -104,7 +90,7 @@ int main(int argc, char **argv)
         case TapeCommand::Append:
             if (paths.empty())
             {
-                fprintf(stderr, "No files specified to append\n");
+                std::cerr << "No files specified to append" << std::endl;
                 usage(argv, cli_options);
                 return -1;
             }
@@ -145,7 +131,7 @@ int main(int argc, char **argv)
             return -1;
         }
     }
-    catch (boost::wrapexcept<po::required_option>& exception)
+    catch (po::required_option& exception)
     {
         std::cerr << "Missing required option " << exception.get_option_name() << std::endl;
         usage(argv, cli_options);

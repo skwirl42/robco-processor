@@ -86,17 +86,17 @@ int main(int argc, char **argv)
         assemble(variables["source"].as<std::string>().c_str(), includes, output_file, outFileType, &assembled_data);
         if (get_error_buffer_size(assembler_data) > 0)
         {
-            printf("%s\n", error_buffer);
+            std::cerr << error_buffer << std::endl;
             return -1;
         }
         else
         {
-            printf("Program assembled successfully into %s\n", get_output_filename(assembled_data));
+            std::cout << "Program assembled successfully into " << get_output_filename(assembled_data) << std::endl;
         }
     }
     else
     {
-        printf("A source file must be specified\n");
+        std::cerr << "A source file must be specified" << std::endl;
         usage(argv, cli_options);
         return -1;
     }
