@@ -113,6 +113,11 @@ int main (int argc, char **argv)
 
     auto teardown = [&]()
     {
+        if (holotape_initialized())
+        {
+            dispose_holotape();
+        }
+
         if (emulator_initialized)
         {
             dispose_emulator(&rcEmulator);

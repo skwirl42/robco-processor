@@ -47,7 +47,6 @@ void handle_holotape_execute(emulator &emulator)
         return;
     }
 
-    // TODO: This is all FUBAR
     std::unique_ptr<uint8_t[]> executable_file(new uint8_t[header.total_length]);
     auto remaining_length = header.total_length;
     auto bytes_size = current_deck->block_buffer.block_structure.block_bytes.word - HOLOTAPE_HEADER_SIZE;
@@ -113,6 +112,7 @@ void handle_holotape_execute(emulator &emulator)
     emulator.PC = header.execution_start_address;
     emulator.current_state = RUNNING;
     memcpy(emulator.memories.data, prepared_memory.get(), DATA_SIZE);
+    holotape_rewind(current_deck);
 }
 
 void handle_holotape_read(emulator &emulator)
@@ -196,6 +196,11 @@ void insert_holotape(const char *holotape_file)
     {
         throw basic_error() << error_message("Couldn't insert the holotape");
     }
+}
+
+bool holotape_initialized()
+{
+    return current_deck != nullptr;
 }
 
 void dispose_holotape()
