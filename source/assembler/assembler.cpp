@@ -94,13 +94,13 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
         buffer_index += data_length;
     }
 
-    printf("\n");
-    for (int i = 0; i < buffer_index; i++)
-    {
-        printf("0x%02x ", (int)buffer[i]);
-    }
+    //printf("\n");
+    //for (int i = 0; i < buffer_index; i++)
+    //{
+    //    printf("0x%02x ", (int)buffer[i]);
+    //}
 
-    printf("\n");
+    //printf("\n");
 
     return ASSEMBLER_SUCCESS;
 }
