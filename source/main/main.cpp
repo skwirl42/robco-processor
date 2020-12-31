@@ -291,6 +291,8 @@ int main (int argc, char **argv)
             SDL_Event event;
             int frame = 0;
             opcode_entry_t* executed_opcode = nullptr;
+            int key_buffer_size = 0;
+            const uint8_t *key_buffer = nullptr;
 
             int debugging_lines_start = console.GetHeight() - DEBUGGING_BUFFER_COUNT;
             char *debugging_buffers[DEBUGGING_BUFFER_COUNT]{};
@@ -348,6 +350,19 @@ int main (int argc, char **argv)
 
                             debugging = true;
                         }
+                    }
+                }
+
+                key_buffer = SDL_GetKeyboardState(&key_buffer_size);
+                for (int i = 0; i < key_buffer_size; i++)
+                {
+                    int console_keycode = sdl_scancode_to_console_key((SDL_Scancode)i);
+                    if (key_buffer[i] && console_keycode > 0)
+                    {
+                        // TODO: How to store the info for the emulated program to access?
+                        // Put into a buffer for a SYSCALL to put into emulated memory?
+                        // Drop them on the stack from a SYSCALL?
+                        // Explicitly set a memory location in the emulator?
                     }
                 }
 
