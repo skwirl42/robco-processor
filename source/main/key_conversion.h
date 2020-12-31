@@ -6,7 +6,7 @@
 #include <SDL.h>
 #endif // defined(APPLE)
 
-enum class keycode_t
+enum class console_keycode
 {
     KEY_SHIFT           = 0x80,
     KEY_CONTROL         = KEY_SHIFT + 1,

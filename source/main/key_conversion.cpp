@@ -13,54 +13,54 @@ int sdl_scancode_to_console_key(SDL_Scancode code)
     }
     else if (keycode >= SDLK_F1 && keycode <= SDLK_F4)
     {
-        console_key = (int)keycode_t::KEY_FUNC_1 + (keycode - SDLK_F1);
+        console_key = (int)console_keycode::KEY_FUNC_1 + (keycode - SDLK_F1);
     }
     else
     {
         switch (keycode)
         {
         case SDLK_HOME:
-            console_key = (int)keycode_t::KEY_HOME;
+            console_key = (int)console_keycode::KEY_HOME;
             break;
 
         case SDLK_END:
-            console_key = (int)keycode_t::KEY_END;
+            console_key = (int)console_keycode::KEY_END;
             break;
 
         case SDLK_LEFT:
-            console_key = (int)keycode_t::KEY_LEFT_ARROW;
+            console_key = (int)console_keycode::KEY_LEFT_ARROW;
             break;
 
         case SDLK_RIGHT:
-            console_key = (int)keycode_t::KEY_RIGHT_ARROW;
+            console_key = (int)console_keycode::KEY_RIGHT_ARROW;
             break;
 
         case SDLK_DOWN:
-            console_key = (int)keycode_t::KEY_DOWN_ARROW;
+            console_key = (int)console_keycode::KEY_DOWN_ARROW;
             break;
 
         case SDLK_UP:
-            console_key = (int)keycode_t::KEY_UP_ARROW;
+            console_key = (int)console_keycode::KEY_UP_ARROW;
             break;
 
         case SDLK_LSHIFT:
         case SDLK_RSHIFT:
-            console_key = (int)keycode_t::KEY_SHIFT;
+            console_key = (int)console_keycode::KEY_SHIFT;
             break;
 
         case SDLK_LCTRL:
         case SDLK_RCTRL:
-            console_key = (int)keycode_t::KEY_CONTROL;
+            console_key = (int)console_keycode::KEY_CONTROL;
             break;
 
         case SDLK_LALT:
         case SDLK_RALT:
-            console_key = (int)keycode_t::KEY_ALT;
+            console_key = (int)console_keycode::KEY_ALT;
             break;
 
         case SDLK_LGUI:
         case SDLK_RGUI:
-            console_key = (int)keycode_t::KEY_META;
+            console_key = (int)console_keycode::KEY_META;
             break;
         }
     }
