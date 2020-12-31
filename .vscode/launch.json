@@ -37,7 +37,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/tapemanager",
-            "args": ["-T", "test.holo", "-C", "erase"],
+            "args": ["-T", "graphics_test.holo", "-K", "append", "-F", "graphics_test.rcexe"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
