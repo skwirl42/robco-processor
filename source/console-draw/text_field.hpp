@@ -15,6 +15,10 @@ public:
     void set_contents(const char *new_contents);
     int get_cursor_position() const { return cursor_position; }
 
+    int get_x() const { return x; }
+    int get_y() const { return y; }
+    int get_field_start() const;
+
     virtual void draw(drawer *drawer);
 
     virtual bool wants_keys() const { return true; }

@@ -53,7 +53,7 @@ namespace
 
 console_drawer::console_drawer(Console &target_console)
     : target_console(target_console), width(target_console.GetWidth()), height(target_console.GetHeight()), next_control_id(0),
-      focused_control_index(-1)
+      focused_control_index(-1), cursor_enabled(false)
 {
 
 }
@@ -128,9 +128,26 @@ void console_drawer::draw_boxes()
 
 void console_drawer::draw_controls()
 {
+    int cursor_x = -1;
+    int cursor_y = -1;
+    cursor_enabled = false;
     for (auto &control : controls)
     {
-        control.get()->draw(this);
+        auto control_ptr = control.get();
+        control_ptr->draw(this);
+
+        auto text = dynamic_cast<text_field *>(control_ptr);
+        if (control_ptr->is_focused() && text != nullptr)
+        {
+            cursor_enabled = true;
+            cursor_x = text->get_field_start() + text->get_cursor_position();
+            cursor_y = text->get_y();
+        }
+    }
+
+    if (cursor_x >= 0 && cursor_y >= 0)
+    {
+        target_console.SetCursor(cursor_x, cursor_y);
     }
 }
 

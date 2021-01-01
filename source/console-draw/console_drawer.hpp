@@ -45,6 +45,8 @@ public:
     int box_count() const { return boxes.size(); }
     void clear_boxes() { boxes.clear(); }
 
+    bool is_cursor_enabled() const { return cursor_enabled; }
+
 protected:
     int add_control(control *control);
 
@@ -56,4 +58,5 @@ private:
     int height;
     int focused_control_index;
     int next_control_id;
+    bool cursor_enabled;
 };

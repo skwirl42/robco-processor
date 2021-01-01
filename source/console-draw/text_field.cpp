@@ -31,16 +31,27 @@ void text_field::set_contents(const char *new_contents)
     strncpy(contents, new_contents, max_content_length);
 }
 
+int text_field::get_field_start() const
+{
+    return x + label_length + 1;
+}
+
 void text_field::draw(drawer *drawer)
 {
     drawer->draw_text(label_text, x, y, focused);
     drawer->draw_text(" ", x + label_length, y, focused);
 
-    int field_start = x + label_length + 1;
-    int box_start = field_start + content_length();
-    if (content_length() > 0)
+    int box_start = get_field_start() + content_length();
+    if (is_focused())
     {
-        drawer->draw_text(contents, field_start, y, false);
+        // Clear a space for the cursor to blink
+        drawer->draw_text(" ", get_field_start() + cursor_position, y, false);
+        box_start++;
+    }
+
+     if (content_length() > 0)
+    {
+        drawer->draw_text(contents, get_field_start(), y, false);
     }
 
     if (box_start < x + width)

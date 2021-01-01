@@ -37,7 +37,9 @@ namespace
         Debugging,
         Configuring,
     };
-}
+
+    const int configuration_console_frame_time = 16;
+} // namespace
 
 void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
 {
@@ -448,10 +450,23 @@ int main (int argc, char **argv)
                 bool show_screen_when_debugging = SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(SDL_BUTTON_RIGHT);
                 if (emulator_state == EmulatorState::Configuring)
                 {
+                    // Pause for a bit
+                    auto wait_time = std::chrono::microseconds(configuration_console_frame_time);
+                    auto end_time = wait_time + std::chrono::high_resolution_clock::now();
+                    while (std::chrono::high_resolution_clock::now() < end_time)
+                    {
+                        // a frame of spinning isn't gonna hurt anything
+                    }
+
                     ui_drawer.draw();
 
                     int previousBlinkFrames = renderer->GetCursorBlinkFrames();
-                    renderer->Render(&uiConsole, 0);
+                    if (!ui_drawer.is_cursor_enabled())
+                    {
+                        renderer->SetCursorBlinkFrames(0);
+                    }
+
+                    renderer->Render(&uiConsole, frame++);
                     renderer->SetCursorBlinkFrames(previousBlinkFrames);
                 }
                 else if (!show_screen_when_debugging && (emulator_state == EmulatorState::Debugging || rcEmulator.current_state == DEBUGGING))
