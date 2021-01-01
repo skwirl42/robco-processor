@@ -46,6 +46,9 @@ add_executable(robcoterm
     source/assembler/assembler.cpp
     source/assembler/symbols.c
     source/sound/sound_system.cpp
+    source/console-draw/console_drawer.cpp
+    source/console-draw/button.cpp
+    source/console-draw/box.cpp
     ${FLEX_AssemblerLex_OUTPUTS}
     ${BISON_AssemblerYacc_OUTPUTS})
 
@@ -56,6 +59,7 @@ target_include_directories(robcoterm PRIVATE
     source/assembler
     source/include
     source/sound
+    source/console-draw
     ${Boost_INCLUDE_DIRS})
 
 add_executable(assembler

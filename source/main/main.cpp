@@ -24,10 +24,20 @@
 #include "opcodes.h"
 #include "sound_system.hpp"
 #include "exceptions.hpp"
+#include "console_drawer.hpp"
 
 namespace po = boost::program_options;
 
-const char *blank_line = "                                                            ";
+namespace
+{
+    const char *blank_line = "                                                            ";
+    enum class EmulatorState
+    {
+        Emulating,
+        Debugging,
+        Configuring,
+    };
+}
 
 void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
 {
@@ -109,10 +119,34 @@ int main (int argc, char **argv)
     bool emulator_initialized = false;
     sound_system* synthesizer = nullptr;
     Console console(60, 24);
-    Console debugConsole(60,24);
+    Console debugConsole(60, 24);
+    Console uiConsole(60, 24);
 
-    auto teardown = [&]()
-    {
+    console_drawer ui_drawer(uiConsole);
+    // Draw some debug UI
+    ui_drawer.add_box(box_type::single_line, fill_mode::character, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight(), '\xE6');
+    ui_drawer.add_box(box_type::double_line, fill_mode::clear, 1, 1, 16, 16);
+    ui_drawer.add_box(box_type::block, fill_mode::none, 2, 2, 18, 8);
+    int what_id = ui_drawer.define_button("What?!", 18, 19, 8, 3, [&](button_event event, int id, int old_id) {});
+    int cancel_id = ui_drawer.define_button("Cancel", 34, 19, 8, 3, [&](button_event event, int id, int old_id) {});
+    int ok_id = ui_drawer.define_button("OK", 50, 19, 8, 3, [&](button_event event, int id, int old_id) {
+        switch (event)
+        {
+        case button_event::clicked:
+            std::cout << "OK clicked" << std::endl;
+            ui_drawer.remove_button_by_id(what_id);
+            break;
+
+        case button_event::focused:
+            std::cout << "OK got focus" << std::endl;
+            break;
+        
+        case button_event::none:
+            break;
+        }
+    });
+
+    auto teardown = [&]() {
         if (holotape_initialized())
         {
             dispose_holotape();
@@ -301,8 +335,8 @@ int main (int argc, char **argv)
                 debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
             }
 
-            bool debugging = false;
-            if (debugging)
+            EmulatorState emulator_state = EmulatorState::Emulating;
+            if (emulator_state == EmulatorState::Debugging)
             {
                 rcEmulator.current_state = DEBUGGING;
             }
@@ -311,7 +345,7 @@ int main (int argc, char **argv)
             {
                 inst_result_t result = SUCCESS;
 
-                if (debugging)
+                if (emulator_state == EmulatorState::Debugging)
                 {
                     get_debug_info(&rcEmulator, debugging_buffers);
                 }
@@ -324,13 +358,31 @@ int main (int argc, char **argv)
                     }
                     else if (event.type == SDL_KEYDOWN)
                     {
+                        if (event.key.keysym.sym == SDLK_F6)
+                        {
+                            if (emulator_state == EmulatorState::Configuring)
+                            {
+                                emulator_state = (rcEmulator.current_state == DEBUGGING) ? EmulatorState::Debugging : EmulatorState::Emulating;
+                            }
+                            else
+                            {
+                                emulator_state = EmulatorState::Configuring;
+                            }
+                        }
                         if (event.key.keysym.sym == SDLK_F5)
                         {
-                            debugging = false;
-                            if (rcEmulator.current_state == DEBUGGING)
+                            if (emulator_state == EmulatorState::Debugging)
                             {
-                                rcEmulator.current_state = RUNNING;
+                                emulator_state = EmulatorState::Emulating;
+                                if (rcEmulator.current_state == DEBUGGING)
+                                {
+                                    rcEmulator.current_state = RUNNING;
+                                }
                             }
+                        }
+                        else if (emulator_state == EmulatorState::Configuring)
+                        {
+                            ui_drawer.handle_key(event.key.keysym.sym);
                         }
                         else
                         {
@@ -343,12 +395,19 @@ int main (int argc, char **argv)
 
                         if (mouse_button_event.button == SDL_BUTTON_LEFT)
                         {
-                            if (rcEmulator.current_state == DEBUGGING)
+                            if (emulator_state == EmulatorState::Configuring)
                             {
-                                rcEmulator.current_state = RUNNING;
+                                // TODO: Handle mouse clicks
                             }
+                            else
+                            {
+                                if (rcEmulator.current_state == DEBUGGING)
+                                {
+                                    rcEmulator.current_state = RUNNING;
+                                }
 
-                            debugging = true;
+                                emulator_state = EmulatorState::Debugging;
+                            }
                         }
                     }
                 }
@@ -367,7 +426,15 @@ int main (int argc, char **argv)
                 }
 
                 bool show_screen_when_debugging = SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(SDL_BUTTON_RIGHT);
-                if (!show_screen_when_debugging && (debugging || rcEmulator.current_state == DEBUGGING))
+                if (emulator_state == EmulatorState::Configuring)
+                {
+                    ui_drawer.draw();
+
+                    int previousBlinkFrames = renderer->GetCursorBlinkFrames();
+                    renderer->Render(&uiConsole, 0);
+                    renderer->SetCursorBlinkFrames(previousBlinkFrames);
+                }
+                else if (!show_screen_when_debugging && (emulator_state == EmulatorState::Debugging || rcEmulator.current_state == DEBUGGING))
                 {
                     debugConsole.Clear();
                     for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
@@ -388,7 +455,7 @@ int main (int argc, char **argv)
                     }
                 }
 
-                if (emulate && emulator_can_execute(&rcEmulator))
+                if (emulator_state != EmulatorState::Configuring && emulator_can_execute(&rcEmulator))
                 {
                     const int max_cycles = 10000;
                     int current_cycle = 0;
@@ -410,7 +477,7 @@ int main (int argc, char **argv)
                             current_cycle++;
                         }
 
-                        if (debugging)
+                        if (emulator_state == EmulatorState::Debugging)
                         {
                             break;
                         }
@@ -426,7 +493,7 @@ int main (int argc, char **argv)
                         emulate = false;
                     }
 
-                    if (debugging && rcEmulator.current_state != WAITING)
+                    if (emulator_state == EmulatorState::Debugging && rcEmulator.current_state != WAITING)
                     {
                         rcEmulator.current_state = DEBUGGING;
                     }
