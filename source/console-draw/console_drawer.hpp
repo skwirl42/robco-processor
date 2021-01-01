@@ -29,26 +29,25 @@ public:
     void draw();
 
     void draw_boxes();
-    void draw_buttons();
+    void draw_controls();
 
     virtual void draw_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
     virtual void set_rect(char set_char, int x, int y, int width, int height);
     virtual void draw_text(const char *text, int x, int y, bool inverted);
 
     int define_button(const char *text, int x, int y, int width, int height, button_handler handler);
-    void remove_button_by_id(int id);
+    void remove_control_by_id(int id);
 
     void add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
     int box_count() const { return boxes.size(); }
     void clear_boxes() { boxes.clear(); }
 
 private:
-    std::vector<button> buttons;
     std::vector<box> boxes;
     std::vector<std::unique_ptr<control>> controls;
     Console &target_console;
     int width;
     int height;
-    int focused_button_index;
-    int next_button_id;
+    int focused_control_index;
+    int next_control_id;
 };

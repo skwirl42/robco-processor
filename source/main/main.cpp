@@ -134,7 +134,7 @@ int main (int argc, char **argv)
         {
         case button_event::clicked:
             std::cout << "OK clicked" << std::endl;
-            ui_drawer.remove_button_by_id(what_id);
+            ui_drawer.remove_control_by_id(what_id);
             break;
 
         case button_event::focused:

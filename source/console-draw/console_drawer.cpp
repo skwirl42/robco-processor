@@ -50,15 +50,15 @@ namespace
 } // namespace
 
 console_drawer::console_drawer(Console &target_console)
-    : target_console(target_console), width(target_console.GetWidth()), height(target_console.GetHeight()), next_button_id(0),
-      focused_button_index(-1)
+    : target_console(target_console), width(target_console.GetWidth()), height(target_console.GetHeight()), next_control_id(0),
+      focused_control_index(-1)
 {
 
 }
 
 console_drawer::~console_drawer()
 {
-    buttons.clear();
+    controls.clear();
 }
 
 void console_drawer::handle_key(SDL_Keycode key)
@@ -68,35 +68,35 @@ void console_drawer::handle_key(SDL_Keycode key)
     case SDLK_TAB:
     case SDLK_RIGHT:
     case SDLK_LEFT:
-        if (buttons.size() > 1)
+        if (controls.size() > 1)
         {
-            int last_focused_button = focused_button_index;
+            int last_focused_control = focused_control_index;
             if (key == SDLK_LEFT)
             {
-                focused_button_index--;
-                if (focused_button_index < 0)
+                focused_control_index--;
+                if (focused_control_index < 0)
                 {
-                    focused_button_index = buttons.size() - 1;
+                    focused_control_index = controls.size() - 1;
                 }
             }
             else
             {
-                focused_button_index++;
-                if (focused_button_index >= buttons.size())
+                focused_control_index++;
+                if (focused_control_index >= controls.size())
                 {
-                    focused_button_index = 0;
+                    focused_control_index = 0;
                 }
             }
 
-            buttons[last_focused_button].set_focused(false);
-            buttons[focused_button_index].set_focused(true);
+            controls[last_focused_control].get()->set_focused(false);
+            controls[focused_control_index].get()->set_focused(true);
         }
         break;
 
     default:
-        if (buttons[focused_button_index].wants_keys())
+        if (controls[focused_control_index].get()->wants_keys())
         {
-            bool handled = buttons[focused_button_index].handle_key(key);
+            bool handled = controls[focused_control_index].get()->handle_key(key);
             if (!handled)
             {
                 // Should there be some sort of fallback for key handling?
@@ -109,7 +109,7 @@ void console_drawer::handle_key(SDL_Keycode key)
 void console_drawer::draw()
 {
     draw_boxes();
-    draw_buttons();
+    draw_controls();
 }
 
 void console_drawer::draw_boxes()
@@ -120,12 +120,11 @@ void console_drawer::draw_boxes()
     }
 }
 
-void console_drawer::draw_buttons()
+void console_drawer::draw_controls()
 {
-    target_console.SetCurrentAttribute(CharacterAttribute::None);
-    for (auto &button : buttons)
+    for (auto &control : controls)
     {
-        button.draw(this);
+        control.get()->draw(this);
     }
 }
 
@@ -252,47 +251,48 @@ void console_drawer::draw_text(const char *text, int x, int y, bool inverted)
 
 int console_drawer::define_button(const char *text, int x, int y, int width, int height, button_handler handler)
 {
-    int index = buttons.size();
+    int index = controls.size();
 
-    bool has_focused_button = false;
-    for (auto& button : buttons)
+    bool has_focused_control = false;
+    for (auto& control : controls)
     {
-        if (button.is_focused())
+        if (control.get()->is_focused())
         {
-            has_focused_button = true;
+            has_focused_control = true;
             break;
         }
     }
 
-    if (!has_focused_button)
+    if (!has_focused_control)
     {
-        focused_button_index = index;
+        focused_control_index = index;
     }
-    buttons.push_back(button(text, handler, next_button_id, x, y, width, height, !has_focused_button));
+    controls.push_back(std::unique_ptr<control>(new button(text, handler, next_control_id, x, y, width, height, !has_focused_control)));
 
-    return next_button_id++;
+    return next_control_id++;
 }
 
-void console_drawer::remove_button_by_id(int id)
+void console_drawer::remove_control_by_id(int id)
 {
     bool has_focus = false;
-    auto iterator = buttons.begin();
-    for (int i = 0; i < buttons.size() && iterator != buttons.end(); i++, iterator++)
+    auto iterator = controls.begin();
+    for (int i = 0; i < controls.size() && iterator != controls.end(); i++, iterator++)
     {
-        if (buttons[i].get_id() == id)
+        auto control = controls[i].get();
+        if (control->get_id() == id)
         {
-            has_focus = buttons[i].is_focused();
-            buttons.erase(iterator);
+            has_focus = control->is_focused();
+            controls.erase(iterator);
             if (has_focus)
             {
-                if (i < buttons.size())
+                if (i < controls.size())
                 {
-                    buttons[i].set_focused(true);
+                    controls[i].get()->set_focused(true);
                 }
-                else if (buttons.size() > 0)
+                else if (controls.size() > 0)
                 {
-                    buttons[i - 1].set_focused(true);
-                    focused_button_index = i - 1;
+                    controls[i - 1].get()->set_focused(true);
+                    focused_control_index = i - 1;
                 }
             }
             break;
@@ -301,11 +301,11 @@ void console_drawer::remove_button_by_id(int id)
 
     if (!has_focus)
     {
-        for (int i = 0; i < buttons.size(); i++)
+        for (int i = 0; i < controls.size(); i++)
         {
-            if (buttons[i].is_focused())
+            if (controls[i].get()->is_focused())
             {
-                focused_button_index = i;
+                focused_control_index = i;
                 break;
             }
         }
