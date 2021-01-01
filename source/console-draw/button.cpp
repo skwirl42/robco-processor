@@ -7,7 +7,7 @@ namespace
 }
 
 button::button(const char *text, button_handler handler, int id, int x, int y, int width, int height, bool focused)
-    : text(text), handler(handler), id(id), x(x), y(y), width(width), height(height), control(focused)
+    : text(text), handler(handler), x(x), y(y), width(width), height(height), control(id, focused)
 {
 }
 
@@ -37,11 +37,6 @@ void button::handle_focused()
     {
         send_event(button_event::focused, id);
     }
-}
-
-int button::get_id() const
-{
-    return id;
 }
 
 bool button::handle_key(SDL_Keycode key)

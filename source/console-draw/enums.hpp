@@ -12,6 +12,20 @@ enum class button_event
     focused,
 };
 
+enum class text_field_event
+{
+    none,
+    enter_pressed,
+    text_updated,
+    focused,
+};
+
+enum class text_event_send_mode
+{
+    on_enter,
+    on_changed,
+};
+
 enum class box_type
 {
     none,

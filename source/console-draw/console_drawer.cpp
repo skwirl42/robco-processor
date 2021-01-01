@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "text_field.hpp"
+
 namespace
 {
     inline int min(int a, int b)
@@ -68,10 +70,12 @@ void console_drawer::handle_key(SDL_Keycode key)
     case SDLK_TAB:
     case SDLK_RIGHT:
     case SDLK_LEFT:
+    case SDLK_UP:
+    case SDLK_DOWN:
         if (controls.size() > 1)
         {
             int last_focused_control = focused_control_index;
-            if (key == SDLK_LEFT)
+            if (key == SDLK_LEFT || key == SDLK_UP)
             {
                 focused_control_index--;
                 if (focused_control_index < 0)
@@ -88,7 +92,9 @@ void console_drawer::handle_key(SDL_Keycode key)
                 }
             }
 
-            controls[last_focused_control].get()->set_focused(false);
+            controls[last_focused_control]
+                .get()
+                ->set_focused(false);
             controls[focused_control_index].get()->set_focused(true);
         }
         break;
@@ -249,12 +255,12 @@ void console_drawer::draw_text(const char *text, int x, int y, bool inverted)
     target_console.PrintAt(text, x, y);
 }
 
-int console_drawer::define_button(const char *text, int x, int y, int width, int height, button_handler handler)
+int console_drawer::add_control(control *new_control)
 {
     int index = controls.size();
 
     bool has_focused_control = false;
-    for (auto& control : controls)
+    for (auto &control : controls)
     {
         if (control.get()->is_focused())
         {
@@ -266,10 +272,21 @@ int console_drawer::define_button(const char *text, int x, int y, int width, int
     if (!has_focused_control)
     {
         focused_control_index = index;
+        new_control->set_focused(true);
     }
-    controls.push_back(std::unique_ptr<control>(new button(text, handler, next_control_id, x, y, width, height, !has_focused_control)));
+    controls.push_back(std::unique_ptr<control>(new_control));
 
     return next_control_id++;
+}
+
+int console_drawer::define_button(const char *text, int x, int y, int width, int height, button_handler handler)
+{
+    return add_control(new button(text, handler, next_control_id, x, y, width, height, false));
+}
+
+int console_drawer::define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents)
+{
+    return add_control(new text_field(next_control_id, label_text, handler, send_mode, x, y, max_content_length, initial_contents, false));
 }
 
 void console_drawer::remove_control_by_id(int id)

@@ -16,8 +16,6 @@ public:
 
     void send_event(button_event event, int extra_field = -1);
 
-    virtual int get_id() const;
-
     virtual bool wants_keys() const { return true; }
     virtual bool handle_key(SDL_Keycode key);
 
@@ -27,7 +25,6 @@ protected:
 private:
     button_handler handler;
     const char *text;
-    int id;
     int x;
     int y;
     int width;

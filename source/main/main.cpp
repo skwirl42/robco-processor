@@ -125,8 +125,12 @@ int main (int argc, char **argv)
     console_drawer ui_drawer(uiConsole);
     // Draw some debug UI
     ui_drawer.add_box(box_type::single_line, fill_mode::character, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight(), '\xE6');
-    ui_drawer.add_box(box_type::double_line, fill_mode::clear, 1, 1, 16, 16);
-    ui_drawer.add_box(box_type::block, fill_mode::none, 2, 2, 18, 8);
+    ui_drawer.define_text_field("Text Field:", [&](text_field_event event, int id, const char *contents) {
+        if (event == text_field_event::text_updated || event == text_field_event::enter_pressed)
+        {
+            std::cout << "Text field was updated with \"" << contents << "\"" << std::endl;
+        }
+    }, text_event_send_mode::on_enter, 3, 3, 32, "");
     int what_id = ui_drawer.define_button("What?!", 18, 19, 8, 3, [&](button_event event, int id, int old_id) {});
     int cancel_id = ui_drawer.define_button("Cancel", 34, 19, 8, 3, [&](button_event event, int id, int old_id) {});
     int ok_id = ui_drawer.define_button("OK", 50, 19, 8, 3, [&](button_event event, int id, int old_id) {
@@ -382,7 +386,23 @@ int main (int argc, char **argv)
                         }
                         else if (emulator_state == EmulatorState::Configuring)
                         {
-                            ui_drawer.handle_key(event.key.keysym.sym);
+                            bool has_shift = event.key.keysym.mod & KMOD_LSHIFT || event.key.keysym.mod & KMOD_RSHIFT;
+                            if (has_shift)
+                            {
+                                int key = sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
+                                if (key == 0)
+                                {
+                                    ui_drawer.handle_key(event.key.keysym.sym);
+                                }
+                                else
+                                {
+                                    ui_drawer.handle_key(key);
+                                }
+                            }
+                            else
+                            {
+                                ui_drawer.handle_key(event.key.keysym.sym);
+                            }
                         }
                         else
                         {

@@ -17,6 +17,7 @@
 #include "drawer.hpp"
 #include "button.hpp"
 #include "box.hpp"
+#include "text_field.hpp"
 
 class console_drawer : public drawer
 {
@@ -36,11 +37,16 @@ public:
     virtual void draw_text(const char *text, int x, int y, bool inverted);
 
     int define_button(const char *text, int x, int y, int width, int height, button_handler handler);
+    int define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents);
+   
     void remove_control_by_id(int id);
 
     void add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
     int box_count() const { return boxes.size(); }
     void clear_boxes() { boxes.clear(); }
+
+protected:
+    int add_control(control *control);
 
 private:
     std::vector<box> boxes;

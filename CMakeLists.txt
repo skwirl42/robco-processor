@@ -49,6 +49,7 @@ add_executable(robcoterm
     source/console-draw/console_drawer.cpp
     source/console-draw/button.cpp
     source/console-draw/box.cpp
+    source/console-draw/text_field.cpp
     ${FLEX_AssemblerLex_OUTPUTS}
     ${BISON_AssemblerYacc_OUTPUTS})
 

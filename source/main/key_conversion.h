@@ -29,4 +29,5 @@ enum class console_keycode
 };
 
 int sdl_keycode_to_console_key(SDL_Keysym &keysym);
+int sdl_keycode_to_console_key(SDL_Keycode code, bool has_shift);
 int sdl_scancode_to_console_key(SDL_Scancode code);

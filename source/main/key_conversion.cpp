@@ -68,23 +68,33 @@ int sdl_scancode_to_console_key(SDL_Scancode code)
     return console_key;
 }
 
-int sdl_keycode_to_console_key(SDL_Keysym &keysym)
+int sdl_keycode_to_console_key(SDL_Keycode code, bool has_shift)
 {
     int console_key = 0;
-    bool has_shift = keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT;
-    if (keysym.sym >= 0 && keysym.sym < 0x7F)
+    if (code >= 0 && code < 0x7F)
     {
         if (has_shift)
         {
-            int index = keysym.sym - ' ';
+            int index = code - ' ';
             console_key = shifted_keys[index];
         }
         else
         {
-            console_key = keysym.sym;
+            console_key = code;
         }
     }
-    else
+
+    return console_key;
+}
+
+int sdl_keycode_to_console_key(SDL_Keysym &keysym)
+{
+    int console_key = 0;
+    bool has_shift = keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT;
+
+    console_key = sdl_keycode_to_console_key(keysym.sym, has_shift);
+
+    if (console_key == 0)
     {
         console_key = sdl_scancode_to_console_key(keysym.scancode);
     }
