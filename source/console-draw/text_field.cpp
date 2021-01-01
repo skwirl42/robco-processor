@@ -108,6 +108,31 @@ bool text_field::handle_key(SDL_Keycode key)
         }
         return true;
     }
+    else if (key == SDLK_DELETE && content_length() > 0 && cursor_position < content_length())
+    {
+        int original_content_length = content_length();
+        if (cursor_position < original_content_length)
+        {
+            for (int i = cursor_position + 1; i < original_content_length; i++)
+            {
+                contents[i] = contents[i + 1];
+            }
+        }
+        contents[original_content_length - 1] = 0;
+        if (send_mode == text_event_send_mode::on_changed)
+        {
+            send_event(text_field_event::text_updated);
+        }
+        return true;
+    }
+    else if (key == SDLK_HOME)
+    {
+        cursor_position = 0;
+    }
+    else if (key == SDLK_END)
+    {
+        cursor_position = content_length();
+    }
     else if (isprint(key) && content_length() < max_content_length)
     {
         int original_content_length = content_length();
