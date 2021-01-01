@@ -65,50 +65,47 @@ console_drawer::~console_drawer()
 
 void console_drawer::handle_key(SDL_Keycode key)
 {
-    switch (key)
+    auto focused_control = controls[focused_control_index].get();
+    if (focused_control->wants_keys())
     {
-    case SDLK_TAB:
-    case SDLK_RIGHT:
-    case SDLK_LEFT:
-    case SDLK_UP:
-    case SDLK_DOWN:
-        if (controls.size() > 1)
+        bool handled = focused_control->handle_key(key);
+        if (!handled)
         {
-            int last_focused_control = focused_control_index;
-            if (key == SDLK_LEFT || key == SDLK_UP)
+            switch (key)
             {
-                focused_control_index--;
-                if (focused_control_index < 0)
+            case SDLK_TAB:
+            case SDLK_UP:
+            case SDLK_DOWN:
+            case SDLK_LEFT:
+            case SDLK_RIGHT:
+                if (controls.size() > 1)
                 {
-                    focused_control_index = controls.size() - 1;
-                }
-            }
-            else
-            {
-                focused_control_index++;
-                if (focused_control_index >= controls.size())
-                {
-                    focused_control_index = 0;
-                }
-            }
+                    if (key == SDLK_UP || key == SDLK_LEFT)
+                    {
+                        focused_control_index--;
+                        if (focused_control_index < 0)
+                        {
+                            focused_control_index = controls.size() - 1;
+                        }
+                    }
+                    else
+                    {
+                        focused_control_index++;
+                        if (focused_control_index >= controls.size())
+                        {
+                            focused_control_index = 0;
+                        }
+                    }
 
-            controls[last_focused_control]
-                .get()
-                ->set_focused(false);
-            controls[focused_control_index].get()->set_focused(true);
-        }
-        break;
+                    focused_control->set_focused(false);
+                    controls[focused_control_index].get()->set_focused(true);
+                }
+                break;
 
-    default:
-        if (controls[focused_control_index].get()->wants_keys())
-        {
-            bool handled = controls[focused_control_index].get()->handle_key(key);
-            if (!handled)
-            {
-                // Should there be some sort of fallback for key handling?
+            default:
+                break;
             }
         }
-        break;
     }
 }
 
@@ -137,7 +134,7 @@ void console_drawer::draw_controls()
         control_ptr->draw(this);
 
         auto text = dynamic_cast<text_field *>(control_ptr);
-        if (control_ptr->is_focused() && text != nullptr)
+        if (control_ptr->is_focused() && text != nullptr && text->is_editable())
         {
             cursor_enabled = true;
             cursor_x = text->get_field_start() + text->get_cursor_position();
@@ -301,9 +298,9 @@ int console_drawer::define_button(const char *text, int x, int y, int width, int
     return add_control(new button(text, handler, next_control_id, x, y, width, height, false));
 }
 
-int console_drawer::define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents)
+int console_drawer::define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool editable)
 {
-    return add_control(new text_field(next_control_id, label_text, handler, send_mode, x, y, max_content_length, initial_contents, false));
+    return add_control(new text_field(next_control_id, label_text, handler, send_mode, x, y, max_content_length, initial_contents, false, editable));
 }
 
 void console_drawer::remove_control_by_id(int id)

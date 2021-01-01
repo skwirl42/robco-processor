@@ -132,7 +132,7 @@ int main (int argc, char **argv)
         {
             std::cout << "Text field was updated with \"" << contents << "\"" << std::endl;
         }
-    }, text_event_send_mode::on_enter, 3, 3, 32, "");
+    }, text_event_send_mode::on_enter, 3, 3, 32, "test text", false);
     int what_id = ui_drawer.define_button("What?!", 18, 19, 8, 3, [&](button_event event, int id, int old_id) {});
     int cancel_id = ui_drawer.define_button("Cancel", 34, 19, 8, 3, [&](button_event event, int id, int old_id) {});
     int ok_id = ui_drawer.define_button("OK", 50, 19, 8, 3, [&](button_event event, int id, int old_id) {

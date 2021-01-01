@@ -37,7 +37,7 @@ public:
     virtual void draw_text(const char *text, int x, int y, bool inverted);
 
     int define_button(const char *text, int x, int y, int width, int height, button_handler handler);
-    int define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents);
+    int define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool editable);
    
     void remove_control_by_id(int id);
 

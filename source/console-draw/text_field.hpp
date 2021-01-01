@@ -9,7 +9,7 @@ typedef std::function<void(text_field_event,int,const char *)> text_field_event_
 class text_field : public control
 {
 public:
-    text_field(int id, const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool focused);
+    text_field(int id, const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool focused, bool editable);
     virtual ~text_field();
 
     void set_contents(const char *new_contents);
@@ -23,6 +23,9 @@ public:
 
     virtual bool wants_keys() const { return true; }
     virtual bool handle_key(SDL_Keycode key);
+
+    bool is_editable() const { return editable; }
+    void set_editable(bool editable) { this->editable = editable; }
 
     int content_length() { return strlen(contents); }
 
@@ -42,4 +45,5 @@ private:
     int width;
     int max_content_length;
     int cursor_position;
+    bool editable;
 };
