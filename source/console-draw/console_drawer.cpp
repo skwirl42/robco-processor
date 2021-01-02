@@ -131,6 +131,11 @@ void console_drawer::draw_controls()
     for (auto &control : controls)
     {
         auto control_ptr = control.get();
+        if (!control_ptr->is_visible())
+        {
+            continue;
+        }
+
         control_ptr->draw(this);
 
         auto text = dynamic_cast<text_field *>(control_ptr);

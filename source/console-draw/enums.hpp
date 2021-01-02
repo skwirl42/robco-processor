@@ -2,14 +2,10 @@
 
 enum class button_event
 {
-    // nothing happened
     none,
-
-    // the button was "clicked", most likely the enter key
     clicked,
-
-    // when the button gets keyboard focus
     focused,
+    lost_focus,
 };
 
 enum class text_field_event
@@ -18,6 +14,7 @@ enum class text_field_event
     enter_pressed,
     text_updated,
     focused,
+    lost_focus,
 };
 
 enum class text_event_send_mode

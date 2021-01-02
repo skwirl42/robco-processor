@@ -32,7 +32,7 @@ public:
     void send_event(text_field_event event);
 
 protected:
-    virtual void handle_focused();
+    virtual void handle_focused(bool was_focused);
 
 private:
     text_field_event_handler handler;

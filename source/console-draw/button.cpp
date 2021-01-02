@@ -7,8 +7,18 @@ namespace
 }
 
 button::button(const char *text, button_handler handler, int id, int x, int y, int width, int height, bool focused)
-    : text(text), handler(handler), x(x), y(y), width(width), height(height), control(id, focused)
+    : text(text), handler(handler), x(x), y(y), width(width), height(height), control(id, focused, true, x, y, width, height)
 {
+}
+
+void button::set_text(const char *new_text, bool resize)
+{
+    int text_len_delta = strlen(new_text) - strlen(text);
+    text = new_text;
+    if (resize)
+    {
+        width += text_len_delta;
+    }
 }
 
 void button::draw(drawer *drawer)
@@ -26,16 +36,20 @@ void button::draw(drawer *drawer)
     drawer->draw_text(text, text_x, half_y_position, focused);
 }
 
-void button::send_event(button_event event, int extra_field)
+void button::send_event(button_event event)
 {
-    handler(event, id, extra_field);
+    handler(event, id);
 }
 
-void button::handle_focused()
+void button::handle_focused(bool was_focused)
 {
     if (focused)
     {
-        send_event(button_event::focused, id);
+        send_event(button_event::focused);
+    }
+    else if (was_focused)
+    {
+        send_event(button_event::lost_focus);
     }
 }
 

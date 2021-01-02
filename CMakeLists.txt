@@ -32,6 +32,13 @@ find_package (Boost REQUIRED COMPONENTS program_options)
 BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
 FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
 
+set(CONSOLE_DRAW_SOURCES
+    source/console-draw/console_drawer.cpp
+    source/console-draw/button.cpp
+    source/console-draw/box.cpp
+    source/console-draw/text_field.cpp
+)
+
 add_executable(robcoterm 
     source/main/main.cpp
     source/render/Console.cpp
@@ -46,10 +53,7 @@ add_executable(robcoterm
     source/assembler/assembler.cpp
     source/assembler/symbols.c
     source/sound/sound_system.cpp
-    source/console-draw/console_drawer.cpp
-    source/console-draw/button.cpp
-    source/console-draw/box.cpp
-    source/console-draw/text_field.cpp
+    ${CONSOLE_DRAW_SOURCES}
     ${FLEX_AssemblerLex_OUTPUTS}
     ${BISON_AssemblerYacc_OUTPUTS})
 

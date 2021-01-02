@@ -5,7 +5,7 @@
 #include "enums.hpp"
 #include "control.hpp"
 
-typedef std::function<void(button_event, int, int)> button_handler;
+typedef std::function<void(button_event, int)> button_handler;
 
 class button : public control
 {
@@ -14,13 +14,15 @@ public:
 
     virtual void draw(drawer *drawer);
 
-    void send_event(button_event event, int extra_field = -1);
+    void send_event(button_event event);
+
+    void set_text(const char *new_text, bool resize = true);
 
     virtual bool wants_keys() const { return true; }
     virtual bool handle_key(SDL_Keycode key);
 
 protected:
-    virtual void handle_focused();
+    virtual void handle_focused(bool was_focused);
 
 private:
     button_handler handler;
