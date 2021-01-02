@@ -1,7 +1,7 @@
 #include "key_conversion.h"
 
-const char *shifted_nums = ")!@#$%^&*(";
-const char *shifted_keys = " !\"#$%&\"()*+<_>?)!@#$%^&*(::<+>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}^_~ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~";
+const char* shifted_nums = ")!@#$%^&*(";
+const char* shifted_keys = " !\"#$%&\"()*+<_>?)!@#$%^&*(::<+>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}^_~ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~";
 
 int sdl_scancode_to_console_key(SDL_Scancode code)
 {
@@ -64,7 +64,7 @@ int sdl_scancode_to_console_key(SDL_Scancode code)
             break;
         }
     }
- 
+
     return console_key;
 }
 
@@ -87,7 +87,7 @@ int sdl_keycode_to_console_key(SDL_Keycode code, bool has_shift)
     return console_key;
 }
 
-int sdl_keycode_to_console_key(SDL_Keysym &keysym)
+int sdl_keycode_to_console_key(SDL_Keysym& keysym)
 {
     int console_key = 0;
     bool has_shift = keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT;

@@ -94,6 +94,27 @@ opcode_entry_t *get_opcode_entry(const char *opcode_name)
     return 0;
 }
 
+int opcode_entry_count()
+{
+    int count = 0;
+    while (opcode_entries[count].name != 0)
+    {
+        count++;
+    }
+    return count;
+}
+
+opcode_entry_t* get_opcode_entry_by_index(int index)
+{
+    int count = opcode_entry_count();
+    if (index >= count)
+    {
+        return 0;
+    }
+
+    return &opcode_entries[index];
+}
+
 opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode)
 {
     if (IS_INDEXED_INST(opcode))
@@ -127,6 +148,28 @@ register_argument_t *get_register(const char *register_name)
     }
 
     return 0;
+}
+
+int register_count()
+{
+    int count = 0;
+    while (registers[count].name != 0)
+    {
+        count++;
+    }
+
+    return count;
+}
+
+register_argument_t* get_register_by_index(int index)
+{
+    int count = register_count();
+    if (index >= count)
+    {
+        return 0;
+    }
+
+    return &registers[index];
 }
 
 void print_opcode_entries()

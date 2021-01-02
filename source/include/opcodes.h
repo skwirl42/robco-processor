@@ -154,9 +154,13 @@ typedef struct _register_argument
 } register_argument_t;
 
 opcode_entry_t *get_opcode_entry(const char *opcode_name);
+int opcode_entry_count();
+opcode_entry_t* get_opcode_entry_by_index(int index);
 opcode_entry_t *get_opcode_entry_from_opcode(uint8_t opcode);
 void print_opcode_entries();
 register_argument_t *get_register(const char *register_name);
+int register_count();
+register_argument_t* get_register_by_index(int index);
 
 #ifdef __cplusplus
 }

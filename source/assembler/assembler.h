@@ -1,5 +1,4 @@
-#ifndef __ASSEMBLER_H__
-#define __ASSEMBLER_H__
+#pragma once
 
 #include <stdint.h>
 #include <stdio.h>
@@ -9,10 +8,6 @@
 #include <errno.h>
 #include <iostream>
 #include <vector>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum
 {
@@ -55,6 +50,19 @@ typedef struct _register_index
     register_argument_t *index_register;
     uint8_t is_pre_increment;
     int8_t increment_amount;
+
+    _register_index() : index_register(0), is_pre_increment(0), increment_amount(0) {}
+    _register_index(const _register_index& other) 
+        : index_register(other.index_register), 
+        is_pre_increment(other.is_pre_increment),
+        increment_amount(other.increment_amount)
+    {
+    }
+    _register_index(register_argument_t* index_register, uint8_t is_pre_increment, int8_t increment_amount) :
+        index_register(index_register), is_pre_increment(is_pre_increment), increment_amount(increment_amount)
+    {
+
+    }
 } register_index_t;
 
 extern assembler_data_t *assembler_data;
@@ -74,9 +82,3 @@ const char *get_output_filename(assembler_data_t *data);
 // to hold the number of bytes returned by executable_file_size
 uint16_t executable_file_size(assembler_data_t *data);
 assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buffer);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // __ASSEMBLER_H__
