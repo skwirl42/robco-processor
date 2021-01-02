@@ -5,10 +5,8 @@
 
 #if defined(APPLE)
 #include <SDL2/SDL.h>
-#define OUT_FILE    stderr
 #else // defined(APPLE)
 #include <SDL.h>
-#define OUT_FILE    stdout
 #endif // defined(APPLE)
 #include <stdio.h>
 #include <string.h>
@@ -25,6 +23,7 @@
 #include "sound_system.hpp"
 #include "exceptions.hpp"
 #include "console_drawer.hpp"
+#include "program_options_helpers.hpp"
 
 namespace po = boost::program_options;
 
@@ -56,45 +55,6 @@ void usage(char** argv, po::options_description& options)
     std::filesystem::path command_path{ argv[0] };
     std::cout << "Usage: " << command_path.filename().string() << " [options]" << std::endl;
     std::cout << options << std::endl;
-}
-
-void conflicting_options(po::variables_map &variables, const char *option1, const char *option2)
-{
-    if (variables.count(option1) && !variables[option1].defaulted()
-        && variables.count(option2) && !variables[option2].defaulted())
-    {
-        throw std::logic_error(std::string("Option ") + option1 + " cannot be used with option " + option2);
-    }
-}
-
-void option_dependency(po::variables_map &variables, const char *dependent, const char *required)
-{
-    if (variables.count(dependent) && !variables[dependent].defaulted())
-    {
-        if (variables.count(required) == 0 || variables[required].defaulted())
-        {
-            throw std::logic_error(std::string("Option ") + dependent + " requires option " + required + " to be specified");
-        }
-    }
-}
-
-void one_of_options_required(po::variables_map &variables, std::vector<std::string> &options)
-{
-    bool any_specified = false;
-    for (auto option : options)
-    {
-        if (variables.count(option) && !variables[option].defaulted())
-        {
-            any_specified = true;
-            break;
-        }
-    }
-
-    if (!any_specified)
-    {
-        auto options_list = boost::join(options, ", ");
-        throw std::logic_error("One of the following options must be specified: (" + options_list + ")");
-    }
 }
 
 int main (int argc, char **argv)
@@ -196,7 +156,7 @@ int main (int argc, char **argv)
 
         if (init_emulator(&rcEmulator, ARCH_ORIGINAL) != NO_ERROR)
         {
-            fprintf(OUT_FILE, "Emulator error\n");
+            std::cerr << "Emulator error" << std::endl;
             teardown();
             return -1;
         }
@@ -230,7 +190,7 @@ int main (int argc, char **argv)
 
             if (get_error_buffer_size(assembled_data) > 0)
             {
-                fprintf(OUT_FILE, "%s", get_error_buffer(assembled_data));
+                std::cerr << get_error_buffer(assembled_data) << std::endl;
                 teardown();
                 return -1;
             }
@@ -239,7 +199,7 @@ int main (int argc, char **argv)
 
             if (apply_result != ASSEMBLER_SUCCESS)
             {
-                fprintf(OUT_FILE, "Failed to properly assemble the target %s\n", sample_file);
+                std::cerr << "Failed to properly assemble the target " << sample_file << std::endl;
                 teardown();
                 return -1;
             }
@@ -248,7 +208,7 @@ int main (int argc, char **argv)
 
             if (exec_address_result != ASSEMBLER_SUCCESS)
             {
-                fprintf(OUT_FILE, "Couldn't get an executable address from the assembled target %s\n", sample_file);
+                std::cerr << "Couldn't get an executable address from the assembled target " << sample_file << std::endl;
                 teardown();
                 return -1;
             }
@@ -282,7 +242,7 @@ int main (int argc, char **argv)
         auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
         if (result != 0)
         {
-            fprintf(OUT_FILE, "Failed to initialize SDL (%s)\n", SDL_GetError());
+            std::cerr << "Failed to initialize SDL (" << SDL_GetError() << ")" << std::endl;
             teardown();
             return -1;
         }
@@ -304,7 +264,7 @@ int main (int argc, char **argv)
         }
         else
         {
-            fprintf(OUT_FILE, "Failed to initialize sound system with error \"%s\"", synthesizer->get_error());
+            std::cerr << "Failed to initialize sound system with error \"" << synthesizer->get_error() << "\"" << std::endl;
             teardown();
             return -1;
         }
@@ -318,7 +278,7 @@ int main (int argc, char **argv)
         }
         else
         {
-            fprintf(OUT_FILE, "Missing argument: font filename\n");
+            std::cerr << "Missing argument: font filename" << std::endl;
             usage(argv, cli_options);
             teardown();
             return -1;
@@ -391,7 +351,7 @@ int main (int argc, char **argv)
                             bool has_shift = event.key.keysym.mod & KMOD_LSHIFT || event.key.keysym.mod & KMOD_RSHIFT;
                             if (has_shift)
                             {
-                                int key = sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
+                                int key = 0;// sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
                                 if (key == 0)
                                 {
                                     ui_drawer.handle_key(event.key.keysym.sym);
@@ -437,7 +397,7 @@ int main (int argc, char **argv)
                 key_buffer = SDL_GetKeyboardState(&key_buffer_size);
                 for (int i = 0; i < key_buffer_size; i++)
                 {
-                    int console_keycode = sdl_scancode_to_console_key((SDL_Scancode)i);
+                    int console_keycode = 0;// sdl_scancode_to_console_key((SDL_Scancode)i);
                     if (key_buffer[i] && console_keycode > 0)
                     {
                         // TODO: How to store the info for the emulated program to access?
@@ -524,7 +484,7 @@ int main (int argc, char **argv)
                     }
                     else if (result == ILLEGAL_INSTRUCTION)
                     {
-                        fprintf(OUT_FILE, "Emulation failed with an illegal instruction\n");
+                        std::cerr << "Emulation failed with an illegal instruction" << std::endl;
                         emulate = false;
                     }
 

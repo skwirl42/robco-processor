@@ -80,6 +80,11 @@ bool text_field::handle_key(SDL_Keycode key)
         return true;
     }
 
+    if (key < 0 || key > 0xFF)
+    {
+        return false;
+    }
+
     if (isprint(key) && content_length() < max_content_length)
     {
         contents[content_length()] = (char)key;

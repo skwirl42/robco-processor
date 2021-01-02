@@ -6,7 +6,7 @@ const char *shifted_keys = " !\"#$%&\"()*+<_>?)!@#$%^&*(::<+>?@ABCDEFGHIJKLMNOPQ
 int sdl_keycode_to_console_key(SDL_Keysym &keysym)
 {
     int console_key = 0;
-    bool has_shift = keysym.mod & KMOD_SHIFT;
+    bool has_shift = keysym.mod & KMOD_LSHIFT || keysym.mod & KMOD_RSHIFT;
     if (keysym.sym >= 0 && keysym.sym < 0x7F)
     {
         if (has_shift)
