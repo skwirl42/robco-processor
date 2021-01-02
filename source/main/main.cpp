@@ -351,7 +351,7 @@ int main (int argc, char **argv)
                             bool has_shift = event.key.keysym.mod & KMOD_LSHIFT || event.key.keysym.mod & KMOD_RSHIFT;
                             if (has_shift)
                             {
-                                int key = 0;// sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
+                                int key = sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
                                 if (key == 0)
                                 {
                                     ui_drawer.handle_key(event.key.keysym.sym);
@@ -397,7 +397,7 @@ int main (int argc, char **argv)
                 key_buffer = SDL_GetKeyboardState(&key_buffer_size);
                 for (int i = 0; i < key_buffer_size; i++)
                 {
-                    int console_keycode = 0;// sdl_scancode_to_console_key((SDL_Scancode)i);
+                    int console_keycode = sdl_scancode_to_console_key((SDL_Scancode)i);
                     if (key_buffer[i] && console_keycode > 0)
                     {
                         // TODO: How to store the info for the emulated program to access?
