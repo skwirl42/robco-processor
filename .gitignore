@@ -1,8 +1,13 @@
 build/
 .DS_Store
-output.log
+*.log
 assembled*.txt
-test.holo
+.vs/
+
+*.zip
+*.holo
+*.rcexe
+
 # Prerequisites
 *.d
 
@@ -35,6 +40,3 @@ test.holo
 *.exe
 *.out
 *.app
-graphics_test.holo
-graphics_test.rcexe
-graphics_test.txt

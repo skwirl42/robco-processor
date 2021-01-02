@@ -5,8 +5,10 @@
 
 #if defined(APPLE)
 #include <SDL2/SDL.h>
+#define OUT_FILE    stderr
 #else // defined(APPLE)
 #include <SDL.h>
+#define OUT_FILE    stdout
 #endif // defined(APPLE)
 #include <stdio.h>
 #include <string.h>
@@ -22,11 +24,22 @@
 #include "opcodes.h"
 #include "sound_system.hpp"
 #include "exceptions.hpp"
-#include "program_options_helpers.hpp"
+#include "console_drawer.hpp"
 
 namespace po = boost::program_options;
 
-const char *blank_line = "                                                            ";
+namespace
+{
+    const char *blank_line = "                                                            ";
+    enum class EmulatorState
+    {
+        Emulating,
+        Debugging,
+        Configuring,
+    };
+
+    const int configuration_console_frame_time = 16;
+} // namespace
 
 void handle_key(SDL_Keysym &keysym, emulator &emulator, Console &console)
 {
@@ -43,6 +56,45 @@ void usage(char** argv, po::options_description& options)
     std::filesystem::path command_path{ argv[0] };
     std::cout << "Usage: " << command_path.filename().string() << " [options]" << std::endl;
     std::cout << options << std::endl;
+}
+
+void conflicting_options(po::variables_map &variables, const char *option1, const char *option2)
+{
+    if (variables.count(option1) && !variables[option1].defaulted()
+        && variables.count(option2) && !variables[option2].defaulted())
+    {
+        throw std::logic_error(std::string("Option ") + option1 + " cannot be used with option " + option2);
+    }
+}
+
+void option_dependency(po::variables_map &variables, const char *dependent, const char *required)
+{
+    if (variables.count(dependent) && !variables[dependent].defaulted())
+    {
+        if (variables.count(required) == 0 || variables[required].defaulted())
+        {
+            throw std::logic_error(std::string("Option ") + dependent + " requires option " + required + " to be specified");
+        }
+    }
+}
+
+void one_of_options_required(po::variables_map &variables, std::vector<std::string> &options)
+{
+    bool any_specified = false;
+    for (auto option : options)
+    {
+        if (variables.count(option) && !variables[option].defaulted())
+        {
+            any_specified = true;
+            break;
+        }
+    }
+
+    if (!any_specified)
+    {
+        auto options_list = boost::join(options, ", ");
+        throw std::logic_error("One of the following options must be specified: (" + options_list + ")");
+    }
 }
 
 int main (int argc, char **argv)
@@ -69,10 +121,38 @@ int main (int argc, char **argv)
     bool emulator_initialized = false;
     sound_system* synthesizer = nullptr;
     Console console(60, 24);
-    Console debugConsole(60,24);
+    Console debugConsole(60, 24);
+    Console uiConsole(60, 24);
 
-    auto teardown = [&]()
-    {
+    console_drawer ui_drawer(uiConsole);
+    // Draw some debug UI
+    ui_drawer.add_box(box_type::single_line, fill_mode::character, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight(), '\xE6');
+    ui_drawer.define_text_field("Text Field:", [&](text_field_event event, int id, const char *contents) {
+        if (event == text_field_event::text_updated || event == text_field_event::enter_pressed)
+        {
+            std::cout << "Text field was updated with \"" << contents << "\"" << std::endl;
+        }
+    }, text_event_send_mode::on_enter, 3, 3, 32, "");
+    int what_id = ui_drawer.define_button("What?!", 18, 19, 8, 3, [&](button_event event, int id, int old_id) {});
+    int cancel_id = ui_drawer.define_button("Cancel", 34, 19, 8, 3, [&](button_event event, int id, int old_id) {});
+    int ok_id = ui_drawer.define_button("OK", 50, 19, 8, 3, [&](button_event event, int id, int old_id) {
+        switch (event)
+        {
+        case button_event::clicked:
+            std::cout << "OK clicked" << std::endl;
+            ui_drawer.remove_control_by_id(what_id);
+            break;
+
+        case button_event::focused:
+            std::cout << "OK got focus" << std::endl;
+            break;
+        
+        case button_event::none:
+            break;
+        }
+    });
+
+    auto teardown = [&]() {
         if (holotape_initialized())
         {
             dispose_holotape();
@@ -116,7 +196,7 @@ int main (int argc, char **argv)
 
         if (init_emulator(&rcEmulator, ARCH_ORIGINAL) != NO_ERROR)
         {
-            std::cerr << "Emulator error" << std::endl;
+            fprintf(OUT_FILE, "Emulator error\n");
             teardown();
             return -1;
         }
@@ -150,7 +230,7 @@ int main (int argc, char **argv)
 
             if (get_error_buffer_size(assembled_data) > 0)
             {
-                std::cerr << get_error_buffer(assembled_data) << std::endl;
+                fprintf(OUT_FILE, "%s", get_error_buffer(assembled_data));
                 teardown();
                 return -1;
             }
@@ -159,7 +239,7 @@ int main (int argc, char **argv)
 
             if (apply_result != ASSEMBLER_SUCCESS)
             {
-                std::cerr << "Failed to properly assemble the target " << sample_file << std::endl;
+                fprintf(OUT_FILE, "Failed to properly assemble the target %s\n", sample_file);
                 teardown();
                 return -1;
             }
@@ -168,7 +248,7 @@ int main (int argc, char **argv)
 
             if (exec_address_result != ASSEMBLER_SUCCESS)
             {
-                std::cerr << "Couldn't get an executable address from the assembled target " << sample_file << std::endl;
+                fprintf(OUT_FILE, "Couldn't get an executable address from the assembled target %s\n", sample_file);
                 teardown();
                 return -1;
             }
@@ -202,7 +282,7 @@ int main (int argc, char **argv)
         auto result = SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO);
         if (result != 0)
         {
-            std::cerr << "Failed to initialize SDL (" << SDL_GetError() << ")" << std::endl;
+            fprintf(OUT_FILE, "Failed to initialize SDL (%s)\n", SDL_GetError());
             teardown();
             return -1;
         }
@@ -224,7 +304,7 @@ int main (int argc, char **argv)
         }
         else
         {
-            std::cerr << "Failed to initialize sound system with error \"" << synthesizer->get_error() << "\"" << std::endl;
+            fprintf(OUT_FILE, "Failed to initialize sound system with error \"%s\"", synthesizer->get_error());
             teardown();
             return -1;
         }
@@ -236,6 +316,13 @@ int main (int argc, char **argv)
             renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 16, 100);
             renderer->Clear();
         }
+        else
+        {
+            fprintf(OUT_FILE, "Missing argument: font filename\n");
+            usage(argv, cli_options);
+            teardown();
+            return -1;
+        }
 
         if (renderer != nullptr)
         {
@@ -244,6 +331,8 @@ int main (int argc, char **argv)
             SDL_Event event;
             int frame = 0;
             opcode_entry_t* executed_opcode = nullptr;
+            int key_buffer_size = 0;
+            const uint8_t *key_buffer = nullptr;
 
             int debugging_lines_start = console.GetHeight() - DEBUGGING_BUFFER_COUNT;
             char *debugging_buffers[DEBUGGING_BUFFER_COUNT]{};
@@ -252,8 +341,8 @@ int main (int argc, char **argv)
                 debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
             }
 
-            bool debugging = false;
-            if (debugging)
+            EmulatorState emulator_state = EmulatorState::Emulating;
+            if (emulator_state == EmulatorState::Debugging)
             {
                 rcEmulator.current_state = DEBUGGING;
             }
@@ -262,7 +351,7 @@ int main (int argc, char **argv)
             {
                 inst_result_t result = SUCCESS;
 
-                if (debugging)
+                if (emulator_state == EmulatorState::Debugging)
                 {
                     get_debug_info(&rcEmulator, debugging_buffers);
                 }
@@ -275,12 +364,46 @@ int main (int argc, char **argv)
                     }
                     else if (event.type == SDL_KEYDOWN)
                     {
+                        if (event.key.keysym.sym == SDLK_F6)
+                        {
+                            if (emulator_state == EmulatorState::Configuring)
+                            {
+                                emulator_state = (rcEmulator.current_state == DEBUGGING) ? EmulatorState::Debugging : EmulatorState::Emulating;
+                            }
+                            else
+                            {
+                                emulator_state = EmulatorState::Configuring;
+                            }
+                        }
                         if (event.key.keysym.sym == SDLK_F5)
                         {
-                            debugging = false;
-                            if (rcEmulator.current_state == DEBUGGING)
+                            if (emulator_state == EmulatorState::Debugging)
                             {
-                                rcEmulator.current_state = RUNNING;
+                                emulator_state = EmulatorState::Emulating;
+                                if (rcEmulator.current_state == DEBUGGING)
+                                {
+                                    rcEmulator.current_state = RUNNING;
+                                }
+                            }
+                        }
+                        else if (emulator_state == EmulatorState::Configuring)
+                        {
+                            bool has_shift = event.key.keysym.mod & KMOD_LSHIFT || event.key.keysym.mod & KMOD_RSHIFT;
+                            if (has_shift)
+                            {
+                                int key = sdl_keycode_to_console_key(event.key.keysym.sym, has_shift);
+                                if (key == 0)
+                                {
+                                    ui_drawer.handle_key(event.key.keysym.sym);
+                                }
+                                else
+                                {
+                                    ui_drawer.handle_key(key);
+                                }
+                            }
+                            else
+                            {
+                                ui_drawer.handle_key(event.key.keysym.sym);
                             }
                         }
                         else
@@ -294,18 +417,59 @@ int main (int argc, char **argv)
 
                         if (mouse_button_event.button == SDL_BUTTON_LEFT)
                         {
-                            if (rcEmulator.current_state == DEBUGGING)
+                            if (emulator_state == EmulatorState::Configuring)
                             {
-                                rcEmulator.current_state = RUNNING;
+                                // TODO: Handle mouse clicks
                             }
+                            else
+                            {
+                                if (rcEmulator.current_state == DEBUGGING)
+                                {
+                                    rcEmulator.current_state = RUNNING;
+                                }
 
-                            debugging = true;
+                                emulator_state = EmulatorState::Debugging;
+                            }
                         }
                     }
                 }
 
+                key_buffer = SDL_GetKeyboardState(&key_buffer_size);
+                for (int i = 0; i < key_buffer_size; i++)
+                {
+                    int console_keycode = sdl_scancode_to_console_key((SDL_Scancode)i);
+                    if (key_buffer[i] && console_keycode > 0)
+                    {
+                        // TODO: How to store the info for the emulated program to access?
+                        // Put into a buffer for a SYSCALL to put into emulated memory?
+                        // Drop them on the stack from a SYSCALL?
+                        // Explicitly set a memory location in the emulator?
+                    }
+                }
+
                 bool show_screen_when_debugging = SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(SDL_BUTTON_RIGHT);
-                if (!show_screen_when_debugging && (debugging || rcEmulator.current_state == DEBUGGING))
+                if (emulator_state == EmulatorState::Configuring)
+                {
+                    // Pause for a bit
+                    auto wait_time = std::chrono::microseconds(configuration_console_frame_time);
+                    auto end_time = wait_time + std::chrono::high_resolution_clock::now();
+                    while (std::chrono::high_resolution_clock::now() < end_time)
+                    {
+                        // a frame of spinning isn't gonna hurt anything
+                    }
+
+                    ui_drawer.draw();
+
+                    int previousBlinkFrames = renderer->GetCursorBlinkFrames();
+                    if (!ui_drawer.is_cursor_enabled())
+                    {
+                        renderer->SetCursorBlinkFrames(0);
+                    }
+
+                    renderer->Render(&uiConsole, frame++);
+                    renderer->SetCursorBlinkFrames(previousBlinkFrames);
+                }
+                else if (!show_screen_when_debugging && (emulator_state == EmulatorState::Debugging || rcEmulator.current_state == DEBUGGING))
                 {
                     debugConsole.Clear();
                     for (int i = 0; i < DEBUGGING_BUFFER_COUNT; i++)
@@ -326,7 +490,7 @@ int main (int argc, char **argv)
                     }
                 }
 
-                if (emulate && emulator_can_execute(&rcEmulator))
+                if (emulator_state != EmulatorState::Configuring && emulator_can_execute(&rcEmulator))
                 {
                     const int max_cycles = 10000;
                     int current_cycle = 0;
@@ -348,7 +512,7 @@ int main (int argc, char **argv)
                             current_cycle++;
                         }
 
-                        if (debugging)
+                        if (emulator_state == EmulatorState::Debugging)
                         {
                             break;
                         }
@@ -360,11 +524,11 @@ int main (int argc, char **argv)
                     }
                     else if (result == ILLEGAL_INSTRUCTION)
                     {
-                        std::cerr << "Emulation failed with an illegal instruction" << std::endl;
+                        fprintf(OUT_FILE, "Emulation failed with an illegal instruction\n");
                         emulate = false;
                     }
 
-                    if (debugging && rcEmulator.current_state != WAITING)
+                    if (emulator_state == EmulatorState::Debugging && rcEmulator.current_state != WAITING)
                     {
                         rcEmulator.current_state = DEBUGGING;
                     }

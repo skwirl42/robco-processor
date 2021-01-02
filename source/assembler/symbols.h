@@ -55,6 +55,7 @@ typedef enum SYMBOL_TABLE_ERROR
 {
     SYMBOL_TABLE_NOERROR,
     SYMBOL_TABLE_ALLOC_FAILED,
+    SYMBOL_TABLE_BAD_ARG,
 } symbol_table_error_t;
 
 typedef union

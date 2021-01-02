@@ -5,6 +5,7 @@ extern int yylex();
 }
 
 %union {
+    YYSTYPE() {}
     int intval;
     uint8_t byteval;
     byte_array_t bytearray;

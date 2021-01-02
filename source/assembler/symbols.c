@@ -67,8 +67,13 @@ void output_symbols(FILE *output_file, symbol_table_t *symbol_table)
 
 symbol_table_error_t create_symbol_table(symbol_table_t **symbol_table)
 {
-    *symbol_table = malloc(sizeof(struct _symbol_table));
     if (symbol_table == 0)
+    {
+        return SYMBOL_TABLE_BAD_ARG;
+    }
+
+    *symbol_table = malloc(sizeof(struct _symbol_table));
+    if (*symbol_table == 0)
     {
         return SYMBOL_TABLE_ALLOC_FAILED;
     }
@@ -167,6 +172,10 @@ symbol_error_t add_symbol(symbol_table_t *symbol_table, const char *name, symbol
                     if (type != SYMBOL_BYTE)
                     {
                         word.uword = word_value;
+                    }
+                    else
+                    {
+                        word.uword = byte_value;
                     }
                     current_ref->callback(current_ref->context, current_ref->ref_location, type, current_ref->expected_signedness, byte_value, word);
                 }

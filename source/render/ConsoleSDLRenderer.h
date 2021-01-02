@@ -23,6 +23,9 @@ public:
 
     bool IsValid() { return isValid; }
 
+    int GetCursorBlinkFrames() const { return cursorBlinkFrames; }
+    void SetCursorBlinkFrames(int frames) { cursorBlinkFrames = frames; }
+
 protected:
     void Cleanup();
 

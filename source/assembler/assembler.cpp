@@ -6,6 +6,7 @@
 #include "opcodes.h"
 #include "memory.h"
 #include "executable_file.h"
+#include "assembler_parser.hpp"
 
 namespace
 {
@@ -14,21 +15,21 @@ namespace
 
 typedef struct _assembler_data
 {
-    const char **search_paths;
-    std::vector<assembled_region_t*> regions;
-    assembled_region_t *current_region;
-    symbol_table_t *symbol_table;
-    int lineNumber;
-    const char *current_filename;
-    std::vector<char*> files_to_process;
-    std::vector<assembler_error_t> errors;
-    char * error_buffer;
-    int error_buffer_size;
-    int symbol_references_count;
-    uint16_t current_org_address;
-    std::optional<uint16_t> execution_start;
-    bool current_org_address_valid;
-    std::string output_filename;
+    const char **search_paths = nullptr;
+    std::vector<assembled_region_t*> regions{};
+    assembled_region_t *current_region = nullptr;
+    symbol_table_t *symbol_table = nullptr;
+    int lineNumber = 0;
+    const char *current_filename = nullptr;
+    std::vector<char*> files_to_process{};
+    std::vector<assembler_error_t> errors{};
+    char * error_buffer = nullptr;
+    int error_buffer_size = 0;
+    int symbol_references_count = 0;
+    uint16_t current_org_address = 0;
+    std::optional<uint16_t> execution_start{};
+    bool current_org_address_valid = false;
+    std::string output_filename{};
 } assembler_data_t;
 
 char *error_buffer = new char[ERROR_BUFFER_SIZE + 1];
@@ -334,7 +335,7 @@ byte_array_t add_to_byte_array(byte_array_t array, uint8_t value)
 {
     auto old_array = array.array;
     auto old_size = array.size;
-    array.array = new uint8_t[array.size + 1];
+    array.array = new uint8_t[(size_t)array.size + 1];
     memcpy(array.array, old_array, array.size);
     array.array[array.size++] = value;
     if (old_size > 0 && old_array != nullptr)
@@ -407,20 +408,18 @@ void handle_file(assembler_data_t *data, const char *filename)
 
     if (file == 0 && data->search_paths != 0)
     {
-        char * path_buffer = new char[ERROR_BUFFER_SIZE + 1];
         const char * current_search_path = 0;
         int i = 0;
         while ((current_search_path = data->search_paths[i++]) != 0)
         {
-            strncpy(path_buffer, current_search_path, ERROR_BUFFER_SIZE);
-            strncat(path_buffer, filename, ERROR_BUFFER_SIZE);
-            file = fopen(path_buffer, "r");
+            std::filesystem::path search_path{ current_search_path };
+            search_path /= filename;
+            file = fopen(search_path.string().c_str(), "r");
             if (file != 0)
             {
                 break;
             }
         }
-        delete [] path_buffer;
     }
 
     if (file != 0)
@@ -896,7 +895,7 @@ void add_error(assembler_data_t *data, const char *error_string, assembler_statu
     error.status = status;
     error.line_number = data->lineNumber;
     error.error_start = data->error_buffer_size;
-    int length = snprintf(&data->error_buffer[error.error_start], ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
+    int length = snprintf(&data->error_buffer[error.error_start], (size_t)ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
     data->errors.push_back(error);
     data->error_buffer_size += length;
 }

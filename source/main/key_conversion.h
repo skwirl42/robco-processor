@@ -18,19 +18,11 @@ typedef enum
     KEY_FUNC_3          = KEY_FUNC_0 + 3,
     KEY_FUNC_4          = KEY_FUNC_0 + 4,
     KEY_FUNC_5          = KEY_FUNC_0 + 5,
-    KEY_FUNC_6          = KEY_FUNC_0 + 6,
-    KEY_FUNC_7          = KEY_FUNC_0 + 7,
-    KEY_FUNC_8          = KEY_FUNC_0 + 8,
-    KEY_FUNC_9          = KEY_FUNC_0 + 9,
-    KEY_FUNC_10         = KEY_FUNC_0 + 10,
-    KEY_FUNC_11         = KEY_FUNC_0 + 11,
-    KEY_FUNC_12         = KEY_FUNC_0 + 12,
-    KEY_FUNC_13         = KEY_FUNC_0 + 13,
-    KEY_FUNC_14         = KEY_FUNC_0 + 14,
-    KEY_HOME            = KEY_FUNC_14 + 1,
+    KEY_HOME            = KEY_FUNC_5 + 1,
     KEY_END             = KEY_HOME + 1,
     KEY_PAGE_UP         = KEY_HOME + 2,
     KEY_PAGE_DOWN       = KEY_HOME + 3,
+    KEY_ALT             = KEY_PAGE_DOWN + 1,
 } keycode_t;
 
 int sdl_keycode_to_console_key(SDL_Keysym &keysym);

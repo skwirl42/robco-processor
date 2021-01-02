@@ -150,6 +150,11 @@ int main(int argc, char **argv)
         }
         return -1;
     }
+    catch (std::exception &exception)
+    {
+        std::cout << "Exception \"" << exception.what() << "\"" << std::endl;
+        return 1;
+    }
     catch (...)
     {
         std::cerr << "Unknown exception" << std::endl;
