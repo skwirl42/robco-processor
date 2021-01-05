@@ -70,7 +70,7 @@ namespace rc_assembler
             
             symbol_rule %= qi::lexeme[qi::char_("a-zA-Z") >> *qi::char_("a-zA-Z0-9_")];
             
-            byte_sequence %= hex_byte_lit % ascii::space;
+            byte_sequence %= hex_byte_lit %  ascii::space ;     
 
             increment_rule =
                   qi::string("++")  [_val = 2]
@@ -93,27 +93,28 @@ namespace rc_assembler
             include_rule %= ".include" >> quoted_byte_string;
             label_def_rule %= symbol_rule >> ':';
             org_def_rule %= ".org" >> (hex_word_lit | qi::uint_);
+
             instruction_line_rule %= qi::no_case[opcode_parser] >> -instruction_argument_rule;
 
-            file_rule %= (
-                 (
-                      instruction_line_rule 
-                    | reservation_rule 
-                    | byte_def_rule 
-                    | word_def_rule 
-                    | data_def_rule 
-                    | label_def_rule 
-                    | include_rule
-                    | org_def_rule
-                 ) //>> -comment
-                 ) % (qi::eol | qi::eoi);
+            line_options_rule %= (instruction_line_rule | reservation_rule | byte_def_rule | word_def_rule | data_def_rule | org_def_rule | label_def_rule | include_rule);
+            // instruction_line,reservation,byte_def,word_def,data_def,org_def,label_def,include
+            line_rule %= (line_options_rule || comment) >> qi::eol;
+
+            file_rule %= +(+qi::eol | line_rule) >> qi::eoi;
 
             opcode_parser.name("opcodes");
             int opcode_count = opcode_entry_count();
             for (int i = 0; i < opcode_count; i++)
             {
                 opcode_entry_t* opcode = get_opcode_entry_by_index(i);
-                opcode_parser.add(opcode->name, opcode);
+                if (opcode == nullptr)
+                {
+                    std::cout << "Tried to add an option at index " << i << " but it was null" << std::endl;
+                }
+                else
+                {
+                    opcode_parser.add(opcode->name, opcode);
+                }
             }
 
             register_parser.name("registers");
@@ -152,8 +153,11 @@ namespace rc_assembler
         qi::rule<Iterator, label_def(), ascii::blank_type> label_def_rule;
         qi::rule<Iterator, org_def(), ascii::blank_type> org_def_rule;
         qi::rule<Iterator, instruction_line(), ascii::blank_type> instruction_line_rule;
+        qi::rule<Iterator, line_options(), ascii::blank_type> line_options_rule;
 
         qi::rule<Iterator, std::string(), ascii::blank_type> comment;
+
+        qi::rule<Iterator, assembly_line(), ascii::blank_type> line_rule;
 
         qi::rule<Iterator, assembly_file(), ascii::blank_type> file_rule;
     };

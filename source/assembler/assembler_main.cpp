@@ -8,6 +8,7 @@
 #include <iterator>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <boost/variant/static_visitor.hpp>
 
 #include "assembler_parser.hpp"
 
@@ -21,7 +22,14 @@ namespace
     public:
         void operator()(const rc_assembler::instruction_line& instruction)
         {
-            std::cout << "instruction: " << instruction.opcode->name << std::endl;
+            if (instruction.opcode != nullptr)
+            {
+                std::cout << "instruction: " << instruction.opcode->name << std::endl;
+            }
+            else
+            {
+                std::cout << "instruction without opcode?!" << std::endl;
+            }
         }
 
         void operator()(const rc_assembler::reservation& reservation)
@@ -31,27 +39,34 @@ namespace
 
         void operator()(const rc_assembler::byte_def& byte)
         {
-
+            std::cout << "byte def: " << byte.symbol << " value: " << byte.value << std::endl;
         }
 
         void operator()(const rc_assembler::word_def& word)
         {
-
+            std::cout << "word def: " << word.symbol << " value: " << word.value << std::endl;
         }
 
         void operator()(const rc_assembler::data_def& def)
         {
-
+            if (def.symbol)
+            {
+                std::cout << "data def: " << def.symbol.value() << " byte count: " << def.bytes.size() << std::endl;
+            }
+            else
+            {
+                std::cout << "data def with byte count: " << def.bytes.size() << std::endl;
+            }
         }
 
         void operator()(const rc_assembler::org_def& def)
         {
-
+            std::cout << "org def - position: " << def.location << std::endl;
         }
 
         void operator()(const rc_assembler::label_def& def)
         {
-
+            std::cout << "label def: " << def.label_name << std::endl;
         }
 
         void operator()(const rc_assembler::include& def)
@@ -59,6 +74,24 @@ namespace
             std::string string(def.included_file.begin(), def.included_file.end());
             std::cout << "including: " << string << std::endl;
         }
+
+        // void operator()(const rc_assembler::assembly_line &line)
+        // {
+
+        // }
+
+        // void operator()(const rc_assembler::line_options &line)
+        // {
+
+        // }
+
+        // void operator()(const std::optional<rc_assembler::line_options> &line)
+        // {
+        //     if (line.has_value())
+        //     {
+        //         boost::apply_visitor(*this, line.value());
+        //     }
+        // }
     };
 
 }
@@ -145,7 +178,15 @@ int main(int argc, char **argv)
         {
             for (auto &line : assembled)
             {
-                boost::apply_visitor(visitor, line);
+                if (line.line_options.has_value())
+                {
+                    boost::apply_visitor(visitor, line.line_options.value());
+                }
+                
+                if (line.comment.has_value())
+                {
+                    std::cout << "comment: " << line.comment.value() << std::endl;
+                }
             }
         }
 
