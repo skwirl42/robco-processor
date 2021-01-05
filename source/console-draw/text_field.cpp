@@ -7,7 +7,7 @@ namespace
     const char empty_space_char = '\xB1';
 }
 
-text_field::text_field(int id, const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool focused, bool editable)
+text_field::text_field(int id, const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, size_t max_content_length, const char *initial_contents, bool focused, bool editable)
     : label_text(label_text), contents(new char[max_content_length + 1]), x(x), y(y), max_content_length(max_content_length),
       label_length(strlen(label_text)), width(x + strlen(label_text) + 1 + max_content_length), cursor_position(0), handler(handler), send_mode(send_mode), editable(editable),
       control(id, focused, true, x, y, strlen(label_text) + 1 + max_content_length, 1)

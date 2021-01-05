@@ -28,6 +28,8 @@ public:
     void handle_key(SDL_Keycode key);
 
     void draw();
+    void draw(drawable* drawable);
+    void draw_control(control* control, bool&cursor_enabled, int&cursor_x, int&cursor_y);
 
     void draw_boxes();
     void draw_controls();
@@ -41,8 +43,9 @@ public:
    
     void remove_control_by_id(int id);
 
-    void add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
+    int add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
     int box_count() const { return boxes.size(); }
+    void remove_box_by_id(int id);
     void clear_boxes() { boxes.clear(); }
 
     bool is_cursor_enabled() const { return cursor_enabled; }
@@ -58,5 +61,6 @@ private:
     int height;
     int focused_control_index;
     int next_control_id;
+    int next_box_id;
     bool cursor_enabled;
 };

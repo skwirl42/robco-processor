@@ -3,19 +3,10 @@
 #include <string.h>
 
 #include "text_field.hpp"
+#include "util.hpp"
 
 namespace
 {
-    inline int min(int a, int b)
-    {
-        return a > b ? b : a;
-    }
-
-    inline int max(int a, int b)
-    {
-        return a < b ? b : a;
-    }
-
     const int box_top_left_index = 0;
     const int box_horizontal_index = 1;
     const int box_top_right_index = 2;
@@ -53,7 +44,7 @@ namespace
 
 console_drawer::console_drawer(Console &target_console)
     : target_console(target_console), width(target_console.GetWidth()), height(target_console.GetHeight()), next_control_id(0),
-      focused_control_index(-1), cursor_enabled(false)
+      next_box_id(0), focused_control_index(-1), cursor_enabled(false)
 {
 
 }
@@ -65,46 +56,57 @@ console_drawer::~console_drawer()
 
 void console_drawer::handle_key(SDL_Keycode key)
 {
-    auto focused_control = controls[focused_control_index].get();
-    if (focused_control->wants_keys())
+    bool handled = false;
+    control* focused_control = nullptr;
+    if (focused_control_index >= 0 && focused_control_index < controls.size())
     {
-        bool handled = focused_control->handle_key(key);
-        if (!handled)
+        focused_control = controls[focused_control_index].get();
+        if (focused_control->wants_keys())
         {
-            switch (key)
+            handled = focused_control->handle_key(key);
+        }
+    }
+    else if (controls.size() > 0)
+    {
+        focused_control_index = 0;
+        focused_control = controls[focused_control_index].get();
+    }
+
+    if (!handled)
+    {
+        switch (key)
+        {
+        case SDLK_TAB:
+        case SDLK_UP:
+        case SDLK_DOWN:
+        case SDLK_LEFT:
+        case SDLK_RIGHT:
+            if (controls.size() > 1 && focused_control != nullptr)
             {
-            case SDLK_TAB:
-            case SDLK_UP:
-            case SDLK_DOWN:
-            case SDLK_LEFT:
-            case SDLK_RIGHT:
-                if (controls.size() > 1)
+                if (key == SDLK_UP || key == SDLK_LEFT)
                 {
-                    if (key == SDLK_UP || key == SDLK_LEFT)
+                    focused_control_index--;
+                    if (focused_control_index < 0)
                     {
-                        focused_control_index--;
-                        if (focused_control_index < 0)
-                        {
-                            focused_control_index = controls.size() - 1;
-                        }
+                        focused_control_index = controls.size() - 1;
                     }
-                    else
-                    {
-                        focused_control_index++;
-                        if (focused_control_index >= controls.size())
-                        {
-                            focused_control_index = 0;
-                        }
-                    }
-
-                    focused_control->set_focused(false);
-                    controls[focused_control_index].get()->set_focused(true);
                 }
-                break;
+                else
+                {
+                    focused_control_index++;
+                    if (focused_control_index >= controls.size())
+                    {
+                        focused_control_index = 0;
+                    }
+                }
 
-            default:
-                break;
+                focused_control->set_focused(false);
+                controls[focused_control_index].get()->set_focused(true);
             }
+            break;
+
+        default:
+            break;
         }
     }
 }
@@ -115,11 +117,34 @@ void console_drawer::draw()
     draw_controls();
 }
 
+void console_drawer::draw(drawable* drawable)
+{
+    drawable->draw(this);
+}
+
 void console_drawer::draw_boxes()
 {
-    for (auto &box : boxes)
+    for (auto& box : boxes)
     {
-        box.draw(this);
+        draw(&box);
+    }
+}
+
+void console_drawer::draw_control(control* control, bool& cursor_enabled, int&cursor_x, int&cursor_y)
+{
+    if (!control->is_visible())
+    {
+        return;
+    }
+
+    draw(control);
+
+    auto text_box = dynamic_cast<text_field*>(control);
+    if (control->is_focused() && text_box != nullptr && text_box->is_editable())
+    {
+        cursor_enabled = true;
+        cursor_x = text_box->get_field_start() + text_box->get_cursor_position();
+        cursor_y = text_box->get_y();
     }
 }
 
@@ -131,20 +156,7 @@ void console_drawer::draw_controls()
     for (auto &control : controls)
     {
         auto control_ptr = control.get();
-        if (!control_ptr->is_visible())
-        {
-            continue;
-        }
-
-        control_ptr->draw(this);
-
-        auto text = dynamic_cast<text_field *>(control_ptr);
-        if (control_ptr->is_focused() && text != nullptr && text->is_editable())
-        {
-            cursor_enabled = true;
-            cursor_x = text->get_field_start() + text->get_cursor_position();
-            cursor_y = text->get_y();
-        }
+        draw_control(control_ptr, cursor_enabled, cursor_x, cursor_y);
     }
 
     if (cursor_x >= 0 && cursor_y >= 0)
@@ -327,8 +339,9 @@ void console_drawer::remove_control_by_id(int id)
                 }
                 else if (controls.size() > 0)
                 {
-                    controls[i - 1].get()->set_focused(true);
-                    focused_control_index = i - 1;
+                    size_t new_focused_index = (size_t)i - 1;
+                    controls[new_focused_index].get()->set_focused(true);
+                    focused_control_index = new_focused_index;
                 }
             }
             break;
@@ -348,7 +361,21 @@ void console_drawer::remove_control_by_id(int id)
     }
 }
 
-void console_drawer::add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char)
+int console_drawer::add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char)
 {
-    boxes.push_back(box(type, fill, x, y, width, height, fill_char));
+    auto box_id = next_box_id++;
+    boxes.push_back(box(type, fill, box_id, x, y, width, height, fill_char));
+    return box_id;
+}
+
+void console_drawer::remove_box_by_id(int id)
+{
+    for (auto iterator = boxes.begin(); iterator != boxes.end(); iterator++)
+    {
+        if ((*iterator).get_id() == id)
+        {
+            boxes.erase(iterator);
+            break;
+        }
+    }
 }

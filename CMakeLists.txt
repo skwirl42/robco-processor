@@ -37,6 +37,7 @@ set(CONSOLE_DRAW_SOURCES
     source/console-draw/button.cpp
     source/console-draw/box.cpp
     source/console-draw/text_field.cpp
+    source/console-draw/filesystem_viewer.cpp
 )
 
 add_executable(robcoterm 
