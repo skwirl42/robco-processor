@@ -13,7 +13,7 @@
 class filesystem_viewer : public drawable
 {
 public:
-	filesystem_viewer(std::filesystem::path& starting_path, int x, int y, int width, int height);
+	filesystem_viewer(std::filesystem::path& starting_path, rect& bounds);
 
 	// Inherited via drawable
 	virtual void draw(drawer* drawer) override;

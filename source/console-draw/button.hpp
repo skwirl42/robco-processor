@@ -4,13 +4,12 @@
 
 #include "enums.hpp"
 #include "control.hpp"
-
-typedef std::function<void(button_event, int)> button_handler;
+#include "handler_types.hpp"
 
 class button : public control
 {
 public:
-    button(const char *text, button_handler handler, int id, int x, int y, int width, int height, bool focused);
+    button(const char *text, button_handler handler, int id, rect& bounds, bool focused);
 
     virtual void draw(drawer *drawer);
 

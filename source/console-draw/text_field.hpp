@@ -1,11 +1,13 @@
 #pragma once
 
 #include "control.hpp"
+#include "handler_types.hpp"
 
 #include <functional>
 
-typedef std::function<void(text_field_event,int,const char *)> text_field_event_handler;
-
+/// <summary>
+/// A control displaying, and optionally allowing editing of, a single line of text along with an identifying label
+/// </summary>
 class text_field : public control
 {
 public:
@@ -15,8 +17,8 @@ public:
     void set_contents(const char *new_contents);
     int get_cursor_position() const { return cursor_position; }
 
-    int get_x() const { return x; }
-    int get_y() const { return y; }
+    int get_x() const { return bounds.x; }
+    int get_y() const { return bounds.y; }
     int get_field_start() const;
 
     virtual void draw(drawer *drawer);
@@ -41,9 +43,6 @@ private:
     size_t max_content_length;
     text_event_send_mode send_mode;
     int label_length;
-    int x;
-    int y;
-    int width;
     int cursor_position;
     bool editable;
 };

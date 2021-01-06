@@ -13,11 +13,11 @@ namespace
 	const size_t pre_ellipsis_char_count = 3;
 }
 
-filesystem_viewer::filesystem_viewer(std::filesystem::path& starting_path, int x, int y, int width, int height)
-	: current_path(std::filesystem::absolute(starting_path)), drawable(x, y, width, height)
+filesystem_viewer::filesystem_viewer(std::filesystem::path& starting_path, rect& bounds)
+	: current_path(std::filesystem::absolute(starting_path)), drawable(bounds)
 {
 	// The extra 2 in here is for the border box
-	if (width < min_browser_width + min_info_panel_width + 2)
+	if (bounds.width < min_browser_width + min_info_panel_width + 2)
 	{
 		// throw
 	}
@@ -32,9 +32,9 @@ filesystem_viewer::filesystem_viewer(std::filesystem::path& starting_path, int x
 
 void filesystem_viewer::draw(drawer* drawer)
 {
-	drawer->draw_box(box_type::double_line, fill_mode::clear, x, y, width, height);
+	drawer->draw_box(box_type::double_line, fill_mode::clear, bounds);
 
-	int remaining_width = width - 2 - min_browser_width;
+	int remaining_width = bounds.width - 2 - min_browser_width;
 
 	if (remaining_width > min_browser_width)
 	{
@@ -43,13 +43,13 @@ void filesystem_viewer::draw(drawer* drawer)
 		remaining_width += extra_info_panel_width;
 	}
 
-	int browser_width = width - 2 - remaining_width;
+	int browser_width = bounds.width - 2 - remaining_width;
 
 	// Draw the divider as a single vertical line that joins up to the overall box frame
-	int divider_x = x + width - remaining_width + 1;
-	drawer->draw_text("\xD1", divider_x, y, CharacterAttribute::None);
-	drawer->set_rect('\xB3', divider_x, y + 1, 1, height - 2);
-	drawer->draw_text("\xCF", divider_x, y + height - 1, CharacterAttribute::None);
+	int divider_x = bounds.x + bounds.width - remaining_width + 1;
+	drawer->draw_text("\xD1", divider_x, bounds.y, CharacterAttribute::None);
+	drawer->set_rect('\xB3', rect{ divider_x, bounds.y + 1, 1, bounds.height - 2 });
+	drawer->draw_text("\xCF", divider_x, bounds.y + bounds.height - 1, CharacterAttribute::None);
 
 	auto current_path_string = current_path.string();
 	if (current_path_string.size() > remaining_width)
@@ -58,14 +58,14 @@ void filesystem_viewer::draw(drawer* drawer)
 		current_path_string = current_path_string.substr(excess_size + 3 + 2 + 1);
 		current_path_string = std::string("...") + current_path_string;
 	}
-	drawer->draw_text(current_path_string.c_str(), x + 3, y, CharacterAttribute::Inverted);
+	drawer->draw_text(current_path_string.c_str(), bounds.x + 3, bounds.y, CharacterAttribute::Inverted);
 
 	if (current_directory_entries.size() > 0)
 	{
-		int filename_x = x + 2;
-		int last_filename_y = y + height - 3;
-		int first_y = y + 2;
-		int file_display_count = height - 4;
+		int filename_x = bounds.x + 2;
+		int last_filename_y = bounds.y + bounds.height - 3;
+		int first_y = bounds.y + 2;
+		int file_display_count = bounds.height - 4;
 
 		if (file_display_count < current_directory_entries.size() && current_selection > file_display_count - 1)
 		{
@@ -91,7 +91,7 @@ void filesystem_viewer::draw(drawer* drawer)
 				attribute = (i == current_selection) ? CharacterAttribute::Inverted : CharacterAttribute::None;
 				if (!entry.is_directory())
 				{
-					attribute = attribute | CharacterAttribute::Dim;
+					attribute |= CharacterAttribute::Dim;
 				}
 				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attribute);
 			}

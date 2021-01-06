@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "button.hpp"
 #include "text_field.hpp"
 #include "util.hpp"
 
@@ -165,15 +166,15 @@ void console_drawer::draw_controls()
     }
 }
 
-void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, int width, int height, char fill_char)
+void console_drawer::draw_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
 {
     target_console.SetCurrentAttribute(CharacterAttribute::None);
-    int right_edge = xin + width - 1;
-    int bottom_edge = yin + height - 1;
+    int right_edge = bounds.x + bounds.width - 1;
+    int bottom_edge = bounds.x + bounds.height - 1;
 
-    for (int y = yin; y < yin + height; y++)
+    for (int y = bounds.y; y < bounds.y + bounds.height; y++)
     {
-        for (int x = xin; x < xin + width; x++)
+        for (int x = bounds.x; x < bounds.x + bounds.width; x++)
         {
             const char *chosen_box_chars = nullptr;
             switch (type)
@@ -193,8 +194,8 @@ void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, i
             case box_type::none:
                 break;
             }
-            bool at_left = x == xin;
-            bool at_top = y == yin;
+            bool at_left = x == bounds.x;
+            bool at_top = y == bounds.y;
             bool at_right = x == right_edge;
             bool at_bottom = y == bottom_edge;
             bool at_edge = at_left || at_top || at_right || at_bottom;
@@ -249,31 +250,33 @@ void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, i
     }
 }
 
-void console_drawer::set_rect(char set_char, int xin, int yin, int width, int height)
+void console_drawer::set_rect(char set_char, rect& bounds)
 {
-    if (xin > this->width || yin > this->height)
+    if (bounds.x > width || bounds.y > height)
     {
         return;
     }
 
     target_console.SetCurrentAttribute(CharacterAttribute::None);
 
-    if (xin < 0)
+    if (bounds.x < 0)
     {
-        xin = 0;
+        bounds.width += bounds.x;
+        bounds.x = 0;
     }
 
-    if (yin < 0)
+    if (bounds.y < 0)
     {
-        yin = 0;
+        bounds.height += bounds.y;
+        bounds.y = 0;
     }
 
-    auto right_side = xin + min(this->width, width);
-    auto bottom_side = yin + min(this->height, height);
+    auto right_side = bounds.x + min(width, bounds.width);
+    auto bottom_side = bounds.x + min(height, bounds.height);
 
-    for (int y = yin; y < bottom_side; y++)
+    for (int y = bounds.y; y < bottom_side; y++)
     {
-        for (int x = xin; x < right_side; x++)
+        for (int x = bounds.x; x < right_side; x++)
         {
             target_console.SetChar(x, y, set_char);
         }
@@ -310,9 +313,9 @@ int console_drawer::add_control(control *new_control)
     return next_control_id++;
 }
 
-int console_drawer::define_button(const char *text, int x, int y, int width, int height, button_handler handler)
+int console_drawer::define_button(const char *text, rect& bounds, button_handler handler)
 {
-    return add_control(new button(text, handler, next_control_id, x, y, width, height, false));
+    return add_control(new button(text, handler, next_control_id, bounds, false));
 }
 
 int console_drawer::define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool editable)
@@ -361,10 +364,10 @@ void console_drawer::remove_control_by_id(int id)
     }
 }
 
-int console_drawer::add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char)
+int console_drawer::add_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
 {
     auto box_id = next_box_id++;
-    boxes.push_back(box(type, fill, box_id, x, y, width, height, fill_char));
+    boxes.push_back(box(box_id, type, fill, bounds, fill_char));
     return box_id;
 }
 

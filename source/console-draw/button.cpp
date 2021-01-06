@@ -6,8 +6,8 @@ namespace
     const char unfocused_button_char = '\xB1';
 }
 
-button::button(const char *text, button_handler handler, int id, int x, int y, int width, int height, bool focused)
-    : text(text), handler(handler), x(x), y(y), width(width), height(height), control(id, focused, true, x, y, width, height)
+button::button(const char *text, button_handler handler, int id, rect& bounds, bool focused)
+    : text(text), handler(handler), x(x), y(y), width(width), height(height), control(id, focused, true, bounds)
 {
 }
 
@@ -27,7 +27,7 @@ void button::draw(drawer *drawer)
     if (text_length < width || height > 1)
     {
         auto box_char = focused ? focused_button_char : unfocused_button_char;
-        drawer->set_rect(box_char, x, y, width, height);
+        drawer->set_rect(box_char, rect{ x, y, width, height });
     }
 
     int half_x_position = x + (width / 2);

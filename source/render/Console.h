@@ -60,6 +60,11 @@ inline CharacterAttribute operator ~ (CharacterAttribute rhs)
 	return (CharacterAttribute)~((unsigned int)rhs);
 }
 
+inline CharacterAttribute& operator|=(CharacterAttribute& lhs, CharacterAttribute rhs)
+{
+	return (CharacterAttribute&)((unsigned int&)lhs |= (unsigned int)rhs);
+}
+
 class Console
 {
 public:

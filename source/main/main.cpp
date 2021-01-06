@@ -90,7 +90,7 @@ int main (int argc, char **argv)
     auto exec_path = std::filesystem::path(argv[0]);
     auto exec_dir(exec_path);
     exec_dir.remove_filename();
-    auto file_viewer = filesystem_viewer(exec_dir, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight());
+    auto file_viewer = filesystem_viewer(exec_dir, rect{ 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight() });
 
     auto teardown = [&]() {
         if (holotape_initialized())

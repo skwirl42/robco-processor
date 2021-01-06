@@ -2,6 +2,7 @@
 
 #include "focusable.hpp"
 #include "drawable.hpp"
+#include "rect.hpp"
 
 #if defined(APPLE)
 #include <SDL2/SDL.h>
@@ -12,7 +13,7 @@
 class control : public focusable, public drawable
 {
 public:
-    control(int id, bool focused, bool visible, int x, int y, int width, int height) : id(id), visible(visible), focusable(focused), drawable(x, y, width, height) {}
+    control(int id, bool focused, bool visible, rect& bounds) : id(id), visible(visible), focusable(focused), drawable(bounds) {}
     virtual ~control() {}
 
     virtual bool wants_keys() const = 0;

@@ -1,5 +1,12 @@
 #pragma once
 
+enum class focus_event
+{
+    none,
+    gained_focus,
+    lost_focus,
+};
+
 enum class button_event
 {
     none,
