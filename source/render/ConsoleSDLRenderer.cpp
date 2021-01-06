@@ -53,9 +53,10 @@ namespace
     uint32_t lut8[256];
 }
 
-ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int height, uint32_t foregroundColour, uint32_t backgroundColour, uint16_t fontCharsWide, uint16_t fontCharsHigh, int cursorBlinkFrames)
+ConsoleSDLRenderer::ConsoleSDLRenderer(const char *fontFilename, int width, int height, uint32_t foregroundColour, uint32_t backgroundColour, uint32_t dimForegroundColour, uint32_t dimBackgroundColour, uint16_t fontCharsWide, uint16_t fontCharsHigh, int cursorBlinkFrames)
     : window(nullptr), renderer(nullptr), texture(nullptr), fontBuffer(nullptr),
       width(width), height(height), foregroundColour(foregroundColour), backgroundColour(backgroundColour),
+      dimForegroundColour(dimForegroundColour), dimBackgroundColour(dimBackgroundColour),
       fontCharsWide(fontCharsWide), fontCharsHigh(fontCharsHigh),
       cursorBlinkFrames(cursorBlinkFrames),
       charPixelsHigh(0), charPixelsWide(0), fontBufferWidth(0), fontBufferHeight(0),
@@ -232,7 +233,14 @@ void ConsoleSDLRenderer::Render(Console *console, int frame)
                         charValue = !charValue;
                     }
 
-                    pixels[(yFBStart + charLine * pixelPitch) + xFBStart + charColumn] = charValue ? foregroundColour : backgroundColour;
+                    if ((attribute & CharacterAttribute::Dim) == CharacterAttribute::Dim)
+                    {
+                        pixels[(yFBStart + charLine * pixelPitch) + xFBStart + charColumn] = charValue ? dimForegroundColour : dimBackgroundColour;
+                    }
+                    else
+                    {
+                        pixels[(yFBStart + charLine * pixelPitch) + xFBStart + charColumn] = charValue ? foregroundColour : backgroundColour;
+                    }
                 }
             }
         });

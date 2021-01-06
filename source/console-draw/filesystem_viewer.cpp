@@ -1,7 +1,9 @@
 #include "filesystem_viewer.hpp"
 
-#include "util.hpp"
 #include <iostream>
+
+#include "util.hpp"
+#include "Console.h"
 
 namespace
 {
@@ -45,9 +47,9 @@ void filesystem_viewer::draw(drawer* drawer)
 
 	// Draw the divider as a single vertical line that joins up to the overall box frame
 	int divider_x = x + width - remaining_width + 1;
-	drawer->draw_text("\xD1", divider_x, y, false);
+	drawer->draw_text("\xD1", divider_x, y, CharacterAttribute::None);
 	drawer->set_rect('\xB3', divider_x, y + 1, 1, height - 2);
-	drawer->draw_text("\xCF", divider_x, y + height - 1, false);
+	drawer->draw_text("\xCF", divider_x, y + height - 1, CharacterAttribute::None);
 
 	auto current_path_string = current_path.string();
 	if (current_path_string.size() > remaining_width)
@@ -56,7 +58,7 @@ void filesystem_viewer::draw(drawer* drawer)
 		current_path_string = current_path_string.substr(excess_size + 3 + 2 + 1);
 		current_path_string = std::string("...") + current_path_string;
 	}
-	drawer->draw_text(current_path_string.c_str(), x + 3, y, true);
+	drawer->draw_text(current_path_string.c_str(), x + 3, y, CharacterAttribute::Inverted);
 
 	if (current_directory_entries.size() > 0)
 	{
@@ -70,15 +72,28 @@ void filesystem_viewer::draw(drawer* drawer)
 			int first_entry = current_selection - file_display_count + 1;
 			for (size_t i = 0; i < file_display_count; i++)
 			{
-				drawer->draw_text(get_current_relative_path(current_directory_entries[i + first_entry]).c_str(), filename_x, i + first_y, i + first_entry == current_selection);
+				auto& entry = current_directory_entries[i + first_entry];
+				auto attribute = (i + first_entry == current_selection) ? CharacterAttribute::Inverted : CharacterAttribute::None;
+				if (!entry.is_directory())
+				{
+					attribute = attribute | CharacterAttribute::Dim;
+				}
+				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attribute);
 			}
 		}
 		else
 		{
-			drawer->draw_text("..", filename_x - 1, first_y, current_selection == 0);
+			auto attribute = (current_selection == 0) ? CharacterAttribute::Inverted : CharacterAttribute::None;
+			drawer->draw_text("..", filename_x - 1, first_y, attribute);
 			for (size_t i = 1; i < current_directory_entries.size() && i < file_display_count; i++)
 			{
-				drawer->draw_text(get_current_relative_path(current_directory_entries[i]).c_str(), filename_x, i + first_y, i == current_selection);
+				auto& entry = current_directory_entries[i];
+				attribute = (i == current_selection) ? CharacterAttribute::Inverted : CharacterAttribute::None;
+				if (!entry.is_directory())
+				{
+					attribute = attribute | CharacterAttribute::Dim;
+				}
+				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attribute);
 			}
 		}
 	}

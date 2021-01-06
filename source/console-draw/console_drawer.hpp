@@ -34,9 +34,9 @@ public:
     void draw_boxes();
     void draw_controls();
 
-    virtual void draw_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0);
-    virtual void set_rect(char set_char, int x, int y, int width, int height);
-    virtual void draw_text(const char *text, int x, int y, bool inverted);
+    virtual void draw_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char = 0) override;
+    virtual void set_rect(char set_char, int x, int y, int width, int height) override;
+    virtual void draw_text(const char *text, int x, int y, CharacterAttribute attribute) override;
 
     int define_button(const char *text, int x, int y, int width, int height, button_handler handler);
     int define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool editable);

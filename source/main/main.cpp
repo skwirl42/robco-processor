@@ -88,7 +88,7 @@ int main (int argc, char **argv)
     console_drawer ui_drawer(uiConsole);
     // Draw some debug UI
     auto exec_path = std::filesystem::path(argv[0]);
-    auto exec_dir = exec_path;
+    auto exec_dir(exec_path);
     exec_dir.remove_filename();
     auto file_viewer = filesystem_viewer(exec_dir, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight());
 
@@ -253,7 +253,7 @@ int main (int argc, char **argv)
         {
             auto fontfilename = font_name.c_str();
             // Format of the font file is 16 chars wide, 8 chars tall
-            renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 16, 100);
+            renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 0xFF007F00, 0xFF000000, 16, 16, 100);
             renderer->Clear();
         }
         else

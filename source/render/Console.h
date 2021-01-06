@@ -40,6 +40,7 @@ enum class CharacterAttribute : unsigned int
 {
 	None		= 0,
 	Inverted	= 1 << 0,
+	Dim			= 1 << 1,
 
 	Dirty		= 1 << 16,
 };

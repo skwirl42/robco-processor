@@ -39,8 +39,9 @@ int text_field::get_field_start() const
 
 void text_field::draw(drawer *drawer)
 {
-    drawer->draw_text(label_text, x, y, focused);
-    drawer->draw_text(" ", x + label_length, y, focused);
+    auto focusedAttribute = focused ? CharacterAttribute::Inverted : CharacterAttribute::None;
+    drawer->draw_text(label_text, x, y, focusedAttribute);
+    drawer->draw_text(" ", x + label_length, y, focusedAttribute);
 
     int box_start = get_field_start() + content_length();
     if (editable)
@@ -48,14 +49,15 @@ void text_field::draw(drawer *drawer)
         if (is_focused() && cursor_position == content_length())
         {
             // Clear a space for the cursor to blink
-            drawer->draw_text(" ", get_field_start() + cursor_position, y, false);
+            drawer->draw_text(" ", get_field_start() + cursor_position, y, CharacterAttribute::None);
             box_start++;
         }
     }
 
     if (content_length() > 0)
     {
-        drawer->draw_text(contents, get_field_start(), y, !is_editable() && is_focused());
+        focusedAttribute = (!is_editable() && is_focused()) ? CharacterAttribute::Inverted : CharacterAttribute::None;
+        drawer->draw_text(contents, get_field_start(), y, focusedAttribute);
     }
 
     if (editable)

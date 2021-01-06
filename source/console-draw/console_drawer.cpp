@@ -280,9 +280,9 @@ void console_drawer::set_rect(char set_char, int xin, int yin, int width, int he
     }
 }
 
-void console_drawer::draw_text(const char *text, int x, int y, bool inverted)
+void console_drawer::draw_text(const char *text, int x, int y, CharacterAttribute attribute)
 {
-    target_console.SetCurrentAttribute(inverted ? CharacterAttribute::Inverted : CharacterAttribute::None);
+    target_console.SetCurrentAttribute(attribute);
     target_console.PrintAt(text, x, y);
 }
 

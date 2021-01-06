@@ -33,7 +33,8 @@ void button::draw(drawer *drawer)
     int half_x_position = x + (width / 2);
     int half_y_position = y + (height / 2);
     int text_x = half_x_position - (text_length / 2);
-    drawer->draw_text(text, text_x, half_y_position, focused);
+    auto focusedAttribute = focused ? CharacterAttribute::Inverted : CharacterAttribute::None;
+    drawer->draw_text(text, text_x, half_y_position, focusedAttribute);
 }
 
 void button::send_event(button_event event)
