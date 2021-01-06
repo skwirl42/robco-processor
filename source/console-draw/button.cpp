@@ -39,7 +39,7 @@ void button::draw(drawer *drawer)
 
 void button::send_event(button_event event)
 {
-    handler(event, id);
+    handler(event, this);
 }
 
 void button::handle_focused(bool was_focused)

@@ -1,11 +1,10 @@
 #pragma once
 
-/// <summary>
-/// The bare minimum data for any handler is the event enum and the ID of the control.
-/// </summary>
-
 #include "enums.hpp"
 
-typedef std::function<void(focus_event, int)> focus_event_handler;
-typedef std::function<void(text_field_event, int, const char*)> text_field_event_handler;
-typedef std::function<void(button_event, int)> button_handler;
+class control;
+
+template<typename T> class event_handler : public std::function<void(T, control*)> {};
+typedef event_handler<focus_event> focus_event_handler;
+typedef event_handler<button_event> button_handler;
+typedef std::function<void(text_field_event, control*, const char*)> text_field_event_handler;

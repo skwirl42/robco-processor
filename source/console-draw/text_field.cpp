@@ -177,5 +177,5 @@ void text_field::handle_focused(bool was_focused)
 
 void text_field::send_event(text_field_event event)
 {
-    handler(event, id, contents);
+    handler(event, this, contents);
 }
