@@ -88,7 +88,18 @@ int main (int argc, char **argv)
     console_drawer ui_drawer(uiConsole);
     // Draw some debug UI
     auto exec_path = std::filesystem::path(argv[0]);
-    auto exec_dir(exec_path);
+    std::filesystem::path exec_dir = exec_path;
+
+    if (variables.count("source") > 0)
+    {
+        exec_dir = std::filesystem::path(variables["source"].as<std::string>());
+    }
+    else if (variables.count("tape") > 0)
+    {
+        exec_dir = std::filesystem::path(variables["tape"].as<std::string>());
+    }
+
+    exec_dir = std::filesystem::absolute(exec_dir);
     exec_dir.remove_filename();
     auto file_viewer = filesystem_viewer(exec_dir, rect{ 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight() });
 
