@@ -23,8 +23,11 @@
             "program": "${workspaceFolder}/build/robcoterm",
             "args": [
                 "-F", "${workspaceFolder}/font/robco-termfont.png",
-                "-T", "${workspaceFolder}/graphics_test.holo",
-                "-X"
+                //"-T", "${workspaceFolder}/graphics_test.holo",
+                //"-X"
+                "-S", "${workspaceFolder}/samples/graphics_test.asm",
+                "-I",
+                "samples/"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

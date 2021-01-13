@@ -8,6 +8,7 @@
 #include <boost/spirit/include/qi_uint.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
 #include <boost/variant/recursive_variant.hpp>
+#include <boost/tuple/tuple.hpp>
 
 #include <optional>
 
@@ -65,15 +66,25 @@ namespace rc_assembler
         byte_array bytes{};
     };
 
+    struct end_data_def
+    {
+        std::string contents;
+    };
+
     struct org_def
     {
         uint16_t location;
     };
 
-    typedef boost::variant<instruction_line,reservation,byte_def,word_def,data_def,org_def,label_def,include> assembly_line;
+    typedef boost::variant<instruction_line, reservation, byte_def, byte_array, word_def, data_def, end_data_def, org_def, label_def, include> line_options;
+    // typedef boost::tuple<std::optional<line_options>, std::optional<std::string>> assembly_line;
+    struct assembly_line
+    {
+        std::optional<line_options> line_options;
+        std::optional<std::string> comment;
+    };
 
     typedef std::vector<assembly_line> assembly_file;
-
  }
 
 BOOST_FUSION_ADAPT_STRUCT(
@@ -117,6 +128,17 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::end_data_def,
+    (std::string, contents)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
     rc_assembler::org_def,
     (uint16_t, location)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::assembly_line,
+    (std::optional<rc_assembler::line_options>, line_options),
+    (std::optional<std::string>, comment)
 )

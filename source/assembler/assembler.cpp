@@ -8,11 +8,6 @@
 #include "executable_file.h"
 #include "assembler_parser.hpp"
 
-namespace
-{
-    const uint16_t MIN_INSTRUCTION_ALLOC_SIZE = 0x100;
-}
-
 typedef struct _assembler_data
 {
     const char **search_paths = nullptr;
@@ -30,13 +25,268 @@ typedef struct _assembler_data
     std::optional<uint16_t> execution_start{};
     bool current_org_address_valid = false;
     std::string output_filename{};
+    rc_assembler::assembler_grammar<std::string::iterator> parser;
 } assembler_data_t;
+
+void add_data(assembler_data_t *data, const std::string &name, const rc_assembler::byte_array &bytes);
 
 char *error_buffer = new char[ERROR_BUFFER_SIZE + 1];
 char temp_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
 const char *current_filename;
 int *lineNumber;
+
+namespace
+{
+    const uint16_t MIN_INSTRUCTION_ALLOC_SIZE = 0x100;
+
+    class instruction_argument_visitor : public boost::static_visitor<>
+    {
+    public:
+        instruction_argument_visitor(const opcode_entry_t *opcode) : opcode(opcode) {}
+
+        void operator()(const register_index_t &register_index)
+        {
+            handle_indexed_instruction(assembler_data, opcode, register_index);
+        }
+
+        void operator()(const uint8_t &value)
+        {
+            handle_instruction(assembler_data, opcode, nullptr, value);
+        }
+
+        void operator()(const uint16_t &value)
+        {
+            handle_instruction(assembler_data, opcode, nullptr, value);
+        }
+
+        void operator()(const int &value)
+        {
+            if (opcode->arg_byte_count == 1 && (value < -128 || value > 255))
+            {
+                // error! out of bounds
+                return;
+            }
+            else if (opcode->arg_byte_count == 2 && (value < -32768 || value > 65535))
+            {
+                // error! out of bounds
+                return;
+            }
+
+            handle_instruction(assembler_data, opcode, nullptr, value);
+        }
+
+        void operator()(const rc_assembler::symbol &symbol)
+        {
+            handle_instruction(assembler_data, opcode, symbol.c_str(), 0);
+        }
+
+    private:
+        const opcode_entry_t *opcode;
+    };
+
+    class assembly_line_visitor : public boost::static_visitor<>
+    {
+    public:
+        void operator()(const rc_assembler::instruction_line &instruction)
+        {
+            if (verify_data_def_safe())
+            {
+                if (instruction.opcode != nullptr)
+                {
+                    if (instruction.argument)
+                    {
+                        if (instruction.opcode->arg_byte_count == 0)
+                        {
+                            // error! oh noes!
+                        }
+                        else
+                        {
+                            instruction_argument_visitor visitor(instruction.opcode);
+                            boost::apply_visitor(visitor, instruction.argument.value());
+                        }
+                    }
+                    else if (instruction.opcode->arg_byte_count > 0)
+                    {
+                        // error! the instruction requires an argument, but none is provided!
+                        return;
+                    }
+                    else
+                    {
+                        handle_instruction(assembler_data, instruction.opcode, nullptr, 0);
+                    }
+                }
+                else
+                {
+                    std::cout << "instruction without opcode?!" << std::endl;
+                }
+            }
+        }
+
+        void operator()(const rc_assembler::reservation &reservation)
+        {
+            if (verify_data_def_safe())
+            {
+                reserve_data(assembler_data, reservation.symbol.c_str(), reservation.size);
+            }
+        }
+
+        void operator()(const rc_assembler::byte_def &byte)
+        {
+            if (verify_data_def_safe())
+            {
+                handle_symbol_def(assembler_data, byte.symbol.c_str(), byte.value, SYMBOL_BYTE);
+            }
+        }
+
+        void operator()(const rc_assembler::word_def &word)
+        {
+            if (verify_data_def_safe())
+            {
+                handle_symbol_def(assembler_data, word.symbol.c_str(), word.value, SYMBOL_WORD);
+            }
+        }
+
+        void operator()(const rc_assembler::data_def &def)
+        {
+            begin_data_def(def);
+        }
+
+        void operator()(const rc_assembler::byte_array &bytes)
+        {
+            // There should already be a data definition in progress
+            add_to_current_data_def(bytes);
+        }
+
+        void operator()(const rc_assembler::end_data_def &end_data)
+        {
+            // Close out the current data definition
+            end_current_data_def();
+        }
+
+        void operator()(const std::string &line_content)
+        {
+        }
+
+        void operator()(const rc_assembler::org_def &def)
+        {
+            if (verify_data_def_safe())
+            {
+                handle_org_directive(assembler_data, def.location);
+            }
+        }
+
+        void operator()(const rc_assembler::label_def &def)
+        {
+            if (verify_data_def_safe())
+            {
+                handle_symbol_def(assembler_data, def.label_name.c_str(), 0, SYMBOL_ADDRESS_INST);
+            }
+        }
+
+        void operator()(const rc_assembler::include &def)
+        {
+            if (verify_data_def_safe())
+            {
+                std::string string(def.included_file.begin(), def.included_file.end());
+                add_file_to_process(assembler_data, string.c_str());
+            }
+        }
+
+        void reset()
+        {
+            if (current_state != state::normal)
+            {
+                // error!
+                return;
+            }
+
+
+        }
+
+    private:
+        enum class state
+        {
+            normal,
+            data_def_in_progress,
+        };
+
+    private:
+        // Call from non-data handlers to verify that no data definitions are in progress
+        bool verify_data_def_safe()
+        {
+            if (current_state != state::data_def_in_progress)
+            {
+                return true;
+            }
+            else if (data_on_multiple_lines)
+            {
+                return false;
+            }
+            else
+            {
+                end_current_data_def();
+                return true;
+            }
+        }
+
+        void begin_data_def(const rc_assembler::data_def &data)
+        {
+            verify_data_def_safe();
+
+            if (current_state != state::normal)
+            {
+                // error!
+                return;
+            }
+
+            current_state = state::data_def_in_progress;
+            data_on_multiple_lines = false;
+            current_data_name = (data.symbol) ? data.symbol.value() : "";
+            current_data_bytes = data.bytes;
+        }
+
+        void add_to_current_data_def(const rc_assembler::byte_array &bytes)
+        {
+            if (current_state != state::data_def_in_progress)
+            {
+                // error!
+                return;
+            }
+
+            current_data_bytes.insert(current_data_bytes.end(), bytes.begin(), bytes.end());
+            data_on_multiple_lines = true;
+        }
+
+        void end_current_data_def()
+        {
+            if (current_state != state::data_def_in_progress)
+            {
+                // error!
+                return;
+            }
+
+            if (current_data_bytes.size() == 0)
+            {
+                current_data_bytes.push_back(0);
+            }
+
+            add_data(assembler_data, current_data_name, current_data_bytes);
+
+            current_data_bytes.clear();
+            current_data_name = "";
+            current_state = state::normal;
+        }
+
+    private:
+        std::vector<char> current_data_bytes{};
+        std::string current_data_name{};
+        state current_state = state::normal;
+        bool data_on_multiple_lines = false;
+    };
+
+    assembly_line_visitor visitor{};
+} // namespace
 
 uint16_t executable_file_size(assembler_data_t *data)
 {
@@ -352,6 +602,24 @@ void add_file_to_process(assembler_data_t *data, const char *filename)
     data->files_to_process.push_back(new_file);
 }
 
+void add_data(assembler_data_t *data, const std::string &name, const rc_assembler::byte_array &bytes)
+{
+    assembled_region_t *region = create_new_region(data, bytes.size(), true);
+
+    if (region == nullptr)
+    {
+        // will this raise an error inside create_new_region?
+        return;
+    }
+
+    if (name.size() > 0)
+    {
+        handle_symbol_def(data, name.c_str(), region->start_location, SYMBOL_ADDRESS_DATA);
+    }
+
+    memcpy(region->data, bytes.data(), bytes.size());
+}
+
 void add_data(assembler_data_t *data, const char *name, byte_array_t array)
 {
     assembled_region_t *region = create_new_region(data, array.size, true);
@@ -396,6 +664,23 @@ void reserve_data(assembler_data_t* data, const char* name, uint16_t size)
 {
     assembled_region_t *region = create_new_region(data, size, false);
     handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
+}
+
+void parse_assembly_line(assembler_data_t *data, std::string& line)
+{
+    rc_assembler::assembly_line lineData;
+    if (boost::spirit::qi::phrase_parse(line.begin(), line.end(), data->parser, boost::spirit::ascii::space, lineData))
+    {
+        if (lineData.line_options.has_value())
+        {
+            boost::apply_visitor(visitor, lineData.line_options.value());
+        }
+
+        if (lineData.comment.has_value())
+        {
+            // found a comment. yay
+        }
+    }
 }
 
 void handle_file(assembler_data_t *data, const char *filename)
@@ -444,7 +729,8 @@ void handle_file(assembler_data_t *data, const char *filename)
                 // Process the line
                 if (charIndex > 0)
                 {
-                    parse_line(lineBuffer);
+                    std::string line{lineBuffer};
+                    parse_assembly_line(data, line);
                     // fprintf(stdout, "Got line %d: %s\n", lineNumber, lineBuffer);
                 }
 
@@ -666,7 +952,7 @@ void handle_org_directive(assembler_data_t *data, uint16_t address)
     }
 }
 
-void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, opcode_entry_t* opcode_entry = nullptr, std::optional<uint8_t> byte0 = std::nullopt, std::optional<uint8_t> byte1 = std::nullopt)
+void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, const opcode_entry_t* opcode_entry = nullptr, std::optional<uint8_t> byte0 = std::nullopt, std::optional<uint8_t> byte1 = std::nullopt)
 {
     auto address = get_current_instruction_address(data);
     if (!data->execution_start.has_value())
@@ -700,7 +986,7 @@ void apply_machine_instruction(assembler_data_t *data, uint8_t opcode, opcode_en
     }
 }
 
-void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
+void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, const char *symbol_arg, int literal_arg)
 {
     int current_instruction_address = get_current_instruction_address(data);
     if (current_instruction_address < 0 || data->current_region == nullptr)
@@ -870,7 +1156,7 @@ void handle_instruction(assembler_data_t *data, opcode_entry_t *opcode, const ch
     }
 }
 
-void handle_indexed_instruction(assembler_data_t *data, opcode_entry_t *opcode, register_index_t &index_register)
+void handle_indexed_instruction(assembler_data_t *data, const opcode_entry_t *opcode, const register_index_t &index_register)
 {
     // Prepare opcode
     uint8_t opcode_value = opcode->opcode | index_register.index_register->code;
@@ -946,6 +1232,8 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     }
 
     handle_file(&data, filename);
+
+    visitor.reset();
 
     if (data.symbol_references_count > 0)
     {

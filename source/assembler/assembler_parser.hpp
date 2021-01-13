@@ -51,12 +51,12 @@ namespace rc_assembler
     using qi::_val;
 
     template<typename Iterator>
-    struct assembler_grammar : qi::grammar<Iterator, assembly_file(), ascii::blank_type>
+    struct assembler_grammar : qi::grammar<Iterator, assembly_line(), ascii::space_type>
     {
-        assembler_grammar() : assembler_grammar::base_type(file_rule)
+        assembler_grammar() : assembler_grammar::base_type(line_rule)
         {
-            hex_byte_lit %= qi::lexeme['0' >> qi::char_("xX") >> hex_byte_parser];
-            hex_word_lit %= qi::lexeme['0' >> qi::char_("xX") >> hex_word_parser];
+            hex_byte_lit %= '0' >> qi::no_case['x'] >> hex_byte_parser;
+            hex_word_lit %= '0' >> qi::no_case['x'] >> hex_word_parser;
 
             escaped_char
                 .add("\\n", (uint8_t)'\n')
@@ -70,7 +70,7 @@ namespace rc_assembler
             
             symbol_rule %= qi::lexeme[qi::char_("a-zA-Z") >> *qi::char_("a-zA-Z0-9_")];
             
-            byte_sequence %= hex_byte_lit % ascii::space;
+            byte_sequence %= hex_byte_lit %  ascii::space ;     
 
             increment_rule =
                   qi::string("++")  [_val = 2]
@@ -85,35 +85,38 @@ namespace rc_assembler
 
             instruction_argument_rule %= symbol_rule | hex_word_lit | hex_byte_lit | qi::int_ | indexed_register_argument_rule;
 
-            comment %= ';' >> *(!qi::eol);
+            comment %= ';' >> *qi::char_;
             byte_def_rule %= ".defbyte" >> symbol_rule >> hex_byte_lit;
             word_def_rule %= ".defword" >> symbol_rule >> hex_word_lit;
             data_def_rule %= ".data" >> -symbol_rule >> (byte_sequence | quoted_byte_string);
+            bytes_rule %= byte_sequence;
+            end_data_rule %= ".enddata" >> *qi::char_;
             reservation_rule %= ".reserve" >> symbol_rule >> (hex_word_lit | qi::uint_);
             include_rule %= ".include" >> quoted_byte_string;
             label_def_rule %= symbol_rule >> ':';
             org_def_rule %= ".org" >> (hex_word_lit | qi::uint_);
+
             instruction_line_rule %= qi::no_case[opcode_parser] >> -instruction_argument_rule;
 
-            file_rule %= (
-                 (
-                      instruction_line_rule 
-                    | reservation_rule 
-                    | byte_def_rule 
-                    | word_def_rule 
-                    | data_def_rule 
-                    | label_def_rule 
-                    | include_rule
-                    | org_def_rule
-                 ) //>> -comment
-                 ) % (qi::eol | qi::eoi);
+            line_options_rule %= (instruction_line_rule | reservation_rule | byte_def_rule | word_def_rule | data_def_rule | bytes_rule | end_data_rule | org_def_rule | label_def_rule | include_rule);
+            // instruction_line,reservation,byte_def,word_def,data_def,org_def,label_def,include
+            line_rule %= (line_options_rule || comment);// >> qi::eol;
+
+            // file_rule %= +(+qi::eol | line_rule) >> qi::eoi;
 
             opcode_parser.name("opcodes");
             int opcode_count = opcode_entry_count();
             for (int i = 0; i < opcode_count; i++)
             {
                 opcode_entry_t* opcode = get_opcode_entry_by_index(i);
-                opcode_parser.add(opcode->name, opcode);
+                if (opcode == nullptr)
+                {
+                    std::cout << "Tried to add an option at index " << i << " but it was null" << std::endl;
+                }
+                else
+                {
+                    opcode_parser.add(opcode->name, opcode);
+                }
             }
 
             register_parser.name("registers");
@@ -133,28 +136,33 @@ namespace rc_assembler
         qi::uint_parser<uint8_t, 16, 1, 2> hex_byte_parser;
         qi::uint_parser<uint16_t, 16, 1, 4> hex_word_parser;
 
-        qi::rule<Iterator, int, ascii::blank_type> increment_rule;
-        qi::rule<Iterator, register_index_t(), ascii::blank_type> indexed_register_argument_rule;
-        qi::rule<Iterator, instruction_argument(), ascii::blank_type> instruction_argument_rule;
+        qi::rule<Iterator, int, ascii::space_type> increment_rule;
+        qi::rule<Iterator, register_index_t(), ascii::space_type> indexed_register_argument_rule;
+        qi::rule<Iterator, instruction_argument(), ascii::space_type> instruction_argument_rule;
 
-        qi::rule<Iterator, uint8_t(), ascii::blank_type> hex_byte_lit;
-        qi::rule<Iterator, uint16_t(), ascii::blank_type> hex_word_lit;
-        qi::rule<Iterator, byte_array(), ascii::blank_type> byte_sequence;
-        qi::rule<Iterator, byte_array(), ascii::blank_type> quoted_byte_string;
+        qi::rule<Iterator, uint8_t(), ascii::space_type> hex_byte_lit;
+        qi::rule<Iterator, uint16_t(), ascii::space_type> hex_word_lit;
+        qi::rule<Iterator, byte_array(), ascii::space_type> byte_sequence;
+        qi::rule<Iterator, byte_array(), ascii::space_type> quoted_byte_string;
 
-        qi::rule<Iterator, symbol(), ascii::blank_type> symbol_rule;
+        qi::rule<Iterator, symbol(), ascii::space_type> symbol_rule;
 
-        qi::rule<Iterator, byte_def(), ascii::blank_type> byte_def_rule;
-        qi::rule<Iterator, word_def(), ascii::blank_type> word_def_rule;
-        qi::rule<Iterator, data_def(), ascii::blank_type> data_def_rule;
-        qi::rule<Iterator, reservation(), ascii::blank_type> reservation_rule;
-        qi::rule<Iterator, include(), ascii::blank_type> include_rule;
-        qi::rule<Iterator, label_def(), ascii::blank_type> label_def_rule;
-        qi::rule<Iterator, org_def(), ascii::blank_type> org_def_rule;
-        qi::rule<Iterator, instruction_line(), ascii::blank_type> instruction_line_rule;
+        qi::rule<Iterator, byte_def(), ascii::space_type> byte_def_rule;
+        qi::rule<Iterator, word_def(), ascii::space_type> word_def_rule;
+        qi::rule<Iterator, data_def(), ascii::space_type> data_def_rule;
+        qi::rule<Iterator, byte_array(), ascii::space_type> bytes_rule;
+        qi::rule<Iterator, end_data_def(), ascii::space_type> end_data_rule;
+        qi::rule<Iterator, reservation(), ascii::space_type> reservation_rule;
+        qi::rule<Iterator, include(), ascii::space_type> include_rule;
+        qi::rule<Iterator, label_def(), ascii::space_type> label_def_rule;
+        qi::rule<Iterator, org_def(), ascii::space_type> org_def_rule;
+        qi::rule<Iterator, instruction_line(), ascii::space_type> instruction_line_rule;
+        qi::rule<Iterator, line_options(), ascii::space_type> line_options_rule;
 
-        qi::rule<Iterator, std::string(), ascii::blank_type> comment;
+        qi::rule<Iterator, std::string(), ascii::space_type> comment;
 
-        qi::rule<Iterator, assembly_file(), ascii::blank_type> file_rule;
+        qi::rule<Iterator, assembly_line(), ascii::space_type> line_rule;
+
+        // qi::rule<Iterator, assembly_file(), ascii::space_type> file_rule;
     };
 }
