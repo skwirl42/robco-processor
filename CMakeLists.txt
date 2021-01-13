@@ -6,16 +6,7 @@ enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 
-if (APPLE) # The built-in flex on macOS doesn't play nice with C++17
-set(FLEX_ROOT /usr/local/homebrew/opt/flex)
-set(FLEX_EXECUTABLE /usr/local/homebrew/opt/flex/bin/flex)
-set(BISON_ROOT /usr/local/homebrew/opt/bison@2.7)
-set(BISON_EXECUTABLE /usr/local/homebrew/opt/bison@2.7/bin/bison)
-endif ()
-
 if (MSVC) # Wanted to use WSL, but it was causing issues - so GnuWin32
-set(FLEX_EXECUTABLE D:/GnuWin32/bin/flex)
-set(BISON_EXECUTABLE D:/GnuWin32/bin/bison)
 set(BOOST_ROOT D:/boost_1_73_0)
 
 find_package(SDL2 CONFIG REQUIRED)
@@ -25,12 +16,7 @@ find_package(sdl2-image CONFIG REQUIRED)
 #find_package(boost CONFIG REQUIRED)
 endif()
 
-find_package (BISON REQUIRED)
-find_package (FLEX REQUIRED)
 find_package (Boost REQUIRED COMPONENTS program_options)
-
-BISON_TARGET(AssemblerYacc source/assembler/assembler.y ${CMAKE_CURRENT_BINARY_DIR}/assembler_yacc.cpp)
-FLEX_TARGET(AssemblerLex source/assembler/assembler.l  ${CMAKE_CURRENT_BINARY_DIR}/assembler_lex.cpp)
 
 set(CONSOLE_DRAW_SOURCES
     source/console-draw/console_drawer.cpp
@@ -53,9 +39,7 @@ add_executable(robcoterm
     source/assembler/assembler.cpp
     source/assembler/symbols.c
     source/sound/sound_system.cpp
-    ${CONSOLE_DRAW_SOURCES}
-    ${FLEX_AssemblerLex_OUTPUTS}
-    ${BISON_AssemblerYacc_OUTPUTS})
+    ${CONSOLE_DRAW_SOURCES})
 
 target_include_directories(robcoterm PRIVATE 
     source/main
@@ -71,9 +55,7 @@ add_executable(assembler
     source/main/opcode_table.c
     source/assembler/assembler.cpp
     source/assembler/assembler_main.cpp
-    source/assembler/symbols.c
-    ${FLEX_AssemblerLex_OUTPUTS}
-    ${BISON_AssemblerYacc_OUTPUTS})
+    source/assembler/symbols.c)
 
 target_include_directories(assembler PRIVATE 
     source/main

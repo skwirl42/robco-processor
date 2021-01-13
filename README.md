@@ -6,10 +6,8 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 ## Platforms:
 - macOS 10.15+ with dev tools installed
   * Install SDL2 and SLD2_image to /Library/Frameworks in any way you choose
-  * flex (latest) and bison (2.7) need to be installed via homebrew: https://brew.sh/
 - Windows with Visual Studio installed
   * note: you'll need to add boost, SDL2 and SLD2_image using vcpkg
-  * flex and bison should be installed from the GnuWin32 site http://gnuwin32.sourceforge.net/
 - Could probably be easily ported to other platforms/versions, as code is straight C/C++ and SDL2
 
 ## Requirements:
@@ -17,8 +15,6 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 - C++17 compiler
 - SDL2
 - SDL2_image
-- flex
-- bison
 - boost
 
 ## The Debugger

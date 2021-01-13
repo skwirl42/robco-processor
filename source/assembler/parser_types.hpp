@@ -66,12 +66,17 @@ namespace rc_assembler
         byte_array bytes{};
     };
 
+    struct end_data_def
+    {
+        std::string contents;
+    };
+
     struct org_def
     {
         uint16_t location;
     };
 
-    typedef boost::variant<instruction_line, reservation, byte_def, word_def, data_def, org_def, label_def, include> line_options;
+    typedef boost::variant<instruction_line, reservation, byte_def, byte_array, word_def, data_def, end_data_def, org_def, label_def, include> line_options;
     // typedef boost::tuple<std::optional<line_options>, std::optional<std::string>> assembly_line;
     struct assembly_line
     {
@@ -120,6 +125,11 @@ BOOST_FUSION_ADAPT_STRUCT(
     rc_assembler::data_def,
     (std::optional<rc_assembler::symbol>, symbol),
     (rc_assembler::byte_array, bytes)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::end_data_def,
+    (std::string, contents)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
