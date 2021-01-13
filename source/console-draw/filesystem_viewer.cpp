@@ -13,8 +13,8 @@ namespace
 	const size_t pre_ellipsis_char_count = 3;
 }
 
-filesystem_viewer::filesystem_viewer(std::filesystem::path& starting_path, rect& bounds)
-	: current_path(std::filesystem::absolute(starting_path)), drawable(bounds)
+filesystem_viewer::filesystem_viewer(filesystem_viewer::init_params& params)
+	: params(params), current_path(std::filesystem::absolute(params.starting_path)), drawable(params.bounds)
 {
 	// The extra 2 in here is for the border box
 	if (bounds.width < min_browser_width + min_info_panel_width + 2)
@@ -73,12 +73,7 @@ void filesystem_viewer::draw(drawer* drawer)
 			for (size_t i = 0; i < file_display_count; i++)
 			{
 				auto& entry = current_directory_entries[i + first_entry];
-				auto attribute = (i + first_entry == current_selection) ? CharacterAttribute::Inverted : CharacterAttribute::None;
-				if (!entry.is_directory())
-				{
-					attribute = attribute | CharacterAttribute::Dim;
-				}
-				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attribute);
+				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attributes_for_entry(entry, i + first_entry));
 			}
 		}
 		else
@@ -93,7 +88,7 @@ void filesystem_viewer::draw(drawer* drawer)
 				{
 					attribute |= CharacterAttribute::Dim;
 				}
-				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attribute);
+				drawer->draw_text(get_current_relative_path(entry).c_str(), filename_x, i + first_y, attributes_for_entry(entry, i));
 			}
 		}
 	}
@@ -101,6 +96,7 @@ void filesystem_viewer::draw(drawer* drawer)
 
 bool filesystem_viewer::handle_key(SDL_Keycode key)
 {
+	auto& entry = current_directory_entries[current_selection];
 	switch (key)
 	{
 	case SDLK_UP:
@@ -121,10 +117,18 @@ bool filesystem_viewer::handle_key(SDL_Keycode key)
 
 	case SDLK_RETURN:
 	case SDLK_KP_ENTER:
-		if (current_directory_entries[current_selection].is_directory())
+		if (entry.is_directory())
 		{
-			current_path = current_directory_entries[current_selection].path();
+			current_path = entry.path();
 			determine_current_directory_entries();
+		}
+		else if (entry.is_regular_file())
+		{
+			if (params.selection == selection_mode::any_file 
+				|| (params.selection == selection_mode::filtered_files && std::regex_match(entry.path().filename().string(), params.file_pattern)))
+			{
+				params.selection_handler(entry.path());
+			}
 		}
 		return true;
 
@@ -169,5 +173,32 @@ std::string filesystem_viewer::get_current_relative_path(std::filesystem::direct
 	}
 
 	return rel_path;
+}
+
+CharacterAttribute filesystem_viewer::attributes_for_entry(std::filesystem::directory_entry const& entry, int entry_index)
+{
+	auto characterAttrib = CharacterAttribute::None;
+
+	if (entry_index == current_selection)
+	{
+		characterAttrib |= CharacterAttribute::Inverted;
+	}
+
+	if (!entry.is_directory() && entry.is_regular_file())
+	{
+		if (params.selection == selection_mode::none)
+		{
+			characterAttrib |= CharacterAttribute::Dim;
+		}
+		else if (params.selection == selection_mode::filtered_files)
+		{
+			if (!std::regex_match(entry.path().filename().string(), params.file_pattern))
+			{
+				characterAttrib |= CharacterAttribute::Dim;
+			}
+		}
+	}
+
+	return characterAttrib;
 }
 
