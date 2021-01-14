@@ -2,20 +2,12 @@
 
 #include <string.h>
 
+#include "button.hpp"
 #include "text_field.hpp"
+#include "util.hpp"
 
 namespace
 {
-    inline int min(int a, int b)
-    {
-        return a > b ? b : a;
-    }
-
-    inline int max(int a, int b)
-    {
-        return a < b ? b : a;
-    }
-
     const int box_top_left_index = 0;
     const int box_horizontal_index = 1;
     const int box_top_right_index = 2;
@@ -53,7 +45,7 @@ namespace
 
 console_drawer::console_drawer(Console &target_console)
     : target_console(target_console), width(target_console.GetWidth()), height(target_console.GetHeight()), next_control_id(0),
-      focused_control_index(-1), cursor_enabled(false)
+      next_box_id(0), focused_control_index(-1), cursor_enabled(false)
 {
 
 }
@@ -65,46 +57,57 @@ console_drawer::~console_drawer()
 
 void console_drawer::handle_key(SDL_Keycode key)
 {
-    auto focused_control = controls[focused_control_index].get();
-    if (focused_control->wants_keys())
+    bool handled = false;
+    control* focused_control = nullptr;
+    if (focused_control_index >= 0 && focused_control_index < controls.size())
     {
-        bool handled = focused_control->handle_key(key);
-        if (!handled)
+        focused_control = controls[focused_control_index].get();
+        if (focused_control->wants_keys())
         {
-            switch (key)
+            handled = focused_control->handle_key(key);
+        }
+    }
+    else if (controls.size() > 0)
+    {
+        focused_control_index = 0;
+        focused_control = controls[focused_control_index].get();
+    }
+
+    if (!handled)
+    {
+        switch (key)
+        {
+        case SDLK_TAB:
+        case SDLK_UP:
+        case SDLK_DOWN:
+        case SDLK_LEFT:
+        case SDLK_RIGHT:
+            if (controls.size() > 1 && focused_control != nullptr)
             {
-            case SDLK_TAB:
-            case SDLK_UP:
-            case SDLK_DOWN:
-            case SDLK_LEFT:
-            case SDLK_RIGHT:
-                if (controls.size() > 1)
+                if (key == SDLK_UP || key == SDLK_LEFT)
                 {
-                    if (key == SDLK_UP || key == SDLK_LEFT)
+                    focused_control_index--;
+                    if (focused_control_index < 0)
                     {
-                        focused_control_index--;
-                        if (focused_control_index < 0)
-                        {
-                            focused_control_index = controls.size() - 1;
-                        }
+                        focused_control_index = controls.size() - 1;
                     }
-                    else
-                    {
-                        focused_control_index++;
-                        if (focused_control_index >= controls.size())
-                        {
-                            focused_control_index = 0;
-                        }
-                    }
-
-                    focused_control->set_focused(false);
-                    controls[focused_control_index].get()->set_focused(true);
                 }
-                break;
+                else
+                {
+                    focused_control_index++;
+                    if (focused_control_index >= controls.size())
+                    {
+                        focused_control_index = 0;
+                    }
+                }
 
-            default:
-                break;
+                focused_control->set_focused(false);
+                controls[focused_control_index].get()->set_focused(true);
             }
+            break;
+
+        default:
+            break;
         }
     }
 }
@@ -115,11 +118,34 @@ void console_drawer::draw()
     draw_controls();
 }
 
+void console_drawer::draw(drawable* drawable)
+{
+    drawable->draw(this);
+}
+
 void console_drawer::draw_boxes()
 {
-    for (auto &box : boxes)
+    for (auto& box : boxes)
     {
-        box.draw(this);
+        draw(&box);
+    }
+}
+
+void console_drawer::draw_control(control* control, bool& cursor_enabled, int&cursor_x, int&cursor_y)
+{
+    if (!control->is_visible())
+    {
+        return;
+    }
+
+    draw(control);
+
+    auto text_box = dynamic_cast<text_field*>(control);
+    if (control->is_focused() && text_box != nullptr && text_box->is_editable())
+    {
+        cursor_enabled = true;
+        cursor_x = text_box->get_field_start() + text_box->get_cursor_position();
+        cursor_y = text_box->get_y();
     }
 }
 
@@ -131,20 +157,7 @@ void console_drawer::draw_controls()
     for (auto &control : controls)
     {
         auto control_ptr = control.get();
-        if (!control_ptr->is_visible())
-        {
-            continue;
-        }
-
-        control_ptr->draw(this);
-
-        auto text = dynamic_cast<text_field *>(control_ptr);
-        if (control_ptr->is_focused() && text != nullptr && text->is_editable())
-        {
-            cursor_enabled = true;
-            cursor_x = text->get_field_start() + text->get_cursor_position();
-            cursor_y = text->get_y();
-        }
+        draw_control(control_ptr, cursor_enabled, cursor_x, cursor_y);
     }
 
     if (cursor_x >= 0 && cursor_y >= 0)
@@ -153,15 +166,15 @@ void console_drawer::draw_controls()
     }
 }
 
-void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, int width, int height, char fill_char)
+void console_drawer::draw_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
 {
     target_console.SetCurrentAttribute(CharacterAttribute::None);
-    int right_edge = xin + width - 1;
-    int bottom_edge = yin + height - 1;
+    int right_edge = bounds.x + bounds.width - 1;
+    int bottom_edge = bounds.x + bounds.height - 1;
 
-    for (int y = yin; y < yin + height; y++)
+    for (int y = bounds.y; y < bounds.y + bounds.height; y++)
     {
-        for (int x = xin; x < xin + width; x++)
+        for (int x = bounds.x; x < bounds.x + bounds.width; x++)
         {
             const char *chosen_box_chars = nullptr;
             switch (type)
@@ -181,8 +194,8 @@ void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, i
             case box_type::none:
                 break;
             }
-            bool at_left = x == xin;
-            bool at_top = y == yin;
+            bool at_left = x == bounds.x;
+            bool at_top = y == bounds.y;
             bool at_right = x == right_edge;
             bool at_bottom = y == bottom_edge;
             bool at_edge = at_left || at_top || at_right || at_bottom;
@@ -237,40 +250,42 @@ void console_drawer::draw_box(box_type type, fill_mode fill, int xin, int yin, i
     }
 }
 
-void console_drawer::set_rect(char set_char, int xin, int yin, int width, int height)
+void console_drawer::set_rect(char set_char, rect& bounds)
 {
-    if (xin > this->width || yin > this->height)
+    if (bounds.x > width || bounds.y > height)
     {
         return;
     }
 
     target_console.SetCurrentAttribute(CharacterAttribute::None);
 
-    if (xin < 0)
+    if (bounds.x < 0)
     {
-        xin = 0;
+        bounds.width += bounds.x;
+        bounds.x = 0;
     }
 
-    if (yin < 0)
+    if (bounds.y < 0)
     {
-        yin = 0;
+        bounds.height += bounds.y;
+        bounds.y = 0;
     }
 
-    auto right_side = xin + min(this->width, width);
-    auto bottom_side = yin + min(this->height, height);
+    auto right_side = bounds.x + min(width, bounds.width);
+    auto bottom_side = bounds.x + min(height, bounds.height);
 
-    for (int y = yin; y < bottom_side; y++)
+    for (int y = bounds.y; y < bottom_side; y++)
     {
-        for (int x = xin; x < right_side; x++)
+        for (int x = bounds.x; x < right_side; x++)
         {
             target_console.SetChar(x, y, set_char);
         }
     }
 }
 
-void console_drawer::draw_text(const char *text, int x, int y, bool inverted)
+void console_drawer::draw_text(const char *text, int x, int y, CharacterAttribute attribute)
 {
-    target_console.SetCurrentAttribute(inverted ? CharacterAttribute::Inverted : CharacterAttribute::None);
+    target_console.SetCurrentAttribute(attribute);
     target_console.PrintAt(text, x, y);
 }
 
@@ -298,9 +313,9 @@ int console_drawer::add_control(control *new_control)
     return next_control_id++;
 }
 
-int console_drawer::define_button(const char *text, int x, int y, int width, int height, button_handler handler)
+int console_drawer::define_button(const char *text, rect& bounds, button_handler handler)
 {
-    return add_control(new button(text, handler, next_control_id, x, y, width, height, false));
+    return add_control(new button(text, handler, next_control_id, bounds, false));
 }
 
 int console_drawer::define_text_field(const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool editable)
@@ -327,8 +342,9 @@ void console_drawer::remove_control_by_id(int id)
                 }
                 else if (controls.size() > 0)
                 {
-                    controls[i - 1].get()->set_focused(true);
-                    focused_control_index = i - 1;
+                    size_t new_focused_index = (size_t)i - 1;
+                    controls[new_focused_index].get()->set_focused(true);
+                    focused_control_index = new_focused_index;
                 }
             }
             break;
@@ -348,7 +364,21 @@ void console_drawer::remove_control_by_id(int id)
     }
 }
 
-void console_drawer::add_box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char)
+int console_drawer::add_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
 {
-    boxes.push_back(box(type, fill, x, y, width, height, fill_char));
+    auto box_id = next_box_id++;
+    boxes.push_back(box(box_id, type, fill, bounds, fill_char));
+    return box_id;
+}
+
+void console_drawer::remove_box_by_id(int id)
+{
+    for (auto iterator = boxes.begin(); iterator != boxes.end(); iterator++)
+    {
+        if ((*iterator).get_id() == id)
+        {
+            boxes.erase(iterator);
+            break;
+        }
+    }
 }

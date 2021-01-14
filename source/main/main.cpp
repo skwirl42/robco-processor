@@ -24,6 +24,7 @@
 #include "exceptions.hpp"
 #include "console_drawer.hpp"
 #include "program_options_helpers.hpp"
+#include "filesystem_viewer.hpp"
 
 namespace po = boost::program_options;
 
@@ -57,6 +58,28 @@ void usage(char** argv, po::options_description& options)
     std::cout << options << std::endl;
 }
 
+bool execute_tape(emulator& rcEmulator, Console&console, std::string tape_path, std::function<void(void)> teardown, bool doInsert)
+{
+    if (doInsert)
+    {
+        eject_holotape();
+        insert_holotape(tape_path.c_str());
+    }
+    
+    rcEmulator.current_syscall = SYSCALL_EXECUTE;
+    handle_current_syscall(rcEmulator, console, nullptr);
+    if (rcEmulator.SP > 0)
+    {
+        // The stack should be empty after running the execute syscall, if it succeeded.
+        // This means there was an error executing from tape and the error number is on the stack
+        auto error_code = rcEmulator.memories.user_stack[0];
+        std::cerr << "Failed to execute from tape " << tape_path << " with error code " << (int)error_code << std::endl;
+        teardown();
+        return false;
+    }
+    return true;
+}
+
 int main (int argc, char **argv)
 {
     std::vector<std::string> one_of_options{"source", "exec-tape"};
@@ -83,38 +106,7 @@ int main (int argc, char **argv)
     Console console(60, 24);
     Console debugConsole(60, 24);
     Console uiConsole(60, 24);
-
-    console_drawer ui_drawer(uiConsole);
-    // Draw some debug UI
-    ui_drawer.add_box(box_type::single_line, fill_mode::character, 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight(), '\xE6');
-    ui_drawer.define_text_field("Text Field:", [&](text_field_event event, int id, const char *contents) {
-        if (event == text_field_event::text_updated || event == text_field_event::enter_pressed)
-        {
-            std::cout << "Text field was updated with \"" << contents << "\"" << std::endl;
-        }
-    }, text_event_send_mode::on_enter, 3, 3, 32, "test text", true);
-    int what_id = ui_drawer.define_button("What?!", 18, 19, 8, 3, [&](button_event event, int id) {});
-    int cancel_id = ui_drawer.define_button("Cancel", 34, 19, 8, 3, [&](button_event event, int id) {});
-    int ok_id = ui_drawer.define_button("OK", 50, 19, 8, 3, [&](button_event event, int id) {
-        switch (event)
-        {
-        case button_event::clicked:
-            std::cout << "OK clicked" << std::endl;
-            ui_drawer.remove_control_by_id(what_id);
-            break;
-
-        case button_event::focused:
-            std::cout << "OK got focus" << std::endl;
-            break;
-
-        case button_event::lost_focus:
-            std::cout << "OK lost focus" << std::endl;
-            break;
-
-        default:
-            break;
-        }
-    });
+    EmulatorState emulator_state = EmulatorState::Emulating;
 
     auto teardown = [&]() {
         if (holotape_initialized())
@@ -142,6 +134,53 @@ int main (int argc, char **argv)
             SDL_Quit();
         }
     };
+
+    console_drawer ui_drawer(uiConsole);
+    // Draw some debug UI
+    auto exec_path = std::filesystem::path(argv[0]);
+    std::filesystem::path start_dir = exec_path;
+
+    if (variables.count("source") > 0)
+    {
+        start_dir = std::filesystem::path(variables["source"].as<std::string>());
+    }
+    else if (variables.count("tape") > 0)
+    {
+        start_dir = std::filesystem::path(variables["tape"].as<std::string>());
+    }
+
+    start_dir = std::filesystem::absolute(start_dir);
+    start_dir.remove_filename();
+
+    auto holo_regex = std::regex("^.+\\.holo$");
+    auto asm_regex = std::regex("^.+\\.asm$");
+    auto file_viewer_active = true;
+    auto file_viewer_params = filesystem_viewer::init_params
+    {
+        start_dir,
+        rect{ 0, 0, uiConsole.GetWidth(), uiConsole.GetHeight() },
+        filesystem_viewer::selection_mode::filtered_files,
+        holo_regex,
+        [&](std::filesystem::path selected)
+        {
+            // what to do with it?
+            file_viewer_active = false;
+            if (std::regex_match(selected.filename().string(), holo_regex))
+            {
+                if (execute_tape(rcEmulator, console, selected.string(), teardown, true))
+                {
+                    emulator_state = EmulatorState::Emulating;
+                }
+                else
+                {
+                    teardown();
+                    std::cerr << "Your selected tape file could not be executed (" << selected << ")" << std::endl;
+                    exit(-1);
+                }
+            }
+        }
+    };
+    auto file_viewer = filesystem_viewer(file_viewer_params);
 
     try
     {
@@ -178,7 +217,7 @@ int main (int argc, char **argv)
         {
             const char* sample_file = variables["source"].as<std::string>().c_str();
 
-            const char** paths = new const char* [variables.count("include") + 1];
+            std::unique_ptr<const char*[]> paths(new const char* [variables.count("include") + 1]);
 
             for (int i = 0; i < variables.count("include"); i++)
             {
@@ -188,9 +227,7 @@ int main (int argc, char **argv)
             paths[variables.count("include")] = 0;
 
             assembler_data_t *assembled_data;
-            assemble(sample_file, paths, nullptr, None, &assembled_data);
-
-            delete[] paths;
+            assemble(sample_file, paths.get(), nullptr, None, &assembled_data);
 
             if (get_error_buffer_size(assembled_data) > 0)
             {
@@ -221,15 +258,8 @@ int main (int argc, char **argv)
         {
             if (variables.count("exec-tape") > 0)
             {
-                rcEmulator.current_syscall = SYSCALL_EXECUTE;
-                handle_current_syscall(rcEmulator, console, synthesizer);
-                if (rcEmulator.SP > 0)
+                if (!execute_tape(rcEmulator, console, variables["tape"].as<std::string>(), teardown, false))
                 {
-                    // The stack should be empty after running the execute syscall, if it succeeded.
-                    // This means there was an error executing from tape and the error number is on the stack
-                    auto error_code = rcEmulator.memories.user_stack[0];
-                    std::cerr << "Failed to execute from tape " << variables["tape"].as<std::string>() << " with error code " << (int)error_code << std::endl;
-                    teardown();
                     return -1;
                 }
             }
@@ -277,7 +307,7 @@ int main (int argc, char **argv)
         {
             auto fontfilename = font_name.c_str();
             // Format of the font file is 16 chars wide, 8 chars tall
-            renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 16, 16, 100);
+            renderer = new ConsoleSDLRenderer(fontfilename, 480, 320, 0xFF00FF00, 0xFF000000, 0xFF007F00, 0xFF000000, 16, 16, 100);
             renderer->Clear();
         }
         else
@@ -305,7 +335,6 @@ int main (int argc, char **argv)
                 debugging_buffers[i] = new char[LINE_BUFFER_SIZE + 1];
             }
 
-            EmulatorState emulator_state = EmulatorState::Emulating;
             if (emulator_state == EmulatorState::Debugging)
             {
                 rcEmulator.current_state = DEBUGGING;
@@ -337,6 +366,7 @@ int main (int argc, char **argv)
                             else
                             {
                                 emulator_state = EmulatorState::Configuring;
+                                file_viewer_active = true;
                             }
                         }
                         if (event.key.keysym.sym == SDLK_F5)
@@ -367,7 +397,16 @@ int main (int argc, char **argv)
                             }
                             else
                             {
-                                ui_drawer.handle_key(event.key.keysym.sym);
+                                bool handled = false;
+                                if (file_viewer_active)
+                                {
+                                    handled = file_viewer.handle_key(event.key.keysym.sym);
+                                }
+
+                                if (!handled)
+                                {
+                                    ui_drawer.handle_key(event.key.keysym.sym);
+                                }
                             }
                         }
                         else
@@ -416,13 +455,13 @@ int main (int argc, char **argv)
                 {
                     // Pause for a bit
                     auto wait_time = std::chrono::microseconds(configuration_console_frame_time);
-                    auto end_time = wait_time + std::chrono::high_resolution_clock::now();
-                    while (std::chrono::high_resolution_clock::now() < end_time)
-                    {
-                        // a frame of spinning isn't gonna hurt anything
-                    }
+                    std::this_thread::sleep_for(wait_time);
 
                     ui_drawer.draw();
+                    if (file_viewer_active)
+                    {
+                        ui_drawer.draw(&file_viewer);
+                    }
 
                     int previousBlinkFrames = renderer->GetCursorBlinkFrames();
                     if (!ui_drawer.is_cursor_enabled())

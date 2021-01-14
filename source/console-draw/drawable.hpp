@@ -1,17 +1,15 @@
 #pragma once
 
 #include "drawer.hpp"
+#include "rect.hpp"
 
 class drawable
 {
 public:
-    drawable(int x, int y, int width, int height) : x(x), y(y), width(width), height(height) {}
+    drawable(rect&bounds) : bounds(bounds) {}
 
     virtual void draw(drawer *drawer) = 0;
 
 protected:
-    int x;
-    int y;
-    int width;
-    int height;
+    rect bounds;
 };

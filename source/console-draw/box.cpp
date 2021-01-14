@@ -1,12 +1,12 @@
 #include "box.hpp"
 
-box::box(box_type type, fill_mode fill, int x, int y, int width, int height, char fill_char)
-    : type(type), fill(fill), x(x), y(y), width(width), height(height), fill_char(fill_char), drawable(x, y, width, height)
+box::box(int id, box_type type, fill_mode fill, rect& bounds, char fill_char)
+    : type(type), fill(fill), id(id), fill_char(fill_char), drawable(bounds)
 {
 
 }
 
 void box::draw(drawer *drawer)
 {
-    drawer->draw_box(type, fill, x, y, width, height, fill_char);
+    drawer->draw_box(type, fill, bounds, fill_char);
 }

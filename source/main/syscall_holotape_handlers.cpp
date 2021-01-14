@@ -198,6 +198,19 @@ void insert_holotape(const char *holotape_file)
     }
 }
 
+void eject_holotape()
+{
+    if (current_deck == nullptr)
+    {
+        current_deck = holotape_deck_init();
+    }
+
+    if (current_deck->current_holotape != nullptr)
+    {
+        holotape_eject(current_deck);
+    }
+}
+
 bool holotape_initialized()
 {
     return current_deck != nullptr;

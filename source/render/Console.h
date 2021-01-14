@@ -40,6 +40,7 @@ enum class CharacterAttribute : unsigned int
 {
 	None		= 0,
 	Inverted	= 1 << 0,
+	Dim			= 1 << 1,
 
 	Dirty		= 1 << 16,
 };
@@ -57,6 +58,11 @@ inline CharacterAttribute operator & (CharacterAttribute lhs, CharacterAttribute
 inline CharacterAttribute operator ~ (CharacterAttribute rhs)
 {
 	return (CharacterAttribute)~((unsigned int)rhs);
+}
+
+inline CharacterAttribute& operator|=(CharacterAttribute& lhs, CharacterAttribute rhs)
+{
+	return (CharacterAttribute&)((unsigned int&)lhs |= (unsigned int)rhs);
 }
 
 class Console

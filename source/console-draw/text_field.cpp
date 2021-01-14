@@ -7,10 +7,10 @@ namespace
     const char empty_space_char = '\xB1';
 }
 
-text_field::text_field(int id, const char *label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, int max_content_length, const char *initial_contents, bool focused, bool editable)
-    : label_text(label_text), contents(new char[max_content_length + 1]), x(x), y(y), max_content_length(max_content_length),
-      label_length(strlen(label_text)), width(x + strlen(label_text) + 1 + max_content_length), cursor_position(0), handler(handler), send_mode(send_mode), editable(editable),
-      control(id, focused, true, x, y, strlen(label_text) + 1 + max_content_length, 1)
+text_field::text_field(int id, const char* label_text, text_field_event_handler handler, text_event_send_mode send_mode, int x, int y, size_t max_content_length, const char* initial_contents, bool focused, bool editable)
+    : label_text(label_text), contents(new char[max_content_length + 1]), max_content_length(max_content_length),
+      label_length((int)strlen(label_text)), cursor_position(0), handler(handler), send_mode(send_mode), editable(editable),
+      control(id, focused, true, rect{ x, y, (int)strlen(label_text) + 1 + (int)max_content_length, 1 })
 {
     memset(contents, 0, max_content_length);
     contents[max_content_length] = 0;
@@ -18,7 +18,7 @@ text_field::text_field(int id, const char *label_text, text_field_event_handler 
     if (strlen(initial_contents) > 0)
     {
         set_contents(initial_contents);
-        cursor_position = strlen(initial_contents);
+        cursor_position = (int)strlen(initial_contents);
     }
 }
 
@@ -34,13 +34,14 @@ void text_field::set_contents(const char *new_contents)
 
 int text_field::get_field_start() const
 {
-    return x + label_length + 1;
+    return bounds.x + label_length + 1;
 }
 
 void text_field::draw(drawer *drawer)
 {
-    drawer->draw_text(label_text, x, y, focused);
-    drawer->draw_text(" ", x + label_length, y, focused);
+    auto focusedAttribute = focused ? CharacterAttribute::Inverted : CharacterAttribute::None;
+    drawer->draw_text(label_text, bounds.x, bounds.y, focusedAttribute);
+    drawer->draw_text(" ", bounds.x + label_length, bounds.y, focusedAttribute);
 
     int box_start = get_field_start() + content_length();
     if (editable)
@@ -48,22 +49,23 @@ void text_field::draw(drawer *drawer)
         if (is_focused() && cursor_position == content_length())
         {
             // Clear a space for the cursor to blink
-            drawer->draw_text(" ", get_field_start() + cursor_position, y, false);
+            drawer->draw_text(" ", get_field_start() + cursor_position, bounds.y, CharacterAttribute::None);
             box_start++;
         }
     }
 
     if (content_length() > 0)
     {
-        drawer->draw_text(contents, get_field_start(), y, !is_editable() && is_focused());
+        focusedAttribute = (!is_editable() && is_focused()) ? CharacterAttribute::Inverted : CharacterAttribute::None;
+        drawer->draw_text(contents, get_field_start(), bounds.y, focusedAttribute);
     }
 
     if (editable)
     {
-        if (box_start < x + width)
+        if (box_start < bounds.x + bounds.width)
         {
-            int box_width = (x + width) - box_start;
-            drawer->set_rect(empty_space_char, box_start, y, box_width, 1);
+            int box_width = (bounds.x + bounds.width) - box_start;
+            drawer->set_rect(empty_space_char, rect{ box_start, bounds.y, box_width, 1 });
         }
     }
 }
@@ -133,7 +135,7 @@ bool text_field::handle_key(SDL_Keycode key)
     {
         cursor_position = content_length();
     }
-    else if (isprint(key) && content_length() < max_content_length)
+    else if (key <= 0xFF && isprint(key) && content_length() < max_content_length)
     {
         int original_content_length = content_length();
         if (cursor_position < original_content_length)
@@ -175,5 +177,5 @@ void text_field::handle_focused(bool was_focused)
 
 void text_field::send_event(text_field_event event)
 {
-    handler(event, id, contents);
+    handler(event, this, contents);
 }
