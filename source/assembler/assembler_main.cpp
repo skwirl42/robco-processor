@@ -9,59 +9,7 @@
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 
-#include "assembler_parser.hpp"
-
 namespace po = boost::program_options;
-
-
-namespace
-{
-    class line_visitor : public boost::static_visitor<>
-    {
-    public:
-        void operator()(const rc_assembler::instruction_line& instruction)
-        {
-            std::cout << "instruction: " << instruction.opcode->name << std::endl;
-        }
-
-        void operator()(const rc_assembler::reservation& reservation)
-        {
-            std::cout << "reservation: " << reservation.symbol << " size: " << reservation.size << std::endl;
-        }
-
-        void operator()(const rc_assembler::byte_def& byte)
-        {
-
-        }
-
-        void operator()(const rc_assembler::word_def& word)
-        {
-
-        }
-
-        void operator()(const rc_assembler::data_def& def)
-        {
-
-        }
-
-        void operator()(const rc_assembler::org_def& def)
-        {
-
-        }
-
-        void operator()(const rc_assembler::label_def& def)
-        {
-
-        }
-
-        void operator()(const rc_assembler::include& def)
-        {
-            std::string string(def.included_file.begin(), def.included_file.end());
-            std::cout << "including: " << string << std::endl;
-        }
-    };
-
-}
 
 std::istream& operator>>(std::istream& in, OutputFileType& fileType)
 {
@@ -131,23 +79,12 @@ int main(int argc, char **argv)
 
     if (variables.count("source") > 0)
     {
-        rc_assembler::assembler_grammar<std::string::iterator> parser;
         auto& source_file = variables["source"].as<std::string>();
         std::ifstream file_stream(source_file, std::ios_base::in | std::ios_base::binary | std::ios_base::ate);
         auto file_size = file_stream.tellg();
         file_stream.seekg(0);
         std::string file_contents(file_size, '\0');
         file_stream.read(&file_contents[0], file_size);
-
-        line_visitor visitor{};
-        rc_assembler::assembly_file assembled;
-        if (boost::spirit::qi::phrase_parse(file_contents.begin(), file_contents.end(), parser, boost::spirit::ascii::blank, assembled))
-        {
-            for (auto &line : assembled)
-            {
-                boost::apply_visitor(visitor, line);
-            }
-        }
 
         assembler_data_t *assembled_data;
         const char* output_file = nullptr;

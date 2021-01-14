@@ -79,6 +79,8 @@ register_argument_t registers[] =
     { 0, 0 }
 };
 
+static int opcode_count = -1;
+
 opcode_entry_t *get_opcode_entry(const char *opcode_name)
 {
     int index = 0;
@@ -96,11 +98,17 @@ opcode_entry_t *get_opcode_entry(const char *opcode_name)
 
 int opcode_entry_count()
 {
+    if (opcode_count >= 0)
+    {
+        return opcode_count;
+    }
+
     int count = 0;
     while (opcode_entries[count].name != 0)
     {
         count++;
     }
+    opcode_count = count;
     return count;
 }
 
