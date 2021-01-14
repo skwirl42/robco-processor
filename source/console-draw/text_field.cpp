@@ -135,7 +135,7 @@ bool text_field::handle_key(SDL_Keycode key)
     {
         cursor_position = content_length();
     }
-    else if (isprint(key) && content_length() < max_content_length)
+    else if (key <= 0xFF && isprint(key) && content_length() < max_content_length)
     {
         int original_content_length = content_length();
         if (cursor_position < original_content_length)
