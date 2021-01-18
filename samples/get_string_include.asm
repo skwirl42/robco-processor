@@ -27,3 +27,24 @@ gs_end_of_line:
     pull [x]
     pullx                   ; Restore X
     rts
+
+; Pseudocode
+;get_string(x)
+;{
+;    saved_x = x;
+;    word char;
+;    do
+;    {
+;        char = getch(blocking = 1);            // syscall GETCH
+;        if (char.bytes[1] == 0)
+;        {
+;            setch(char.bytes[0]);              // syscall SETCH
+;            memory[x++] = char.bytes[0];
+;        }
+;    } while (char[0] != '\n');
+;
+;    memory[x] = 0;
+;
+;    x = saved_x;
+;    return;
+;}

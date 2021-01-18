@@ -1,24 +1,44 @@
 #pragma once
 
 #include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/spirit/include/qi_uint.hpp>
 #include <boost/fusion/include/adapt_struct.hpp>
-#include <boost/variant/recursive_variant.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <boost/variant/variant.hpp>
 
 #include <optional>
 
 #include "opcodes.h"
-#include "assembler_internal.h"
+
+enum class parser_state
+{
+    normal,
+    error,
+    data_def_in_progress,
+    struct_def_in_progress
+};
+
+struct register_index_t
+{
+    register_argument_t* index_register;
+    uint8_t is_pre_increment;
+    int8_t increment_amount;
+
+    register_index_t() : index_register(0), is_pre_increment(0), increment_amount(0) {}
+    register_index_t(const register_index_t& other)
+        : index_register(other.index_register),
+        is_pre_increment(other.is_pre_increment),
+        increment_amount(other.increment_amount)
+    {
+    }
+    register_index_t(register_argument_t* index_register, uint8_t is_pre_increment, int8_t increment_amount) :
+        index_register(index_register), is_pre_increment(is_pre_increment), increment_amount(increment_amount)
+    {
+
+    }
+};
 
 namespace rc_assembler
 {
     namespace fusion = boost::fusion;
-    namespace phoenix = boost::phoenix;
     namespace qi = boost::spirit::qi;
     namespace ascii = boost::spirit::ascii;
 
@@ -38,14 +58,14 @@ namespace rc_assembler
         size_t size = 0;
     };
 
-    struct include
+    struct include_def
     {
-        byte_array included_file;
+        byte_array included_file{};
     };
 
     struct label_def
     {
-        symbol label_name;
+        symbol label_name{};
     };
 
     struct byte_def
@@ -68,24 +88,53 @@ namespace rc_assembler
 
     struct end_data_def
     {
-        std::string contents;
+        std::string contents{};
     };
 
     struct org_def
     {
-        uint16_t location;
+        uint16_t location = 0;
     };
 
-    typedef boost::variant<instruction_line, reservation, byte_def, byte_array, word_def, data_def, end_data_def, org_def, label_def, include> line_options;
-    // typedef boost::tuple<std::optional<line_options>, std::optional<std::string>> assembly_line;
+    struct struct_def
+    {
+        symbol symbol{};
+    };
+
+    struct struct_member_def
+    {
+        symbol symbol{};
+        uint16_t size = 0;
+    };
+
+    struct end_struct_def
+    {
+        std::string contents{};
+    };;
+
+    typedef boost::variant
+    <
+        instruction_line, 
+        reservation, 
+        byte_def, 
+        byte_array,
+        word_def,
+        data_def,
+        end_data_def,
+        org_def,
+        label_def,
+        include_def,
+        struct_def,
+        struct_member_def,
+        end_struct_def
+    > line_options;
+    
     struct assembly_line
     {
         std::optional<line_options> line_options;
         std::optional<std::string> comment;
     };
-
-    typedef std::vector<assembly_line> assembly_file;
- }
+ } // namespace rc_assembler
 
 BOOST_FUSION_ADAPT_STRUCT(
     rc_assembler::instruction_line,
@@ -100,7 +149,7 @@ BOOST_FUSION_ADAPT_STRUCT(
 )
 
 BOOST_FUSION_ADAPT_STRUCT(
-    rc_assembler::include,
+    rc_assembler::include_def,
     (rc_assembler::byte_array, included_file)
 )
 
@@ -135,6 +184,22 @@ BOOST_FUSION_ADAPT_STRUCT(
 BOOST_FUSION_ADAPT_STRUCT(
     rc_assembler::org_def,
     (uint16_t, location)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::struct_def,
+    (rc_assembler::symbol, symbol)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::struct_member_def,
+    (rc_assembler::symbol, symbol),
+    (uint16_t, size)
+)
+
+BOOST_FUSION_ADAPT_STRUCT(
+    rc_assembler::end_struct_def,
+    (std::string, contents)
 )
 
 BOOST_FUSION_ADAPT_STRUCT(

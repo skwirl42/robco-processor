@@ -1,4 +1,4 @@
-#include "assembler.h"
+#include "assembler.hpp"
 #include "opcodes.h"
 
 #include <filesystem>
@@ -11,7 +11,7 @@
 
 namespace po = boost::program_options;
 
-std::istream& operator>>(std::istream& in, OutputFileType& fileType)
+std::istream& operator>>(std::istream& in, assembler_output_type& file_type)
 {
     std::string token;
     in >> token;
@@ -20,18 +20,45 @@ std::istream& operator>>(std::istream& in, OutputFileType& fileType)
 
     if (token == "binary" || token == "b")
     {
-        fileType = OutputFileType::Binary;
+        file_type = assembler_output_type::binary;
     }
     else if (token == "summary" || token == "s")
     {
-        fileType = OutputFileType::Summary;
+        file_type = assembler_output_type::summary;
+    }
+    else if (token == "none" || token == "n")
+    {
+        file_type = assembler_output_type::none;
     }
     else
     {
-        fileType = OutputFileType::Error;
+        file_type = assembler_output_type::error;
     }
     
     return in;
+}
+
+std::ostream& operator<<(std::ostream& out, const assembler_output_type& file_type)
+{
+    switch (file_type)
+    {
+    case assembler_output_type::binary:
+        out << "binary";
+        break;
+
+    case assembler_output_type::error:
+        out << "error";
+        break;
+
+    case assembler_output_type::none:
+        out << "none";
+        break;
+
+    case assembler_output_type::summary:
+        out << "summary";
+        break;
+    }
+    return out;
 }
 
 void usage(char** argv, po::options_description& options)
@@ -45,13 +72,13 @@ int main(int argc, char **argv)
 {
     std::string font_name{};
     po::options_description cli_options("Allowed options");
-    OutputFileType outFileType = Binary;
+    assembler_output_type outFileType = assembler_output_type::binary;
     cli_options.add_options()
         ("help,?", "output the help message")
         ("include,I", po::value< std::vector < std::string>>(), "directories to include when assembling source")
         ("source,S", po::value<std::string>()->required(), "assembly source file to run")
         ("output-file,O", po::value<std::string>(), "a file into which assembled data is saved")
-        ("type,T", po::value<OutputFileType>(&outFileType)->default_value(Binary), "what type of file to output (binary or summary)")
+        ("type,T", po::value<assembler_output_type>(&outFileType)->default_value(assembler_output_type::binary), "what type of file to output (binary or summary)")
         ;
 
     po::variables_map variables;

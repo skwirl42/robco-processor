@@ -130,7 +130,7 @@ int main(int argc, char** argv)
 	}
 
 	auto command_buffer_size = 16;
-	uint8_t* command_buffer = new uint8_t[command_buffer_size]{};
+	std::unique_ptr<uint8_t[]> command_buffer{new uint8_t[command_buffer_size]};
 	char error_string[256];
 
 	bool initialized_sdl = false;
@@ -139,8 +139,6 @@ int main(int argc, char** argv)
 
 	auto teardown = [&]()
 	{
-		delete[] command_buffer;
-
 		if (sound_system_ptr != nullptr)
 		{
 			delete sound_system_ptr;
@@ -210,14 +208,14 @@ int main(int argc, char** argv)
 		a_sound_system->start_worker_thread();
 
 		command current_command{};
-		current_command.command_buffer = command_buffer;
+		current_command.command_buffer = command_buffer.get();
 		current_command.type = command_type::buffer;
 
 		current_command.command_buffer = bell_initialize_commands;
 		current_command.command_count = sizeof(bell_initialize_commands);
 		a_sound_system->process_command(current_command);
 
-		current_command.command_buffer = command_buffer;
+		current_command.command_buffer = command_buffer.get();
 
 		bool running = true;
 		SDL_Event event{};
