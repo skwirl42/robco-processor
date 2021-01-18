@@ -61,3 +61,31 @@ draw_loop:
 end_loop:
 	sync
 	b end_loop
+
+; Pseudocode:
+;start()
+;{
+;	result = start_graphics(GRAPHICS_START, 0x47);			// syscall GRAPHICSTART
+;	if (result == 0)
+;	{
+;		x = GRAPHICS_START;
+;		sync();
+;		dp = 0;
+;		direct_page[dp] = GRAPHICS_START;
+;		while (dp != GRAPHICS_END)
+;		{
+;			// this is a bit harder to turn into pseudocode
+;			GRAPHICS_START[x++] = (direct_page[dp] >> 8) << 8 + 0xAA;
+;			direct_page[dp] = direct_page[dp] + 1;
+;		}
+;
+;		for(;;)
+;		{
+;			sync();
+;		}
+;	}
+;	else
+;	{
+;		print("Failed to set the graphics mode\n");
+;	}
+;}

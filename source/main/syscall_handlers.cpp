@@ -48,9 +48,9 @@ execution_state_t handle_syscall_setch(emulator &emulator, Console &console)
 execution_state_t handle_syscall_print(emulator &emulator, Console &console)
 {
     char *mem_string = (char*)(&(emulator.memories.data[emulator.X]));
-    uint16_t stringSize = strnlen(mem_string, DATA_SIZE - emulator.X);
+    size_t stringSize = strnlen(mem_string, (int)DATA_SIZE - (int)emulator.X);
     bool newline = false;
-    char *string = new char[stringSize + 1];
+    std::unique_ptr<char[]> string(new char[stringSize + 1]);
     int copiedIndex = 0;
     for (int x = 0; x < stringSize; x++)
     {
@@ -58,7 +58,7 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
         // Discard non-printables
         if (currentChar >= ' ')
         {
-            string[copiedIndex++] = currentChar;
+            string.get()[copiedIndex++] = currentChar;
         }
         else if (currentChar == '\n' || currentChar == '\r')
         {
@@ -67,18 +67,17 @@ execution_state_t handle_syscall_print(emulator &emulator, Console &console)
         }
     }
 
-    string[copiedIndex] = 0;
+    string.get()[copiedIndex] = 0;
 
     if (newline)
     {
-        console.PrintLine(string);
+        console.PrintLine(string.get());
     }
     else
     {
-        console.Print(string);
+        console.Print(string.get());
     }
 
-    delete [] string;
     return RUNNING;
 }
 
@@ -245,6 +244,10 @@ void handle_current_syscall(emulator &emulator, Console &console, sound_system* 
 
     case SYSCALL_EXIT:
         nextState = FINISHED;
+        break;
+
+    case SYSCALL_NONE:
+        nextState = RUNNING;
         break;
 
     default:

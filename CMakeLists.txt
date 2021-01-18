@@ -26,7 +26,8 @@ set(CONSOLE_DRAW_SOURCES
     source/console-draw/filesystem_viewer.cpp
 )
 
-add_executable(robcoterm 
+add_executable(robcoterm
+    ${CONSOLE_DRAW_SOURCES} 
     source/main/main.cpp
     source/render/Console.cpp
     source/render/ConsoleSDLRenderer.cpp
@@ -40,7 +41,8 @@ add_executable(robcoterm
     source/assembler/assembler.cpp
     source/assembler/symbols.c
     source/sound/sound_system.cpp
-    ${CONSOLE_DRAW_SOURCES})
+    "source/assembler/assembler_visitors.cpp"
+    )
 
 target_include_directories(robcoterm PRIVATE 
     source/main
@@ -56,7 +58,9 @@ add_executable(assembler
     source/main/opcode_table.c
     source/assembler/assembler.cpp
     source/assembler/assembler_main.cpp
-    source/assembler/symbols.c)
+    source/assembler/symbols.c
+    "source/assembler/assembler_visitors.cpp"
+    )
 
 target_include_directories(assembler PRIVATE 
     source/main

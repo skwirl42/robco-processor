@@ -1,5 +1,5 @@
 ; System
-.defword			EXIT			0x0000
+.defword			EXIT			0x0001
 .defword			GETERROR		0x0011
 
 ; Text display

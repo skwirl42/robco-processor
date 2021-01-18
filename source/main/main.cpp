@@ -18,7 +18,7 @@
 #include "syscall_handlers.h"
 #include "syscall_holotape_handlers.h"
 #include "key_conversion.h"
-#include "assembler.h"
+#include "assembler.hpp"
 #include "opcodes.h"
 #include "sound_system.hpp"
 #include "exceptions.hpp"
@@ -227,7 +227,7 @@ int main (int argc, char **argv)
             paths[variables.count("include")] = 0;
 
             assembler_data_t *assembled_data;
-            assemble(sample_file, paths.get(), nullptr, None, &assembled_data);
+            assemble(sample_file, paths.get(), nullptr, assembler_output_type::none, &assembled_data);
 
             if (get_error_buffer_size(assembled_data) > 0)
             {
@@ -238,7 +238,7 @@ int main (int argc, char **argv)
 
             auto apply_result = apply_assembled_data_to_buffer(assembled_data, rcEmulator.memories.data);
 
-            if (apply_result != ASSEMBLER_SUCCESS)
+            if (apply_result != assembler_status::SUCCESS)
             {
                 std::cerr << "Failed to properly assemble the target " << sample_file << std::endl;
                 teardown();
@@ -247,7 +247,7 @@ int main (int argc, char **argv)
 
             auto exec_address_result = get_starting_executable_address(assembled_data, &rcEmulator.PC);
 
-            if (exec_address_result != ASSEMBLER_SUCCESS)
+            if (exec_address_result != assembler_status::SUCCESS)
             {
                 std::cerr << "Couldn't get an executable address from the assembled target " << sample_file << std::endl;
                 teardown();
@@ -500,7 +500,7 @@ int main (int argc, char **argv)
                     do
                     {
                         result = execute_instruction(&rcEmulator, &executed_opcode);
-                        if (executed_opcode->cycles > 0)
+                        if (executed_opcode != nullptr && executed_opcode->cycles > 0)
                         {
                             current_cycle += executed_opcode->cycles;
                             auto cycle_time = std::chrono::microseconds(executed_opcode->cycles);
@@ -519,7 +519,7 @@ int main (int argc, char **argv)
                         {
                             break;
                         }
-                    } while (result == SUCCESS && current_cycle <= max_cycles);
+                    } while (result == SUCCESS && current_cycle <= max_cycles && emulator_can_execute(&rcEmulator));
 
                     if (result == EXECUTE_SYSCALL)
                     {

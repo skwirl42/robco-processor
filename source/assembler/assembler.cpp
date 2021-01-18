@@ -1,4 +1,4 @@
-#include "assembler_internal.h"
+#include "assembler_internal.hpp"
 
 #include <errno.h>
 #include <optional>
@@ -7,15 +7,28 @@
 #include "memory.h"
 #include "executable_file.h"
 #include "assembler_parser.hpp"
+#include "assembler_visitors.hpp"
 
-typedef struct _assembler_data
+struct assembled_region_t
+{
+    uint16_t start_location;
+    uint16_t current_instruction_offset;
+    // The logical length of this region, so for a .reserve keyword
+    // there might not actually be any data to 
+    uint16_t length;
+    uint16_t data_length;
+    uint8_t* data;
+    bool executable;
+};
+
+struct assembler_data_t
 {
     const char **search_paths = nullptr;
     std::vector<assembled_region_t*> regions{};
     assembled_region_t *current_region = nullptr;
     symbol_table_t *symbol_table = nullptr;
     int lineNumber = 0;
-    const char *current_filename = nullptr;
+    std::vector<std::string> filename_stack{};
     std::vector<char*> files_to_process{};
     std::vector<assembler_error_t> errors{};
     char * error_buffer = nullptr;
@@ -26,267 +39,24 @@ typedef struct _assembler_data
     bool current_org_address_valid = false;
     std::string output_filename{};
     rc_assembler::assembler_grammar<std::string::iterator> parser;
-} assembler_data_t;
-
-void add_data(assembler_data_t *data, const std::string &name, const rc_assembler::byte_array &bytes);
+};
 
 char *error_buffer = new char[ERROR_BUFFER_SIZE + 1];
 char temp_buffer[ERROR_BUFFER_SIZE + 1];
 assembler_data_t *assembler_data;
-const char *current_filename;
 int *lineNumber;
 
 namespace
 {
     const uint16_t MIN_INSTRUCTION_ALLOC_SIZE = 0x100;
 
-    class instruction_argument_visitor : public boost::static_visitor<>
-    {
-    public:
-        instruction_argument_visitor(const opcode_entry_t *opcode) : opcode(opcode) {}
-
-        void operator()(const register_index_t &register_index)
-        {
-            handle_indexed_instruction(assembler_data, opcode, register_index);
-        }
-
-        void operator()(const uint8_t &value)
-        {
-            handle_instruction(assembler_data, opcode, nullptr, value);
-        }
-
-        void operator()(const uint16_t &value)
-        {
-            handle_instruction(assembler_data, opcode, nullptr, value);
-        }
-
-        void operator()(const int &value)
-        {
-            if (opcode->arg_byte_count == 1 && (value < -128 || value > 255))
-            {
-                // error! out of bounds
-                return;
-            }
-            else if (opcode->arg_byte_count == 2 && (value < -32768 || value > 65535))
-            {
-                // error! out of bounds
-                return;
-            }
-
-            handle_instruction(assembler_data, opcode, nullptr, value);
-        }
-
-        void operator()(const rc_assembler::symbol &symbol)
-        {
-            handle_instruction(assembler_data, opcode, symbol.c_str(), 0);
-        }
-
-    private:
-        const opcode_entry_t *opcode;
-    };
-
-    class assembly_line_visitor : public boost::static_visitor<>
-    {
-    public:
-        void operator()(const rc_assembler::instruction_line &instruction)
-        {
-            if (verify_data_def_safe())
-            {
-                if (instruction.opcode != nullptr)
-                {
-                    if (instruction.argument)
-                    {
-                        if (instruction.opcode->arg_byte_count == 0)
-                        {
-                            // error! oh noes!
-                        }
-                        else
-                        {
-                            instruction_argument_visitor visitor(instruction.opcode);
-                            boost::apply_visitor(visitor, instruction.argument.value());
-                        }
-                    }
-                    else if (instruction.opcode->arg_byte_count > 0)
-                    {
-                        // error! the instruction requires an argument, but none is provided!
-                        return;
-                    }
-                    else
-                    {
-                        handle_instruction(assembler_data, instruction.opcode, nullptr, 0);
-                    }
-                }
-                else
-                {
-                    std::cout << "instruction without opcode?!" << std::endl;
-                }
-            }
-        }
-
-        void operator()(const rc_assembler::reservation &reservation)
-        {
-            if (verify_data_def_safe())
-            {
-                reserve_data(assembler_data, reservation.symbol.c_str(), reservation.size);
-            }
-        }
-
-        void operator()(const rc_assembler::byte_def &byte)
-        {
-            if (verify_data_def_safe())
-            {
-                handle_symbol_def(assembler_data, byte.symbol.c_str(), byte.value, SYMBOL_BYTE);
-            }
-        }
-
-        void operator()(const rc_assembler::word_def &word)
-        {
-            if (verify_data_def_safe())
-            {
-                handle_symbol_def(assembler_data, word.symbol.c_str(), word.value, SYMBOL_WORD);
-            }
-        }
-
-        void operator()(const rc_assembler::data_def &def)
-        {
-            begin_data_def(def);
-        }
-
-        void operator()(const rc_assembler::byte_array &bytes)
-        {
-            // There should already be a data definition in progress
-            add_to_current_data_def(bytes);
-        }
-
-        void operator()(const rc_assembler::end_data_def &end_data)
-        {
-            // Close out the current data definition
-            end_current_data_def();
-        }
-
-        void operator()(const std::string &line_content)
-        {
-        }
-
-        void operator()(const rc_assembler::org_def &def)
-        {
-            if (verify_data_def_safe())
-            {
-                handle_org_directive(assembler_data, def.location);
-            }
-        }
-
-        void operator()(const rc_assembler::label_def &def)
-        {
-            if (verify_data_def_safe())
-            {
-                handle_symbol_def(assembler_data, def.label_name.c_str(), 0, SYMBOL_ADDRESS_INST);
-            }
-        }
-
-        void operator()(const rc_assembler::include &def)
-        {
-            if (verify_data_def_safe())
-            {
-                std::string string(def.included_file.begin(), def.included_file.end());
-                add_file_to_process(assembler_data, string.c_str());
-            }
-        }
-
-        void reset()
-        {
-            if (current_state != state::normal)
-            {
-                // error!
-                return;
-            }
-
-
-        }
-
-    private:
-        enum class state
-        {
-            normal,
-            data_def_in_progress,
-        };
-
-    private:
-        // Call from non-data handlers to verify that no data definitions are in progress
-        bool verify_data_def_safe()
-        {
-            if (current_state != state::data_def_in_progress)
-            {
-                return true;
-            }
-            else if (data_on_multiple_lines)
-            {
-                return false;
-            }
-            else
-            {
-                end_current_data_def();
-                return true;
-            }
-        }
-
-        void begin_data_def(const rc_assembler::data_def &data)
-        {
-            verify_data_def_safe();
-
-            if (current_state != state::normal)
-            {
-                // error!
-                return;
-            }
-
-            current_state = state::data_def_in_progress;
-            data_on_multiple_lines = false;
-            current_data_name = (data.symbol) ? data.symbol.value() : "";
-            current_data_bytes = data.bytes;
-        }
-
-        void add_to_current_data_def(const rc_assembler::byte_array &bytes)
-        {
-            if (current_state != state::data_def_in_progress)
-            {
-                // error!
-                return;
-            }
-
-            current_data_bytes.insert(current_data_bytes.end(), bytes.begin(), bytes.end());
-            data_on_multiple_lines = true;
-        }
-
-        void end_current_data_def()
-        {
-            if (current_state != state::data_def_in_progress)
-            {
-                // error!
-                return;
-            }
-
-            if (current_data_bytes.size() == 0)
-            {
-                current_data_bytes.push_back(0);
-            }
-
-            add_data(assembler_data, current_data_name, current_data_bytes);
-
-            current_data_bytes.clear();
-            current_data_name = "";
-            current_state = state::normal;
-        }
-
-    private:
-        std::vector<char> current_data_bytes{};
-        std::string current_data_name{};
-        state current_state = state::normal;
-        bool data_on_multiple_lines = false;
-    };
-
-    assembly_line_visitor visitor{};
+    assembly_line_visitor *visitor = nullptr;
 } // namespace
+
+std::string current_filename(assembler_data_t* data)
+{
+    return data->filename_stack.back();
+}
 
 uint16_t executable_file_size(assembler_data_t *data)
 {
@@ -308,7 +78,7 @@ uint16_t executable_file_size(assembler_data_t *data)
     return file_size;
 }
 
-assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buffer)
+assembler_status prepare_executable_file(assembler_data_t *data, uint8_t *buffer)
 {
     uint16_t file_size = executable_file_size(data);
     std::vector<assembled_region_t*> included_segments;
@@ -323,7 +93,7 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
 
     if (file_size == 0 || included_segments.size() == 0)
     {
-        return ASSEMBLER_NOOUTPUT;
+        return assembler_status::NOOUTPUT;
     }
 
     uint16_t buffer_index = 0;
@@ -353,19 +123,19 @@ assembler_status_t prepare_executable_file(assembler_data_t *data, uint8_t *buff
 
     //printf("\n");
 
-    return ASSEMBLER_SUCCESS;
+    return assembler_status::SUCCESS;
 }
 
-assembler_status_t get_starting_executable_address(assembler_data_t *data, uint16_t *address)
+assembler_status get_starting_executable_address(assembler_data_t *data, uint16_t *address)
 {
     *address = 0;
     if (data->execution_start.has_value())
     {
         *address = data->execution_start.value();
-        return ASSEMBLER_SUCCESS;
+        return assembler_status::SUCCESS;
     }
 
-    return ASSEMBLER_UNINITIALIZED_VALUE;
+    return assembler_status::UNINITIALIZED_VALUE;
 }
 
 int get_error_buffer_size(assembler_data_t *data)
@@ -474,7 +244,7 @@ assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, boo
         else
         {
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "No space to place a region at 0x%04x of %d size", base_address, size);
-            add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+            add_error(data, temp_buffer, assembler_status::NO_FREE_ADDRESS_RANGE);
         }
     }
     else
@@ -497,7 +267,7 @@ assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, boo
         else
         {
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't find a suitable address to place a region of %d size", size);
-            add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+            add_error(data, temp_buffer, assembler_status::NO_FREE_ADDRESS_RANGE);
         }
     }
 
@@ -512,7 +282,7 @@ assembled_region_t *create_new_region(assembler_data_t *data, uint16_t size, boo
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "No available space for data of size %d", size);
         }
         
-        add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+        add_error(data, temp_buffer, assembler_status::NO_FREE_ADDRESS_RANGE);
     }
     else
     {
@@ -581,20 +351,6 @@ uint16_t extend_region(assembler_data_t *data, assembled_region_t *region, uint1
     return extended_by;
 }
 
-byte_array_t add_to_byte_array(byte_array_t array, uint8_t value)
-{
-    auto old_array = array.array;
-    auto old_size = array.size;
-    array.array = new uint8_t[(size_t)array.size + 1];
-    memcpy(array.array, old_array, array.size);
-    array.array[array.size++] = value;
-    if (old_size > 0 && old_array != nullptr)
-    {
-        delete [] old_array;
-    }
-    return array;
-}
-
 void add_file_to_process(assembler_data_t *data, const char *filename)
 {
     char *new_file = new char[LINE_BUFFER_SIZE + 1];
@@ -620,46 +376,6 @@ void add_data(assembler_data_t *data, const std::string &name, const rc_assemble
     memcpy(region->data, bytes.data(), bytes.size());
 }
 
-void add_data(assembler_data_t *data, const char *name, byte_array_t array)
-{
-    assembled_region_t *region = create_new_region(data, array.size, true);
-
-    if (region == nullptr)
-    {
-        return;
-    }
-
-    if (name != nullptr)
-    {
-        handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
-    }
-
-    memcpy(region->data, array.array, array.size);
-
-    array.size = 0;
-    delete [] array.array;
-    array.array = nullptr;
-}
-
-void add_string_to_data(assembler_data_t *data, const char *name, const char *string)
-{
-    uint16_t string_size = strlen(string);
-    assembled_region_t *region = create_new_region(data, string_size + 1, true);
-
-    if (region == nullptr)
-    {
-        return;
-    }
-
-    if (name != nullptr)
-    {
-        handle_symbol_def(data, name, region->start_location, SYMBOL_ADDRESS_DATA);
-    }
-
-    memcpy(region->data, string, strlen(string));
-    region->data[strlen(string)] = 0;
-}
-
 void reserve_data(assembler_data_t* data, const char* name, uint16_t size)
 {
     assembled_region_t *region = create_new_region(data, size, false);
@@ -673,7 +389,7 @@ void parse_assembly_line(assembler_data_t *data, std::string& line)
     {
         if (lineData.line_options.has_value())
         {
-            boost::apply_visitor(visitor, lineData.line_options.value());
+            boost::apply_visitor(*visitor, lineData.line_options.value());
         }
 
         if (lineData.comment.has_value())
@@ -681,13 +397,16 @@ void parse_assembly_line(assembler_data_t *data, std::string& line)
             // found a comment. yay
         }
     }
+    else
+    {
+        add_error(data, std::string("Unrecognized line: ") + line, assembler_status::SYNTAX_ERROR);
+    }
 }
 
 void handle_file(assembler_data_t *data, const char *filename)
 {
-    auto old_filename = data->current_filename;
     auto old_line_number = data->lineNumber;
-    data->current_filename = filename;
+    data->filename_stack.push_back(filename);
 
     FILE *file = fopen(filename, "r");
 
@@ -756,7 +475,7 @@ void handle_file(assembler_data_t *data, const char *filename)
             {
                 // Deal with this case
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Line %d is too long", lineNumber);
-                add_error(data, temp_buffer, ASSEMBLER_INPUT_ERROR);
+                add_error(data, temp_buffer, assembler_status::INPUT_ERROR);
             }
             else
             {
@@ -767,7 +486,7 @@ void handle_file(assembler_data_t *data, const char *filename)
         if (currentChar == EOF && ferror(file) != 0)
         {
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "File read error (%s - %d)", filename, ferror(file));
-            add_error(data, temp_buffer, ASSEMBLER_IO_ERROR);
+            add_error(data, temp_buffer, assembler_status::IO_ERROR);
         }
 
         fclose(file);
@@ -776,11 +495,10 @@ void handle_file(assembler_data_t *data, const char *filename)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to open file (%s)", filename);
         fprintf(stderr, "%s\n", temp_buffer);
-        add_error(data, temp_buffer, ASSEMBLER_IO_ERROR);
+        add_error(data, temp_buffer, assembler_status::IO_ERROR);
     }
 
-    data->lineNumber = old_line_number;
-    data->current_filename = old_filename;
+    data->filename_stack.pop_back();
 }
 
 int get_current_instruction_address(assembler_data_t *data)
@@ -801,7 +519,7 @@ int get_current_instruction_address(assembler_data_t *data)
             else
             {
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Memory at address 0x%04x is not executable - overlaps with data region starting at 0x%04x", address, data->current_region->start_location);
-                add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+                add_error(data, temp_buffer, assembler_status::INTERNAL_ERROR);
                 return -1;
             }
         }
@@ -811,7 +529,7 @@ int get_current_instruction_address(assembler_data_t *data)
             if (extended_by_bytes < 2)
             {
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't extend region at 0x%04x to accommodate new instructions", address);
-                add_error(data, temp_buffer, ASSEMBLER_NO_FREE_ADDRESS_RANGE);
+                add_error(data, temp_buffer, assembler_status::NO_FREE_ADDRESS_RANGE);
                 return -1;
             }
             else
@@ -846,7 +564,7 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
     if (region == nullptr)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Failed to find a region containing a symbol reference (should be at 0x%04x)", ref_location);
-        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+        add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
         return;
     }
 
@@ -861,7 +579,7 @@ void symbol_resolution_callback(void *context, uint16_t ref_location, symbol_typ
         if (address_offset > 127 || address_offset < -128)
         {
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", ref_location, word_value.uword);
-            add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+            add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
             return;
         }
         else
@@ -914,17 +632,18 @@ void handle_symbol_def(assembler_data_t *data, const char *name, int value, symb
     if (sym_err == SYMBOL_ERROR_ALLOC_FAILED)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Couldn't allocate space for a symbol named %s", name);
-        add_error(data, temp_buffer, ASSEMBLER_ALLOC_FAILED);
+        add_error(data, temp_buffer, assembler_status::ALLOC_FAILED);
     }
     else if (sym_err == SYMBOL_ERROR_EXISTS)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to redefine a symbol named %s", name);
-        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+        add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
+        output_symbols(stderr, data->symbol_table);
     }
     else if (sym_err == SYMBOL_ERROR_INTERNAL)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Internal error trying to define a symbol named %s", name);
-        add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+        add_error(data, temp_buffer, assembler_status::INTERNAL_ERROR);
     }
 }
 
@@ -992,7 +711,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
     if (current_instruction_address < 0 || data->current_region == nullptr)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Not able to locate or allocate new instruction memory");
-        add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+        add_error(data, temp_buffer, assembler_status::INTERNAL_ERROR);
         return;
     }
 
@@ -1002,12 +721,12 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
     if (opcode->access_mode == STACK_ONLY && (symbol_arg != nullptr || literal_arg != 0))
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Stack-only instruction %s cannot take parameters", opcode->name);
-        add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
+        add_error(data, temp_buffer, assembler_status::INVALID_ARGUMENT);
     }
     else if (opcode->access_mode == REGISTER_INDEXED)
     {
         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Register indexed instruction %s cannot be handled through this function", opcode->name);
-        add_error(data, temp_buffer, ASSEMBLER_INVALID_ARGUMENT);
+        add_error(data, temp_buffer, assembler_status::INVALID_ARGUMENT);
     }
     else if (symbol_arg)
     {
@@ -1039,7 +758,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
             if (add_ref_result != SYMBOL_REFERENCE_RESOLVABLE && add_ref_result != SYMBOL_REFERENCE_SUCCESS)
             {
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error trying to add a reference to symbol %s", symbol_arg);
-                add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
             }
             data->symbol_references_count++;
         }
@@ -1065,7 +784,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
                     if (address_offset > 127 || address_offset < -128)
                     {
                         snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Tried to branch too far (from 0x%04x to 0x%04x)", current_instruction_address, word_value);
-                        add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                        add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
                         return;
                     }
                     else
@@ -1083,7 +802,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
 
             case SYMBOL_NO_TYPE:
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error resolving symbol %s", symbol_arg);
-                add_error(data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                add_error(data, temp_buffer, assembler_status::SYMBOL_ERROR);
                 break;
             }
         }
@@ -1101,7 +820,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
             else
             {
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Error handling opcode %s, which references %s", opcode->name, symbol_arg);
-                add_error(data, temp_buffer, ASSEMBLER_INTERNAL_ERROR);
+                add_error(data, temp_buffer, assembler_status::INTERNAL_ERROR);
             }
         }
     }
@@ -1129,7 +848,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
             || (opcode->argument_type == SYMBOL_BYTE && (literal_arg > 255 || literal_arg < -128)))
         {
             snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Opcode %s cannot accommodate a value of %d", opcode->name, literal_arg);
-            add_error(data, temp_buffer, ASSEMBLER_VALUE_OOB);
+            add_error(data, temp_buffer, assembler_status::VALUE_OOB);
         }
         else if (opcode->argument_type == SYMBOL_WORD)
         {
@@ -1139,7 +858,7 @@ void handle_instruction(assembler_data_t *data, const opcode_entry_t *opcode, co
             }
 
             uint16_t literal = literal_arg;
-            machine_word_t word;
+            machine_word_t word{};
             word.uword = literal;
 
             apply_machine_instruction(data, opcode->opcode, opcode, word.bytes[1], word.bytes[0]);
@@ -1175,27 +894,40 @@ void handle_indexed_instruction(assembler_data_t *data, const opcode_entry_t *op
     apply_machine_instruction(data, opcode_value, opcode, increment_byte);
 }
 
-void add_error(assembler_data_t *data, const char *error_string, assembler_status_t status)
+void add_error(assembler_data_t* data, std::string&error_string, assembler_status status, const char* filename)
 {
-    assembler_error_t error;
-    error.status = status;
-    error.line_number = data->lineNumber;
-    error.error_start = data->error_buffer_size;
-    int length = snprintf(&data->error_buffer[error.error_start], (size_t)ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", data->current_filename, data->lineNumber, error_string);
+    add_error(data, error_string.c_str(), status, filename);
+}
+
+void add_error(assembler_data_t *data, const char *error_string, assembler_status status, const char *filename)
+{
+    assembler_error_t error
+    {
+        status,
+        data->error_buffer_size,
+        data->lineNumber
+    };
+
+    if (filename == nullptr)
+    {
+        filename = data->filename_stack.back().c_str();
+    }
+
+    int length = snprintf(&data->error_buffer[error.error_start], (size_t)ERROR_BUFFER_SIZE - data->error_buffer_size, "%s:%d - %s\n", filename, data->lineNumber, error_string);
     data->errors.push_back(error);
     data->error_buffer_size += length;
 }
 
-assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_t *buffer)
+assembler_status apply_assembled_data_to_buffer(assembler_data_t *data, uint8_t *buffer)
 {
     if (data->regions.size() == 0)
     {
-        return ASSEMBLER_NOOUTPUT;
+        return assembler_status::NOOUTPUT;
     }
 
     if (!data->execution_start.has_value())
     {
-        return ASSEMBLER_UNINITIALIZED_VALUE;
+        return assembler_status::UNINITIALIZED_VALUE;
     }
 
     for (auto region : data->regions)
@@ -1204,11 +936,11 @@ assembler_status_t apply_assembled_data_to_buffer(assembler_data_t *data, uint8_
         memcpy(region_start, region->data, region->data_length);
     }
 
-    return ASSEMBLER_SUCCESS;
+    return assembler_status::SUCCESS;
 }
 
 assembler_data_t data;
-void assemble(const char *filename, const char **search_paths, const char *output_file, OutputFileType outFileType, assembler_data_t **assembled_data)
+void assemble(const char *filename, const char **search_paths, const char *output_file, assembler_output_type out_file_type, assembler_data_t **assembled_data)
 {
     data.search_paths = search_paths;
     data.lineNumber = 0;
@@ -1221,23 +953,23 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
     data.error_buffer = error_buffer;
     data.error_buffer_size = 0;
     *assembled_data = assembler_data;
+    visitor = new assembly_line_visitor(assembler_data);
 
-    current_filename = assembler_data->current_filename;
     lineNumber = &assembler_data->lineNumber;
 
     if (create_symbol_table(&data.symbol_table) != SYMBOL_TABLE_NOERROR)
     {
-        add_error(&data, "Failed to create the symbol table", ASSEMBLER_ALLOC_FAILED);
+        add_error(&data, "Failed to create the symbol table", assembler_status::ALLOC_FAILED);
         return;
     }
 
     handle_file(&data, filename);
 
-    visitor.reset();
+    delete visitor;
+    visitor = nullptr;
 
     if (data.symbol_references_count > 0)
     {
-        data.current_filename = filename;
         char **symbol_buffers = new char*[data.symbol_references_count];
 
         for (int i = 0; i < data.symbol_references_count; i++)
@@ -1253,7 +985,7 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
             for (int i = 0; i < symbol_count; i++)
             {
                 snprintf(temp_buffer, ERROR_BUFFER_SIZE, "Unresolved symbol %s", symbol_buffers[i]);
-                add_error(&data, temp_buffer, ASSEMBLER_SYMBOL_ERROR);
+                add_error(&data, temp_buffer, assembler_status::SYMBOL_ERROR, filename);
             }
         }
 
@@ -1270,19 +1002,19 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
         return;
     }
 
-    if (outFileType != None && outFileType != Error)
+    if (out_file_type != assembler_output_type::none && out_file_type != assembler_output_type::error)
     {
         std::string output_filename{};
         if (output_file == nullptr)
         {
             std::filesystem::path infilepath(filename);
-            switch (outFileType)
+            switch (out_file_type)
             {
-            case Binary:
+            case assembler_output_type::binary:
                 output_filename = infilepath.stem().string() + ".rcexe";
                 break;
 
-            case Summary:
+            case assembler_output_type::summary:
             default:
                 output_filename = infilepath.stem().string() + ".txt";
                 break;
@@ -1301,7 +1033,7 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
 #endif
         if (assembled_output != 0)
         {
-            if (outFileType == Summary)
+            if (out_file_type == assembler_output_type::summary)
             {    
                 fprintf(assembled_output, "Execution start: 0x%04x\n", data.execution_start.value());
 
@@ -1357,12 +1089,12 @@ void assemble(const char *filename, const char **search_paths, const char *outpu
                 fprintf(assembled_output, "\nSymbols:\n");
                 output_symbols(assembled_output, data.symbol_table);
             }
-            else if (outFileType == Binary)
+            else if (out_file_type == assembler_output_type::binary)
             {
                 auto file_size = executable_file_size(&data);
                 std::unique_ptr<uint8_t[]> file_buffer(new uint8_t[file_size]);
                 auto result = prepare_executable_file(&data, file_buffer.get());
-                if (result == ASSEMBLER_SUCCESS)
+                if (result == assembler_status::SUCCESS)
                 {
                     fwrite(file_buffer.get(), 1, file_size, assembled_output);
                 }
