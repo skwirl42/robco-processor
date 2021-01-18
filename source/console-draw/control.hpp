@@ -13,7 +13,7 @@
 class control : public focusable, public drawable
 {
 public:
-    control(int id, bool focused, bool visible, rect& bounds) : id(id), visible(visible), focusable(focused), drawable(bounds) {}
+    control(int id, bool focused, bool visible, const rect& bounds) : id(id), visible(visible), focusable(focused), drawable(bounds) {}
     virtual ~control() {}
 
     virtual bool wants_keys() const = 0;

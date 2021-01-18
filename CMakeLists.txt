@@ -1,15 +1,13 @@
 cmake_minimum_required(VERSION 3.15.0)
 project(robcoterm VERSION 0.1.0)
 
-include(CTest)
-enable_testing()
-
 set(CMAKE_CXX_STANDARD 17)
 
-if (MSVC) # Wanted to use WSL, but it was causing issues - so GnuWin32
+find_package(SDL2 CONFIG REQUIRED)
+
+if (MSVC)
 set(BOOST_ROOT D:/boost_1_73_0)
 
-find_package(SDL2 CONFIG REQUIRED)
 find_package(sdl2-image CONFIG REQUIRED)
 
 # Going to need to include specific boost libraries
@@ -100,26 +98,26 @@ target_link_directories(sound_test PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(sound_keyboard PUBLIC ${Boost_LIBRARY_DIRS})
 
 if (APPLE)
-    find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
-    find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
+#    find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
+#    find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
 
-    target_link_directories(assembler PUBLIC /usr/local/homebrew/lib)
+    target_link_directories(assembler PUBLIC /opt/homebrew/lib)
     target_link_libraries(assembler stdc++ ${Boost_LIBRARIES})
-    target_include_directories(assembler PUBLIC /usr/local/homebrew/include)
+    target_include_directories(assembler PUBLIC /opt/homebrew/include)
 
-    target_link_directories(robcoterm PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(robcoterm stdc++ "-F /Library/Frameworks" "-framework SDL2" "-framework SDL2_image" ${Boost_LIBRARIES})
-    target_include_directories(robcoterm PUBLIC ${SDL2_IMAGE_INCLUDE_DIR} ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+    target_link_directories(robcoterm PUBLIC /opt/homebrew/lib)
+    target_link_libraries(robcoterm stdc++ "-lSDL2" "-lSDL2_image" ${Boost_LIBRARIES})
+    target_include_directories(robcoterm PUBLIC /opt/homebrew/include)
 
     target_link_libraries(tapemanager stdc++ ${Boost_LIBRARIES})
 
-    target_link_directories(sound_test PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(sound_test stdc++ "-F /Library/Frameworks" "-framework SDL2" ${Boost_LIBRARIES})
-    target_include_directories(sound_test PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+    target_link_directories(sound_test PUBLIC /opt/homebrew/lib)
+    target_link_libraries(sound_test stdc++ "-lSDL2" "-lSDL2_image" ${Boost_LIBRARIES})
+    target_include_directories(sound_test PUBLIC ${SDL2_INCLUDE_DIR} /opt/homebrew/include)
 
-    target_link_directories(sound_keyboard PUBLIC /usr/local/homebrew/lib)
-    target_link_libraries(sound_keyboard stdc++ "-F /Library/Frameworks" "-framework SDL2" ${Boost_LIBRARIES})
-    target_include_directories(sound_keyboard PUBLIC ${SDL2_INCLUDE_DIR} /usr/local/homebrew/include)
+    target_link_directories(sound_keyboard PUBLIC /opt/homebrew/lib)
+    target_link_libraries(sound_keyboard stdc++ "-lSDL2" "-lSDL2_image" ${Boost_LIBRARIES})
+    target_include_directories(sound_keyboard PUBLIC ${SDL2_INCLUDE_DIR} /opt/homebrew/include)
 
     set (CMAKE_CXX_FLAGS "-std=c++17 -DAPPLE")
 endif (APPLE)
@@ -138,7 +136,3 @@ if (MSVC)
 
     target_link_libraries(sound_keyboard PRIVATE SDL2::SDL2 SDL2::SDL2main SDL2::SDL2_image ${Boost_LIBRARIES})
 endif ()
-
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)

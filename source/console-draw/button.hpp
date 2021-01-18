@@ -9,7 +9,7 @@
 class button : public control
 {
 public:
-    button(const char *text, button_handler handler, int id, rect& bounds, bool focused);
+    button(const char *text, button_handler handler, int id, const rect& bounds, bool focused);
 
     virtual void draw(drawer *drawer);
 

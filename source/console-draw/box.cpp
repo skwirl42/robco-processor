@@ -1,6 +1,6 @@
 #include "box.hpp"
 
-box::box(int id, box_type type, fill_mode fill, rect& bounds, char fill_char)
+box::box(int id, box_type type, fill_mode fill, const rect& bounds, char fill_char)
     : type(type), fill(fill), id(id), fill_char(fill_char), drawable(bounds)
 {
 

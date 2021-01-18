@@ -6,7 +6,7 @@
 class drawable
 {
 public:
-    drawable(rect&bounds) : bounds(bounds) {}
+    drawable(const rect& bounds) : bounds(bounds) {}
 
     virtual void draw(drawer *drawer) = 0;
 

@@ -166,7 +166,7 @@ void console_drawer::draw_controls()
     }
 }
 
-void console_drawer::draw_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
+void console_drawer::draw_box(box_type type, fill_mode fill, const rect& bounds, char fill_char)
 {
     target_console.SetCurrentAttribute(CharacterAttribute::None);
     int right_edge = bounds.x + bounds.width - 1;
@@ -250,7 +250,7 @@ void console_drawer::draw_box(box_type type, fill_mode fill, rect& bounds, char 
     }
 }
 
-void console_drawer::set_rect(char set_char, rect& bounds)
+void console_drawer::set_rect(char set_char, const rect& bounds)
 {
     if (bounds.x > width || bounds.y > height)
     {
@@ -259,16 +259,17 @@ void console_drawer::set_rect(char set_char, rect& bounds)
 
     target_console.SetCurrentAttribute(CharacterAttribute::None);
 
-    if (bounds.x < 0)
+    rect bounds_rect = bounds;
+    if (bounds_rect.x < 0)
     {
-        bounds.width += bounds.x;
-        bounds.x = 0;
+        bounds_rect.width += bounds.x;
+        bounds_rect.x = 0;
     }
 
     if (bounds.y < 0)
     {
-        bounds.height += bounds.y;
-        bounds.y = 0;
+        bounds_rect.height += bounds.y;
+        bounds_rect.y = 0;
     }
 
     auto right_side = bounds.x + min(width, bounds.width);
@@ -313,7 +314,7 @@ int console_drawer::add_control(control *new_control)
     return next_control_id++;
 }
 
-int console_drawer::define_button(const char *text, rect& bounds, button_handler handler)
+int console_drawer::define_button(const char *text, const rect& bounds, button_handler handler)
 {
     return add_control(new button(text, handler, next_control_id, bounds, false));
 }
@@ -364,7 +365,7 @@ void console_drawer::remove_control_by_id(int id)
     }
 }
 
-int console_drawer::add_box(box_type type, fill_mode fill, rect& bounds, char fill_char)
+int console_drawer::add_box(box_type type, fill_mode fill, const rect& bounds, char fill_char)
 {
     auto box_id = next_box_id++;
     boxes.push_back(box(box_id, type, fill, bounds, fill_char));

@@ -5,7 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/source/**",
                 "/Library/Frameworks",
-                "/usr/local/homebrew/include"
+                "/opt/homebrew/include"
             ],
             "defines": [],
             "macFrameworkPath": [
@@ -15,7 +15,7 @@
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "clang-x64",
+            "intelliSenseMode": "clang-arm64",
             "compilerArgs": [],
             "configurationProvider": "ms-vscode.cmake-tools"
         },
