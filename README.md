@@ -5,7 +5,7 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 
 ## Platforms:
 - macOS 10.15+ with dev tools installed
-  * Install SDL2 and SLD2_image to /Library/Frameworks in any way you choose
+  * SDL2, SDL2_image, and boost are easily installed using brew.sh
 - Windows with Visual Studio installed
   * note: you'll need to add boost, SDL2 and SLD2_image using vcpkg
 - Could probably be easily ported to other platforms/versions, as code is straight C/C++ and SDL2
