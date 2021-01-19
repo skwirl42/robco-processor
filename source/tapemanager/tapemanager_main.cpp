@@ -16,6 +16,7 @@ enum class TapeCommand
     None,
     Error,
     Append,
+    EraseAndAppend,
     Erase,
     Extract,
     List,
@@ -25,10 +26,11 @@ namespace
 {
     std::map<std::string, TapeCommand> commands =
     {
-        { "append",     TapeCommand::Append },
-        { "erase",      TapeCommand::Erase },
-        { "extract",    TapeCommand::Extract },
-        { "list",       TapeCommand::List },
+        { "append",         TapeCommand::Append },
+        { "erase-append",   TapeCommand::EraseAndAppend },
+        { "erase",          TapeCommand::Erase },
+        { "extract",        TapeCommand::Extract },
+        { "list",           TapeCommand::List },
     };
 }
 
@@ -49,7 +51,7 @@ int main(int argc, char **argv)
         ("command,K", po::value<std::string>()->required(), "command to execute")
         ("tape,T", po::value<std::string>()->required(), "tape to manage")
         ("file,F", po::value<std::vector<std::string>>(&paths), "files to append")
-        ("outdir,O", po::value<std::filesystem::path>(&extract_directory), "directory to extract tape contents to")
+//        ("outdir,O", po::value<std::filesystem::path>(&extract_directory), "directory to extract tape contents to")
         ;
 
     try
@@ -87,6 +89,8 @@ int main(int argc, char **argv)
 
         switch (command)
         {
+        case TapeCommand::EraseAndAppend:
+            wrapper.erase();
         case TapeCommand::Append:
             if (paths.empty())
             {
@@ -97,6 +101,7 @@ int main(int argc, char **argv)
 
             for (auto& filename : paths)
             {
+                std::cout << "Appending " << filename << std::endl;
                 wrapper.append_file(filename.c_str());
             }
             break;

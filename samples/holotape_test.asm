@@ -38,11 +38,12 @@ read_success:
 	addw
 	pullx
 prepare_filename_loop:
-	push [x+]							; push the current character of the string
-	dup									; dup it
-	pull [dp+]							; pull the character into the copied string
-	pushdp								; push the value of DP
-	pushi HOLO_FILENAME_SIZE			; is it at the end of the string's max length?
+	push [x+]								; push the current character of the string
+	dup										; dup it
+	pull [dp+]								; pull the character into the copied string
+	pushdp									; push the value of DP
+	pushiw sizeof(holotape_block.filename)	; is it at the end of the string's max length?
+	pop										; drop the MSB
 	cmp
 	beq print_filename
 	pushi 0								; the current character will be on the stack
