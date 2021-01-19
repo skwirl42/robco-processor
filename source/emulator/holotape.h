@@ -39,7 +39,8 @@ typedef struct _holotape_state holotape_state_t;
 typedef struct _holotape_block
 {
     emulator_word_t block_bytes;
-    emulator_word_t remaining_blocks_in_file;
+    uint8_t remaining_blocks_in_file;
+    uint8_t next_block;
     char filename[HOLOTAPE_FILE_NAME_MAX];
     uint8_t bytes[HOLOTAPE_STRUCTURE_BYTE_COUNT];
 } holotape_block_t;
@@ -67,11 +68,12 @@ holotape_status_t holotape_eject(holotape_deck_t *deck);
 holotape_status_t holotape_insert(holotape_deck_t *deck, const char *tape_filename);
 holotape_status_t holotape_rewind(holotape_deck_t *deck);
 holotape_status_t holotape_rewind_block(holotape_deck_t *deck);
-holotape_status_t holotape_seek(holotape_deck_t *deck, uint16_t seek_blocks);
+holotape_status_t holotape_seek(holotape_deck_t *deck, uint8_t target_block);
 holotape_status_t holotape_read(holotape_deck_t *deck);
 holotape_status_t holotape_write(holotape_deck_t *deck);
 holotape_status_t holotape_find(holotape_deck_t *deck, const char *holo_filename);
 holotape_status_t holotape_execute(holotape_deck_t *deck);
+holotape_status_t holotape_get_current_block(holotape_deck_t *deck, uint8_t *out_block);
 
 #ifdef __cplusplus
 }

@@ -98,6 +98,8 @@ parser_state struct_def_handler::end(parser_state state)
 		{
 			auto member_name = name + "." + member.symbol;
 			handle_symbol_def(data, member_name.c_str(), current_offset, SYMBOL_WORD);
+			auto sizeofname = "sizeof(" + member_name + ")";
+			handle_symbol_def(data, sizeofname.c_str(), member.size, SYMBOL_WORD);
 			current_offset += member.size;
 		}
 

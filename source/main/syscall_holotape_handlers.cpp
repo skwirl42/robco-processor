@@ -39,7 +39,8 @@ void handle_holotape_execute(emulator &emulator)
         return;
     }
 
-    int block_count = current_deck->block_buffer.block_structure.remaining_blocks_in_file.word;
+    int block_count = current_deck->block_buffer.block_structure.remaining_blocks_in_file;
+    int next_block = current_deck->block_buffer.block_structure.next_block;
     executable_file_header_t header{};
     memcpy(&header, current_deck->block_buffer.block_structure.bytes, sizeof(executable_file_header_t));
 
@@ -66,6 +67,7 @@ void handle_holotape_execute(emulator &emulator)
 
     while (remaining_length > 0)
     {
+        result = holotape_seek(current_deck, next_block);
         if ((result = holotape_read(current_deck)) != HOLO_NO_ERROR)
         {
             push_byte(&emulator, result);
@@ -83,6 +85,7 @@ void handle_holotape_execute(emulator &emulator)
 
         memcpy(&(executable_file.get()[remaining_length]), current_deck->block_buffer.block_structure.bytes, size_to_read);
 
+        next_block = current_deck->block_buffer.block_structure.next_block;
         remaining_length -= size_to_read;
     }
 

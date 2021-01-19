@@ -121,8 +121,15 @@ void holotape_wrapper::append_file(const char *file_to_append)
         {
             size_t read_size = current_size > HOLOTAPE_STRUCTURE_BYTE_COUNT ? HOLOTAPE_STRUCTURE_BYTE_COUNT : current_size;
             
+            uint8_t current_block = 0;
+            if (holotape_get_current_block(deck, &current_block) != HOLO_NO_ERROR)
+            {
+                
+            }
+            
             deck->block_buffer.block_structure.block_bytes.word = read_size + HOLOTAPE_HEADER_SIZE;
-            deck->block_buffer.block_structure.remaining_blocks_in_file.word = blocks_remaining--;
+            deck->block_buffer.block_structure.remaining_blocks_in_file = blocks_remaining--;
+            deck->block_buffer.block_structure.next_block = (blocks_remaining > 0) ? current_block + 1 : 0;
             auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, read_size, file);
 
             if (size_read == read_size)
@@ -145,7 +152,8 @@ void holotape_wrapper::append_file(const char *file_to_append)
     else
     {
         deck->block_buffer.block_structure.block_bytes.word = current_size + HOLOTAPE_HEADER_SIZE;
-        deck->block_buffer.block_structure.remaining_blocks_in_file.word = 0;
+        deck->block_buffer.block_structure.remaining_blocks_in_file = 0;
+        deck->block_buffer.block_structure.next_block = 0;
         auto size_read = fread(deck->block_buffer.block_structure.bytes, 1, current_size, file);
 
         if (size_read == current_size)
@@ -227,7 +235,7 @@ void holotape_wrapper::list()
         {
             // Print the name of the last block of the file. If multiple files with the same name are found,
             // it'll print those all out
-            if (deck->block_buffer.block_structure.remaining_blocks_in_file.word == 0 && deck->block_buffer.block_structure.filename[0] != 0)
+            if (deck->block_buffer.block_structure.remaining_blocks_in_file == 0 && deck->block_buffer.block_structure.filename[0] != 0)
             {
                 strncpy(name, deck->block_buffer.block_structure.filename, HOLOTAPE_FILE_NAME_MAX);
                 fprintf(stdout, "- %s\n", name);

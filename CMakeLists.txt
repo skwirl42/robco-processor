@@ -18,10 +18,22 @@ find_package (Boost REQUIRED COMPONENTS program_options)
 
 set(CONSOLE_DRAW_SOURCES
     source/console-draw/console_drawer.cpp
+    source/console-draw/console_drawer.hpp
     source/console-draw/button.cpp
+    source/console-draw/button.hpp
     source/console-draw/box.cpp
+    source/console-draw/box.hpp
     source/console-draw/text_field.cpp
+    source/console-draw/text_field.hpp
     source/console-draw/filesystem_viewer.cpp
+    source/console-draw/filesystem_viewer.hpp
+    source/console-draw/control.hpp
+    source/console-draw/drawable.hpp
+    source/console-draw/drawer.hpp
+    source/console-draw/enums.hpp
+    source/console-draw/focusable.hpp
+    source/console-draw/handler_types.hpp
+    source/console-draw/rect.hpp
 )
 
 set(ASSEMBLER_CORE_SOURCES
@@ -46,13 +58,22 @@ add_executable(robcoterm
     source/main/main.cpp
     source/render/Console.cpp
     source/render/ConsoleSDLRenderer.cpp
+    source/render/Console.h
+    source/render/ConsoleSDLRenderer.h
     source/emulator/emulator.c
+    source/emulator/emulator.h
     source/emulator/graphics.c
+    source/emulator/graphics.h
     source/emulator/holotape.c
+    source/emulator/holotape.h
     source/main/syscall_handlers.cpp
+    source/main/syscall_handlers.h
     source/main/syscall_holotape_handlers.cpp
+    source/main/syscall_holotape_handlers.h
     source/main/key_conversion.cpp
+    source/main/key_conversion.h
     source/sound/sound_system.cpp
+    source/sound/sound_system.hpp
     source/include/program_options_helpers.hpp
     )
 
@@ -81,8 +102,10 @@ target_include_directories(assembler PRIVATE
 add_executable(tapemanager
     source/tapemanager/tapemanager_main.cpp
     source/tapemanager/holotape_wrapper.cpp
+    source/tapemanager/holotape_wrapper.hpp
     source/include/program_options_helpers.hpp
     source/emulator/holotape.c
+    source/emulator/holotape.h
 )
 
 target_include_directories(tapemanager PRIVATE 
