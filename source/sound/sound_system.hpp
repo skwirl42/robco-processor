@@ -73,7 +73,6 @@ private:
 	std::chrono::high_resolution_clock::time_point start_time;
 	std::chrono::high_resolution_clock::time_point last_frame_time;
 	std::string device;
-	float* sample_buffer;
 	size_t sample_buffer_size;
 	const char* error;
 	buffer_return_mode return_mode;

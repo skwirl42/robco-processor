@@ -24,8 +24,25 @@ set(CONSOLE_DRAW_SOURCES
     source/console-draw/filesystem_viewer.cpp
 )
 
+set(ASSEMBLER_CORE_SOURCES
+    source/main/opcode_table.c
+    source/assembler/assembler.cpp
+    source/assembler/symbols.c
+    source/assembler/assembler_visitors.cpp
+    source/assembler/assembler.hpp
+    source/assembler/assembler_parser.hpp
+    source/assembler/assembler_visitors.hpp
+    source/assembler/parser_types.hpp
+    source/assembler/symbols.h
+    source/assembler/assembler_internal.hpp
+    source/include/exceptions.hpp
+    source/include/memory.h
+    source/include/opcodes.h
+)
+
 add_executable(robcoterm
-    ${CONSOLE_DRAW_SOURCES} 
+    ${CONSOLE_DRAW_SOURCES}
+    ${ASSEMBLER_CORE_SOURCES}
     source/main/main.cpp
     source/render/Console.cpp
     source/render/ConsoleSDLRenderer.cpp
@@ -35,11 +52,8 @@ add_executable(robcoterm
     source/main/syscall_handlers.cpp
     source/main/syscall_holotape_handlers.cpp
     source/main/key_conversion.cpp
-    source/main/opcode_table.c
-    source/assembler/assembler.cpp
-    source/assembler/symbols.c
     source/sound/sound_system.cpp
-    "source/assembler/assembler_visitors.cpp"
+    source/include/program_options_helpers.hpp
     )
 
 target_include_directories(robcoterm PRIVATE 
@@ -53,11 +67,9 @@ target_include_directories(robcoterm PRIVATE
     ${Boost_INCLUDE_DIRS})
 
 add_executable(assembler
-    source/main/opcode_table.c
-    source/assembler/assembler.cpp
+    ${ASSEMBLER_CORE_SOURCES}
     source/assembler/assembler_main.cpp
-    source/assembler/symbols.c
-    "source/assembler/assembler_visitors.cpp"
+    source/include/program_options_helpers.hpp
     )
 
 target_include_directories(assembler PRIVATE 
@@ -69,7 +81,9 @@ target_include_directories(assembler PRIVATE
 add_executable(tapemanager
     source/tapemanager/tapemanager_main.cpp
     source/tapemanager/holotape_wrapper.cpp
-    source/emulator/holotape.c)
+    source/include/program_options_helpers.hpp
+    source/emulator/holotape.c
+)
 
 target_include_directories(tapemanager PRIVATE 
     source/main
@@ -102,9 +116,6 @@ target_link_directories(sound_test PUBLIC ${Boost_LIBRARY_DIRS})
 target_link_directories(sound_keyboard PUBLIC ${Boost_LIBRARY_DIRS})
 
 if (APPLE)
-#    find_path(SDL2_INCLUDE_DIR SDL2/SDL.h)
-#    find_path(SDL2_IMAGE_INCLUDE_DIR SDL2_image/SDL_image.h)
-
     target_link_directories(assembler PUBLIC /opt/homebrew/lib)
     target_link_libraries(assembler stdc++ ${Boost_LIBRARIES})
     target_include_directories(assembler PUBLIC /opt/homebrew/include)

@@ -274,7 +274,7 @@ private:
         bool return_value = true;
         if ((expected_state != parser_state::data_def_in_progress 
             // The line below this is to handle two, single-line data def statements in a row
-            || expected_state == parser_state::data_def_in_progress && data_handler.can_end_without_end_statement())
+            || (expected_state == parser_state::data_def_in_progress && data_handler.can_end_without_end_statement()))
             && data_handler.is_in_progress())
         {
             if (data_handler.can_end_without_end_statement())

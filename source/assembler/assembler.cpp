@@ -894,7 +894,7 @@ void handle_indexed_instruction(assembler_data_t *data, const opcode_entry_t *op
     apply_machine_instruction(data, opcode_value, opcode, increment_byte);
 }
 
-void add_error(assembler_data_t* data, std::string&error_string, assembler_status status, const char* filename)
+void add_error(assembler_data_t* data, const std::string&error_string, assembler_status status, const char* filename)
 {
     add_error(data, error_string.c_str(), status, filename);
 }

@@ -27,5 +27,5 @@ void handle_indexed_instruction(assembler_data_t *data, const opcode_entry_t *op
 void add_data(assembler_data_t* data, const std::string& name, const rc_assembler::byte_array& bytes);
 void reserve_data(assembler_data_t* data, const char* name, uint16_t size);
 void add_error(assembler_data_t *data, const char *error_string, assembler_status status, const char* filename = nullptr);
-void add_error(assembler_data_t* data, std::string& error_string, assembler_status status, const char* filename = nullptr);
+void add_error(assembler_data_t* data, const std::string& error_string, assembler_status status, const char* filename = nullptr);
 std::string current_filename(assembler_data_t* data);

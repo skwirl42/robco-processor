@@ -66,6 +66,8 @@ bool execute_tape(emulator& rcEmulator, Console&console, std::string tape_path, 
         insert_holotape(tape_path.c_str());
     }
     
+    
+    
     rcEmulator.current_syscall = SYSCALL_EXECUTE;
     handle_current_syscall(rcEmulator, console, nullptr);
     if (rcEmulator.SP > 0)

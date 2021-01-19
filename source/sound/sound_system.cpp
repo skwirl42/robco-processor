@@ -128,7 +128,7 @@ namespace
 sound_system::sound_system(std::string device_name, buffer_return_mode return_mode)
 	: voices{},
 	  command_queue(COMMAND_QUEUE_SIZE), buffer_command_return(COMMAND_QUEUE_SIZE), worker_thread(), 
-	  device_spec{}, device(device_name), sample_buffer(nullptr), error(nullptr),
+	  device_spec{}, device(device_name), error(nullptr),
 	  return_mode(return_mode), device_id(0), initialized(false)
 {
 	auto audio_device_count = SDL_GetNumAudioDevices(0);
@@ -154,7 +154,6 @@ sound_system::sound_system(std::string device_name, buffer_return_mode return_mo
 				voices[i].current_note = note::none;
 			}
 			sample_buffer_size = (static_cast<size_t>(SDL_AUDIO_BITSIZE(device_spec.format) / 8)) * device_spec.samples;
-			sample_buffer = new float[device_spec.samples];
 
 			memset(voices, 0, sizeof(voices));
 
@@ -169,7 +168,7 @@ sound_system::sound_system(std::string device_name, buffer_return_mode return_mo
 
 sound_system::~sound_system()
 {
-	if (worker_thread->joinable())
+	if (worker_thread.get() != nullptr && worker_thread->joinable())
 	{
 		command_queue.push(command{ command_type::exit });
 		worker_thread->join();
@@ -179,8 +178,6 @@ sound_system::~sound_system()
 	{
 		SDL_CloseAudioDevice(device_id);
 	}
-
-	delete[] sample_buffer;
 }
 
 void sound_system::start_worker_thread()
@@ -324,7 +321,7 @@ void sound_system::sdl_audio_handler(void* userdata, uint8_t* stream, int len)
 	self->voices_mutex.lock();
 
 	float* sample_buffer = reinterpret_cast<float*>(stream);
-	for (int i = 0; i < samples; i++)
+	for (int i = 0; i < (len / sizeof(float)); i++)
 	{
 		sample_buffer[i] = 0;
 		auto sample_time_point = i * default_sample_duration(1);

@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 				std::cout << "Device " << i << ": \"" << device_name << "\"" << std::endl;
 			}
 
-			throw basic_error() << error_message("Printed device list");
+			throw flow_exit() << error_message("Printed device list");
 		}
 
 		window = SDL_CreateWindow("keys", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
@@ -255,6 +255,16 @@ int main(int argc, char** argv)
 			}
 		}
 	}
+    catch (const flow_exit& exception)
+    {
+        teardown();
+        std::string const* error_text = boost::get_error_info<error_message>(exception);
+        if (error_text != nullptr)
+        {
+            std::cout << *error_text << std::endl;
+        }
+        return 0;
+    }
 	catch (const basic_error& exception)
 	{
 		teardown();

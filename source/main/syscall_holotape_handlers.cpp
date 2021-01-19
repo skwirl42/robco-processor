@@ -28,9 +28,11 @@ void handle_holotape_execute(emulator &emulator)
         push_byte(&emulator, check_result);
         return;
     }
+    
+    holotape_status_t result;
+    result = holotape_rewind(current_deck);
 
     // This is gonna be a slightly bigger job than the other holotape functions...
-    holotape_status_t result;
     if ((result = holotape_read(current_deck)) != HOLO_NO_ERROR)
     {
         push_byte(&emulator, result);
