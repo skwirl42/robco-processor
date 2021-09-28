@@ -292,9 +292,15 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
                 break;
 
             case OPCODE_CMP:
-                if (operandA == operandB)
+                op_result = operandA - operandB;
+                if (op_result == 0)
                 {
                     emulator->CC |= CC_ZERO;
+                }
+                else if (op_result < 0)
+                {
+                    emulator->CC &= ~CC_ZERO;
+                    emulator->CC |= CC_NEG;
                 }
                 else
                 {
@@ -367,9 +373,15 @@ execute_result_t execute_alu_instruction(emulator *emulator, uint8_t opcode)
             break;
 
         case OPCODE_CMP:
-            if (operandA == operandB)
+            op_result = operandA - operandB;
+            if (op_result == 0)
             {
                 emulator->CC |= CC_ZERO;
+            }
+            else if (op_result < 0)
+            {
+                emulator->CC &= ~CC_ZERO;
+                emulator->CC |= CC_NEG;
             }
             else
             {
@@ -908,6 +920,13 @@ inst_result_t execute_instruction(emulator *emulator, opcode_entry_t** executed_
                 branch = 1;
             }
             break;
+                
+        case OPCODE_BLE:
+            if (emulator->CC & (CC_NEG | CC_ZERO))
+            {
+                branch = 1;
+            }
+            break;
 
         case OPCODE_BOV:
             if (emulator->CC & CC_OVERFLOW)
@@ -915,7 +934,14 @@ inst_result_t execute_instruction(emulator *emulator, opcode_entry_t** executed_
                 branch = 1;
             }
             break;
-        
+
+        case OPCODE_BDIV0:
+            if (emulator->CC & CC_DIV0)
+            {
+                branch = 1;
+            }
+            break;
+
         case OPCODE_JMP:
             new_pc = imm_16;
             break;
