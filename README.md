@@ -17,6 +17,10 @@ A bit of an expansion on the ideas in https://github.com/skwirl42/robco-os inclu
 - SDL2_image
 - boost
 
+## Blog posts
+
+I've got a blog post at https://ideaoubliette.blogspot.com/2021/10/emulator-basics-running-code.html on running code in the emulator.
+
 ## The Debugger
 While running the emulator clicking in the window with the mouse will pause execution and bring up the debugging screen. It shows the status of the registers, the contents of the stack, the data pointed at by the index registers, and the instruction that last executed. To resume normal execution press F5.
 
