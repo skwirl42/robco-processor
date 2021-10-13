@@ -280,7 +280,7 @@ void ConsoleSDLRenderer::Render(emulator* emulator)
         auto emulator_columns = graphics_bytes_per_line(emulator->graphics_mode);
         auto border_width = (width - (emulator_pix_per_line * pix_per_emu_pix)) / 2;
         auto border_height = (height - (emulator_lines * pix_per_emu_pix)) / 2;
-        auto emulator_pixels = (pixel_byte_t*)(&emulator->memories.data[emulator->graphics_start]);
+        auto emulator_pixels = (&emulator->memories.data[emulator->graphics_start]);
         int pixel_divisor = graphics_get_bit_divisor(emulator->graphics_mode);
         //printf("Pix per: %d, lines: %d, border: %dx%d\n", pix_per_emu_pix, emulator_lines, border_width, border_height);
 
@@ -308,59 +308,19 @@ void ConsoleSDLRenderer::Render(emulator* emulator)
                     switch (emulator->graphics_mode.depth)
                     {
                     case ONE_BIT_PER_PIXEL:
-                        switch (bit)
-                        {
-                        case 0:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel0];
-                            break;
-                        case 1:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel1];
-                            break;
-                        case 2:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel2];
-                            break;
-                        case 3:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel3];
-                            break;
-                        case 4:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel4];
-                            break;
-                        case 5:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel5];
-                            break;
-                        case 6:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel6];
-                            break;
-                        case 7:
-                            pixelValue = lut1[pixel_byte.one_bit.pixel7];
-                            break;
-                        }
+                        pixelValue = lut1[(pixel_byte >> bit) & 1];
                         break;
 
                     case TWO_BITS_PER_PIXEL:
-                        switch (two_bits)
-                        {
-                        case 0:
-                            pixelValue = lut2[pixel_byte.two_bit.pixel0];
-                            break;
-                        case 1:
-                            pixelValue = lut2[pixel_byte.two_bit.pixel1];
-                            break;
-                        case 2:
-                            pixelValue = lut2[pixel_byte.two_bit.pixel2];
-                            break;
-                        case 3:
-                            pixelValue = lut2[pixel_byte.two_bit.pixel3];
-                            break;
-                        }
+                        pixelValue = lut2[pixel_byte >> (two_bits * 2) & 0b11];
                         break;
 
                     case FOUR_BITS_PER_PIXEL:
-                        pixelValue = nybble ? lut4[pixel_byte.four_bit.pixel1] : lut4[pixel_byte.four_bit.pixel0];
+                        pixelValue = nybble ? lut4[pixel_byte >> 4] : lut4[pixel_byte & 0xF];
                         break;
 
                     case EIGHT_BITS_PER_PIXEL:
-                        pixelValue = lut8[pixel_byte.eight_bit];
+                        pixelValue = lut8[pixel_byte];
                         break;
                     }
                     pixels[(y * pixelPitch) + x] = pixelValue;

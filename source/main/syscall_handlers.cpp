@@ -121,31 +121,25 @@ execution_state_t handle_syscall_getch(emulator &emulator, Console &console)
     return RUNNING;
 }
 
-union mode_byte
-{
-    uint8_t byte;
-    graphics_mode_t mode;
-};
-
 execution_state_t handle_syscall_graphicstart(emulator& emulator, Console& console)
 {
-    mode_byte mode;
-    mode.byte = pull_byte(&emulator);
+    uint8_t mode_byte = pull_byte(&emulator);
+    graphics_mode_t mode = graphics_mode_byte_to_struct(mode_byte);
     auto graphics_begin = emulator.X;
-    auto memory_required = graphics_mem_size_for_mode(mode.mode);
+    auto memory_required = graphics_mem_size_for_mode(mode);
 
     if ((graphics_begin + memory_required) > DATA_SIZE)
     {
         push_byte(&emulator, GRAPHICS_ERROR_SPACE_TOO_SMALL);
     }
-    else if (mode.mode.depth > EIGHT_BITS_PER_PIXEL || mode.mode.resolution > RES_480x320)
+    else if (mode.depth > EIGHT_BITS_PER_PIXEL || mode.resolution > RES_480x320)
     {
         push_byte(&emulator, GRAPHICS_ERROR_UNSUPPORTED_MODE);
     }
     else
     {
-        mode.mode.enabled = true;
-        emulator.graphics_mode = mode.mode;
+        mode.enabled = true;
+        emulator.graphics_mode = mode;
         emulator.graphics_start = graphics_begin;
         push_byte(&emulator, GRAPHICS_ERROR_OK);
     }

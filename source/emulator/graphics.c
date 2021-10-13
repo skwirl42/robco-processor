@@ -117,3 +117,14 @@ uint16_t graphics_get_row_count(graphics_mode_t mode)
 
 	return row_count;
 }
+
+graphics_mode_t graphics_mode_byte_to_struct(uint8_t byte)
+{
+	graphics_mode_t mode;
+	mode.enabled = byte >> 7;
+	mode.depth = (byte >> 4) & 0b111;
+	mode.border = (byte >> 3) & 1;
+	mode.resolution = byte & 0b111;
+
+	return mode;
+}
